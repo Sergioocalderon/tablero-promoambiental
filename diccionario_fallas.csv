@@ -1,0 +1,1428 @@
+﻿Tipo_Codigo,SPN,FMI,Descripcion,Grupo,Criticidad,Origen_Criticidad,Motor_Aplica
+SPN,558,2,"Circuito del Interruptor de Validación de Ralentí - Ningún voltaje detectado simultáneamente en ambos pines de señal de fuera de ralentí y en ralentí, de validación de ralentí.",Motor,MEDIA,Manual,Generico
+SPN,558,13,"Circuito del Pedal del Acelerador - Voltaje detectado en el circuito de validación de ralentí en ralentí cuando el pedal no está en ralentí o voltaje detectado en el circuito de validación de ralentí de fuera de ralentí, cuando el pedal está en reposo.",Motor,MEDIA,Manual,Generico
+PID,91,7,La señal del sensor de posición del acelerador y el interruptor de validación de ralentí no coinciden,Motor,MEDIA,Manual,Generico
+SPN,1590,2,"Modo de Control de Crucero Adaptable - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Manual,Generico
+SPN,3555,17,Densidad del aire ambiente - Datos válidos pero inferiores al rango de funcionamiento normal - Nivel menos grave,Motor,MEDIA,Manual,Generico
+SPN,171,13,Circuito de temperatura de aire ambiente - Fuera de calibracion,Motor,MEDIA,Manual,Generico
+SPN,171,2,Circuito de temperatura de aire ambiente - Datos erraticos o intermitentes,Motor,MEDIA,Manual,Generico
+SPN,171,3,Circuito de temperatura de aire ambiente - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,171,4,Circuito de temperatura de aire ambiente - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+PID,108,3,Circuito del Sensor de Presión de Aire Ambiente - Alto voltaje detectado en el circuito,Motor,MEDIA,Manual,Generico
+PID,108,4,Circuito del Sensor de Presión de Aire Ambiente - Bajo voltaje detectado en el circuito,Motor,MEDIA,Manual,Generico
+SPN,108,2,Circuito del Sensor de Presión de Aire Ambiente - Datos erraticos o intermitentes,Motor,MEDIA,Manual,Generico
+SID,1,3,Válvula solenoide del Cilindro 1 - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SID,2,9,Válvula solenoide del Cilindro 2 - Tasa de actualización anormal,Motor,MEDIA,Manual,Generico
+SID,2,2,"Válvula solenoide del Cilindro 2 - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SID,21,12,Señal de posición del árbol de levas inactiva,Motor,MEDIA,Manual,Generico
+SID,21,8,Ruido en la señal de posición del árbol de levas,Motor,MEDIA,Manual,Generico
+SPN,111,9,Nivel del Refrigerante del motor - Tasa de actualización anormal,Motor,MEDIA,Manual,Generico
+SPN,3597,2,"Voltaje de suministro de salida de energía de la ECU # 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SPN,1075,3,Circuito eléctrico de la Bomba de elevación de combustible - Voltaje por encima de lo normal o en cortocircuito a fuente alta,Motor,MEDIA,Manual,Generico
+PID,121,0,La presión de control del freno del motor está por encima del rango de funcionamiento normal,Motor,MEDIA,Manual,Generico
+SPN,1072,5,Circuito de Salida 1 Excitador del Actuador del Freno de Motor - Corriente debajo de lo normal o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,1073,5,Circuito de Salida 2 Excitador del Actuador del Freno de Motor - Corriente debajo de lo normal o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,1073,4,Circuito de Salida 2 Excitador del Actuador del Freno de Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja. Bajo voltaje detectado en el circuito de señal número 2 del solenoide del freno de motor.,Motor,MEDIA,Manual,Generico
+SPN,111,2,Nivel Del Refrigerante - Falla en el circuito,Motor,MEDIA,Manual,Generico
+SPN,111,0,Nivel Del Refrigerante - Datos válidos pero superiores al rango de funcionamiento normal - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,111,17,Nivel del Refrigerante del motor - Datos validos pero por debajo del Rango Normal De Operación - Nivel menos severo,Motor,MEDIA,Manual,Generico
+SPN,111,3,Nivel del Refrigerante del motor - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,111,4,Nivel del Refrigerante del motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,110,2,"Temperatura Del Refrigerante - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SPN,110,14,Circuito del Sensor de Temperatura 1 del Refrigerante del Motor - Instrucciones especiales,Motor,MEDIA,Manual,Generico
+SPN,110,4,Circuito del Sensor de Temperatura 1 del Refrigerante del Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,6992,19,Excluir solicitud de combustión del cilindro 1 - Datos de red recibidos por error,Motor,MEDIA,Manual,Generico
+SPN,6993,7,Excluir solicitud de combustión del cilindro 2 - El sistema mecánico no responde o está desajustado,Motor,MEDIA,Manual,Generico
+SPN,6995,6,Excluir solicitud de combustión del cilindro 4 - Corriente por encima de lo normal,Motor,MEDIA,Manual,Generico
+SPN,6995,4,Excluir solicitud de combustión del cilindro 4 - Voltaje por debajo de lo normal o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,6997,6,Excluir solicitud de combustión del cilindro 6 - Corriente por encima de lo normal,Motor,MEDIA,Manual,Generico
+SPN,6997,4,Excluir solicitud de combustión del cilindro 6 - Voltaje por debajo de lo normal o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,6999,6,Excluir solicitud de combustión del cilindro 8 - Corriente por encima de lo normal,Motor,MEDIA,Manual,Generico
+SPN,4000,2,"Interruptor de activación del freno de motor - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SPN,27,0,Circuito de Posición de la Válvula EGR - Datos válidos pero superiores al rango de funcionamiento normal - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,27,13,Circuito de Posición de la Válvula EGR - Fuera de calibración,Motor,MEDIA,Manual,Generico
+SPN,27,4,Circuito de Posición de la Válvula EGR - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SID,56,11,Ventilador del motor - Falla de autocomprobación del circuito de salida,Motor,MEDIA,Manual,Generico
+SPN,986,2,Actuador del interruptor del ventilador del motor - Datos erraticos o intermitentes,Motor,MEDIA,Manual,Generico
+SPN,647,3,Voltaje por Encima de lo Normal o en Corto con Fuente Alta detectado en el Fan Clutch cuando está activado,Motor,MEDIA,Manual,Generico
+SPN,647,4,Voltaje por debajo de lo Normal o en Corto con Fuente baja detectado en el Fan Clutch cuando está activado,Motor,MEDIA,Manual,Generico
+SPN,652,7,Circuito Accionador del Solenoide del Inyector del Cilindro 2 - El sistema mecánico no responde o está desajustado,Motor,MEDIA,Manual,Generico
+SPN,653,7,Circuito Accionador del Solenoide del Inyector del Cilindro 3 - El sistema mecánico no responde o está desajustado,Motor,MEDIA,Manual,Generico
+SPN,655,7,Circuito Accionador del Solenoide del Inyector del Cilindro 5 - El sistema mecánico no responde o está desajustado,Motor,MEDIA,Manual,Generico
+SPN,656,7,Circuito Accionador del Solenoide del Inyector del Cilindro 6 - El sistema mecánico no responde o está desajustado,Motor,MEDIA,Manual,Generico
+SPN,5585,1,Presión de arranque del riel dosificador de combustible del inyector 1 - Datos válidos pero por debajo del rango operativo normal - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,157,18,Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Datos validos pero por debajo del Rango Normal De Operación - Nivel moderadamente severo,Motor,MEDIA,Manual,Generico
+SPN,157,14,"Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Falla de la válvula de alivio FRP, reemplazar la válvula y restablecer el contador",Motor,MEDIA,Manual,Generico
+SPN,174,3,Sensor de temperatura Del Combustible Del Motor - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,633,6,Circuito del actuador frontal de dosificación de combustible - Corriente por encima de lo normal - El motor funcionará usando solamente los tres cilindros traseros,Motor,MEDIA,Manual,Generico
+SPN,633,5,Circuito del actuador frontal de dosificación de combustible - Corriente debajo de lo normal o circuito abierto - El motor funcionará usando solamente los tres cilindros traseros,Motor,MEDIA,Manual,Generico
+SPN,1244,6,Circuito de la Válvula Electrónica 2 de Control de Inyección de Combustible - Corriente por encima de lo normal,Motor,MEDIA,Manual,Generico
+SPN,94,3,"Presión de distribucion de la bomba de combustible - Voltaje por encima de lo normal, o cortocircuitado a fuente alta",Motor,MEDIA,Manual,Generico
+SPN,94,4,Presión de distribucion de la bomba de combustible - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+PID,94,0,La Presión de suministro de combustible Está por encima Del Rango Normal De Operación,Motor,MEDIA,Manual,Generico
+PID,94,1,La Presión de suministro de combustible Está Debajo Del Rango Normal De Operación,Motor,MEDIA,Manual,Generico
+SPN,1347,3,Sistema de presurización de la bomba de combustible del motor - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,729,3,"Circuito del Calentador 1 del Aire de Admisión del Motor - Voltaje Por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,Manual,Generico
+SPN,102,2,Circuito del sensor de presión del múltiple de admisión - Datos erraticos o intermitentes,Motor,MEDIA,Manual,Generico
+SPN,102,18,Circuito del sensor de presión del múltiple de admisión - Datos validos pero por debajo del Rango Normal De Operación,Motor,MEDIA,Manual,Generico
+SPN,102,3,Alto voltaje detectado en el circuito del sensor de presión del múltiple de admisión.,Motor,MEDIA,Manual,Generico
+SPN,102,4,Bajo voltaje detectado en el circuito del sensor de presión del múltiple de admisión,Motor,MEDIA,Manual,Generico
+SPN,100,4,Presión De Aceite Del Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,1378,31,Intervalo de Cambio de Aceite del Motor - Cambie aceite y filtro del motor.,Motor,MEDIA,Manual,Generico
+SPN,175,3,Temperatura De Aceite Del Motor - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+PID,175,4,Circuito 1 del Sensor de Temperatura de Aceite del Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,636,0,Sensor de posición del motor - Datos válidos pero superiores al rango de funcionamiento normal - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,166,2,Existe un desequilibrio de potencia entre cilindros - El motor puede tener funcionamiento irregular en ralentí o fallas de encendido.,Motor,MEDIA,Manual,Generico
+SPN,190,10,Sobrevelocidad del Motor - Tasa de cambio anormal,Motor,MEDIA,Manual,Generico
+SPN,190,2,Sobrevelocidad del Motor - Datos erraticos o intermitentes,Motor,MEDIA,Manual,Generico
+SPN,190,11,Sobrevelocidad del Motor - Causa principal desconocida,Motor,MEDIA,Manual,Generico
+SPN,723,2,"Sensor de Velocidad/Posición del Árbol de Levas del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Manual,Generico
+SPN,723,7,Velocidad del Motor y Sensor de Posición del Árbol de Levas - Desalineación Mecánica Entre los Sensores del Árbol de Levas y del Cigüeñal,Motor,MEDIA,Manual,Generico
+SPN,3464,8,Circuito Excitador Del Actuador Electrónico De Control Del Acelerador - Frecuencia anormal,Motor,MEDIA,Manual,Generico
+SPN,3464,5,Circuito Excitador Del Actuador Electrónico De Control Del Acelerador - Corriente debajo de lo normal o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,51,0,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,51,3,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,51,4,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,5542,15,Presión de la turbina del turbocompresor superior a la deseada,Motor,MEDIA,Manual,Generico
+SPN,5541,2,"Presión de salida de la turbina del turbocompresor - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SPN,104,0,Presión del aceite lubricante del turbocompresor del motor 1 - Datos válidos pero superiores al rango normal de operación - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,1189,3,Circuito de posición del actuador 2 de la compuerta de descarga del turbocargador del motor -voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Manual,Generico
+SPN,1189,4,Circuito de posición del actuador 2 de la compuerta de descarga del turbocargador del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Manual,Generico
+SPN,6891,4,"Actuador 3 de la valvula Wastegate del turbocompresor - Voltaje por debajo de lo normal, o cortocircuitado a fuente baja",Motor,MEDIA,Manual,Generico
+SPN,6892,4,"Actuador 4 de la valvula Wastegate del turbocompresor - Voltaje por debajo de lo normal, o cortocircuitado a fuente baja",Motor,MEDIA,Manual,Generico
+SPN,96,3,"Circuito del sensor de nivel de combustible (tanque principal) - Voltaje por encima de lo normal, o cortocircuitado a fuente alta",Motor,MEDIA,Manual,Generico
+SID,1,6,Corto a tierra en el inyector del cilindro 1,Motor,MEDIA,Manual,Generico
+SID,2,6,Corto a tierra en el inyector del cilindro 2,Motor,MEDIA,Manual,Generico
+SID,3,6,Corto a tierra en el inyector del cilindro 3,Motor,MEDIA,Manual,Generico
+SID,4,6,Corto a tierra en el inyector del cilindro 4,Motor,MEDIA,Manual,Generico
+SID,5,6,Corto a tierra en el inyector del cilindro 5,Motor,MEDIA,Manual,Generico
+SID,6,6,Corto a tierra en el inyector del cilindro 6,Motor,MEDIA,Manual,Generico
+SID,7,6,Corto a tierra en el inyector del cilindro 7,Motor,MEDIA,Manual,Generico
+SID,8,6,Corto a tierra en el inyector del cilindro 8,Motor,MEDIA,Manual,Generico
+SID,2,4,Corriente debajo de lo normal en el inyector del cilindro 2,Motor,MEDIA,Manual,Generico
+SID,3,4,Corriente debajo de lo normal en el inyector del cilindro 3,Motor,MEDIA,Manual,Generico
+SID,4,4,Corriente debajo de lo normal en el inyector del cilindro 4,Motor,MEDIA,Manual,Generico
+SID,5,4,Corriente debajo de lo normal en el inyector del cilindro 5,Motor,MEDIA,Manual,Generico
+SID,6,4,Corriente debajo de lo normal en el inyector del cilindro 6,Motor,MEDIA,Manual,Generico
+SID,8,4,Corriente debajo de lo normal en el inyector del cilindro 8,Motor,MEDIA,Manual,Generico
+SID,1,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 1,Motor,MEDIA,Manual,Generico
+SID,2,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 2,Motor,MEDIA,Manual,Generico
+SID,3,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 3,Motor,MEDIA,Manual,Generico
+SID,4,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 4,Motor,MEDIA,Manual,Generico
+SID,5,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 5,Motor,MEDIA,Manual,Generico
+SID,6,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 6,Motor,MEDIA,Manual,Generico
+SID,7,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 7,Motor,MEDIA,Manual,Generico
+SID,8,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 8,Motor,MEDIA,Manual,Generico
+PID,73,3,Sensor de presión hidráulica - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+PID,71,14,Temporizador de ralentí habilitado para el apagado automático del motor,Motor,MEDIA,Manual,Generico
+SID,230,11,Falla en el circuito del interruptor de validación de ralenti,Motor,MEDIA,Manual,Generico
+SID,21,2,"Señal de posición del árbol de levas - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SID,64,2,Señal del sensor de posición del cigüeñal (CPK) incorrecta,Motor,MEDIA,Manual,Generico
+PID,164,13,Presión de control de inyección por encima del rango normal de Operación - El motor no funciona,Motor,MEDIA,Manual,Generico
+PID,164,0,Presión de control de inyección - Datos Válidos pero Por Encima de la Gama Normal de Operación - Nivel Más Grave,Motor,MEDIA,Manual,Generico
+PID,164,10,Presión de control de inyección por encima o por debajo de lo normal,Motor,MEDIA,Manual,Generico
+SID,42,11,Regulador de presión de control de inyección - Falla en la autocomprobación del circuito de salida,Motor,MEDIA,Manual,Generico
+PID,164,3,La Presión de control de inyección se encuentra por encima del Rango Normal De Operación.,Motor,MEDIA,Manual,Generico
+PID,164,4,La Presión de control de inyección Está Debajo Del Rango Normal De Operación.,Motor,MEDIA,Manual,Generico
+PID,164,1,Presión de control de inyección incapaz de generar presión durante el arranque,Motor,MEDIA,Manual,Generico
+SID,254,6,Injection Driver Module Fault,Motor,MEDIA,Manual,Generico
+SID,221,4,Relé del sistema de inyección - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SID,233,4,Módulo controlador de inyección VIGN - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,1043,4,Se detecta bajo voltaje en la línea de voltaje de alimentación del módulo de control electrónico (ECM) al acelerador(es).,Motor,MEDIA,Manual,Generico
+SPN,639,9,Red del protocolo SAE J1939 - Tasa de cambio anormal,Motor,MEDIA,Manual,Generico
+SPN,639,13,Red del protocolo SAE J1939 - Fuera de calibracion,Motor,MEDIA,Manual,Generico
+SPN,639,14,Red del protocolo SAE J1939 presenta una falla desconocida,Motor,MEDIA,Manual,Generico
+SPN,639,31,Red del protocolo SAE J1939 - La condicion existe,Motor,MEDIA,Manual,Generico
+SPN,1231,14,Red del protocolo SAE J1939 presenta una falla desconocida,Motor,MEDIA,Manual,Generico
+SPN,829,0,Sensor izquierdo del nivel de combustible - Datos validos pero por encima del Rango Normal De Operación - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,829,3,"Sensor del tanque de combustible - Voltaje por encima de lo normal, o cortocircuitado a fuente alta",Motor,MEDIA,Manual,Generico
+SPN,3200,2,Retraso excesivo en el tiempo de transito de los mensajes,Motor,MEDIA,Manual,Generico
+SPN,6893,4,Velocidad del flujo másico del combustible - Voltaje por debajo de lo normal o cortocircuitado a fuente baja,Motor,MEDIA,Manual,Generico
+SPN,625,2,"Error Del Enlace De Datos Patentado (Enlace De Datos Del OEM/Vehículo) - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Manual,Generico
+SPN,625,14,Error Del Enlace De Datos Patentado (Enlace De Datos Del OEM/Vehículo) - Índice De Actualización Anormal,Motor,MEDIA,Manual,Generico
+SPN,251,2,Reloj de tiempo real - Datos erraticos o intermitentes - Los datos en el ECM no tendrán información exacta de tiempo y fecha,Motor,MEDIA,Manual,Generico
+SPN,830,0,Sensor derecho del nivel de combustible - Datos validos pero por encima del Rango Normal De Operación - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,830,1,Sensor derecho del nivel de combustible - Datos validos pero por debajo del Rango Normal De Operación - Nivel más severo,Motor,MEDIA,Manual,Generico
+SPN,3509,3,Circuito número 1 de alimentación de sensores - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,1080,4,"Bajo voltaje detectado en la línea de voltaje de alimentación del ECM, para algunos sensores",Motor,MEDIA,Manual,Generico
+SPN,3513,14,Circuito número 5 de alimentación de sensores - Instrucciones Especiales,Motor,MEDIA,Manual,Generico
+SPN,1172,3,Circuito de Temperatura de Admisión del Compresor del Turbocargador 1 - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Manual,Generico
+SPN,103,16,"Velocidad del turbocargador 1 - Datos válidos, pero por encima del rango de funcionamiento normal - Nivel moderadamente grave",Motor,MEDIA,Manual,Generico
+SID,254,8,ECM-Error de reinicio inesperado,Motor,MEDIA,Manual,Generico
+SPN,520763,5,Controlador de relé de solenoide de aire universal 11 - Baja corriente o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,520764,5,Controlador de relé de solenoide de aire universal 12 - Baja corriente o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,520757,5,Controlador de relé de solenoide de aire universal 5 - Baja corriente o circuito abierto,Motor,MEDIA,Manual,Generico
+SPN,97,16,Indicador De Agua En El Combustible - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel moderadamente severo,Motor,MEDIA,Manual,Generico
+SPN,97,3,"Indicador De Agua En El Combustible - Voltaje por encima de lo normal, o cortocircuitado a fuente alta",Motor,MEDIA,Manual,Generico
+SPN,3950,6,Bocina de aire - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,3950,5,Bocina de aire - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SID,250,2,Error de Comunicación,Eléctrico,MEDIA,Manual,Generico
+SPN,920,3,Alarma audible - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Eléctrico,MEDIA,Manual,Generico
+SPN,920,4,Alarma audible - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eléctrico,MEDIA,Manual,Generico
+SPN,167,18,Voltaje de la batería - Datos validos pero por debajo del Rango Normal De Operación,Eléctrico,MEDIA,Manual,Generico
+SPN,168,4,Voltaje de la batería por debajo de lo normal o en corto a fuente baja,Eléctrico,MEDIA,Manual,Generico
+SPN,2033,9,Panel de instrumentos - Comunicación perdida,Eléctrico,MEDIA,Manual,Generico
+SPN,1045,2,"Interruptor de luz de freno 1: datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,1045,7,Interruptor de luz de freno 1: El sistema mecánico no responde o está desajustado,Eléctrico,MEDIA,Manual,Generico
+SPN,3976,6,Luz 1 de techo de la cabina - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,3977,5,Luz 2 de techo de la cabina - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,3979,5,Luz del piso de la cabina - Corriente por debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,165,12,Brújula del grupo de instrumentos - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,520919,13,El conector J4 Pin E1 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520890,13,El conector J4 Pin E10 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520889,13,El conector J4 Pin E11 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520894,13,El conector J4 Pin E12 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520895,13,El conector J4 Pin E13 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520892,13,El conector J4 Pin E14 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520893,13,El conector J4 Pin E16 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520916,13,El conector J4 Pin E2 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520915,13,El conector J4 Pin E3 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520917,13,El conector J4 Pin E4 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520920,13,El conector J4 Pin E5 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520918,13,El conector J4 Pin E8 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520896,13,El conector J4 Pin E9 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520901,13,El conector J4 Pin F1 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520906,13,El conector J4 Pin F11 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520912,13,El conector J4 Pin F12 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520911,13,El conector J4 Pin F16 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520899,13,El conector J4 Pin F2 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520900,13,El conector J4 Pin F3 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520903,13,El conector J4 Pin F4 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520902,13,El conector J4 Pin F5 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520897,13,El conector J4 Pin F6 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520898,13,El conector J4 Pin F7 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520904,13,El conector J4 Pin F8 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,520910,13,El conector J4 Pin F9 tiene una carga en este pin que se encuentra configurado como no utilizado,Eléctrico,MEDIA,Manual,Generico
+SPN,521528,12,Interruptor descendente de la ventana del pasajero del control del conductor - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521527,12,Interruptor ascendente de la ventana del pasajero del control del conductor - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521518,12,Interruptor de desbloqueo del seguro eléctrico del conductor - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521526,12,Interruptor descendente de la ventana del conductor - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521525,12,Interruptor ascendente de la ventana del conductor - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,3998,6,Relé de Control de Carga Eléctrica (Load Shed) Sobre Corriente,Eléctrico,MEDIA,Manual,Generico
+SPN,3461,5,Solenoide de aire del PTO 2 - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SID,20,7,Extra Smart Switch - El Sistema mecánico no responde,Eléctrico,MEDIA,Manual,Generico
+SPN,4007,2,"Interruptor de bloqueo de la quinta rueda deslizante - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,4008,6,Luz antiniebla derecha - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,4008,5,Luz antiniebla derecha - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,1705,4,Sistema de cámara de visión frontal -Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eléctrico,MEDIA,Manual,Generico
+SPN,521519,12,Interruptor de desbloqueo del seguro eléctrico de la puerta del pasajero - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521520,12,Interruptor de bloqueo del seguro eléctrico de la puerta del pasajero - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521530,12,Interruptor descendente de la ventana del pasajero delantero bloqueado,Eléctrico,MEDIA,Manual,Generico
+SPN,521529,12,Interruptor ascendente de la ventana del pasajero - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,2023,14,Falla en el panel de instrumentos,Eléctrico,MEDIA,Manual,Generico
+SPN,4011,6,Luz alta izquierda - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,4011,5,Luz alta izquierda - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,4012,6,Luz alta derecha - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,4012,5,Luz alta derecha - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,2653,6,Luz baja izquierda - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2653,5,Luz baja izquierda - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,2655,6,Luz baja derecha - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2655,5,Luz baja derecha - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,520650,0,RPM 1 Canal 5 Entrada analógica Datos no válidos,Eléctrico,MEDIA,Manual,Generico
+SPN,2641,6,Bocina electrica - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2641,14,Bocina electrica - Preservar por 10 minutos,Eléctrico,MEDIA,Manual,Generico
+SPN,627,2,"Fuente de alimentación perdida con la ignición encendida. Conexiones de terminales de la batería sucias, dañadas o mal conectadas",Eléctrico,MEDIA,Manual,Generico
+SPN,608,9,Falla en el paquete de interruptores y el sistema eléctrico de la puerta,Eléctrico,MEDIA,Manual,Generico
+SPN,3565,2,"Salida de carril a la izquierda - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,3564,2,"Comando de habilitación de advertencia de cambio de carril - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,1703,5,Altavoz de seguimiento de carril - Lado derecho - Corriente por debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,520750,6,Luz antiniebla izquierda - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,520750,5,Luz antiniebla izquierda - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,521511,12,Interruptor de selección del espejo izquierdo - Dispositivo o componente inteligente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,2372,6,Luz stop izquierda - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2368,6,Luz direccional delantera izquierda - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2368,5,Luz direccional delantera izquierda - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,3412,7,Sistema de control de bloqueo de la puerta 1 - El sistema mecánico no responde o no está ajustado,Eléctrico,MEDIA,Manual,Generico
+SPN,4024,2,"Interruptor de Luces de Gálibo - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,2642,5,Calefaccion del espejo izquierdo - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,4026,6,Calefaccion del espejo derecho - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,4026,5,Calefaccion del espejo derecho - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,521516,12,Interruptor del calentador del espejo - Dispositivo o componente inteligente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,521512,12,Interruptor del espejo retrovisor - Dispositivo o componente inteligente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SID,240,11,Lista de parámetros programables de la memoria RAM dañada,Eléctrico,MEDIA,Manual,Generico
+SPN,6989,6,Sensor de Presión del neumático - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,521559,12,Interruptor de selección del espejo derecho - Dispositivo o componente inteligente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,2374,6,Luz stop derecha - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2370,6,Luz direccional delantera derecha - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2370,5,Luz direccional delantera derecha - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,1079,4,Alimentación del sensor de 5 V - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eléctrico,MEDIA,Manual,Generico
+SPN,1079,0,Alimentación del sensor de 5 V por encima del rango normal,Eléctrico,MEDIA,Manual,Generico
+SPN,520782,6,Cortocircuito a tierra o sobrecarga en el circuito de luces de estacionamiento,Eléctrico,MEDIA,Manual,Generico
+SPN,2610,4,Porcentaje de intensidad solar - Voltaje por debajo de lo normal o en cortocircuito a una fuente baja,Eléctrico,MEDIA,Manual,Generico
+SPN,2132,11,Panel de interruptores secundario - Causa principal desconocida,Eléctrico,MEDIA,Manual,Generico
+SPN,2167,11,Tablero de instrumentos secundario - Causa principal desconocida,Eléctrico,MEDIA,Manual,Generico
+SPN,2225,14,Fusible del módulo 1 de alimentación remota,Eléctrico,MEDIA,Manual,Generico
+SPN,2225,9,Modulo de control remoto (RPM) 1 - Tasa de actualización anormal,Eléctrico,MEDIA,Manual,Generico
+SPN,2226,14,El Modulo de Control Remoto (RPM) 2 Tiene un Problema de Dirección,Eléctrico,MEDIA,Manual,Generico
+SPN,2023,11,Panel de instrumentos - Causa raíz de la falla desconocida,Eléctrico,MEDIA,Manual,Generico
+SPN,2023,3,"Panel de instrumentos - Voltaje por encima de lo normal, o cortocircuitado a fuente alta",Eléctrico,MEDIA,Manual,Generico
+SPN,2023,4,Panel de instrumentos - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eléctrico,MEDIA,Manual,Generico
+SPN,2023,6,Panel de instrumentos - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2236,9,Falla en el sistema eléctrico de la puerta del conductor - Las ventanas y seguros eléctricos pueden no estar funcionando,Eléctrico,MEDIA,Manual,Generico
+SPN,2236,14,Sistema eléctrico de la puerta del conductor - Problemas de comunicacion del enlace de datos,Eléctrico,MEDIA,Manual,Generico
+SPN,2237,9,Falla en el sistema eléctrico de la puerta del pasajero - Las ventanas y seguros eléctricos pueden no estar funcionando,Eléctrico,MEDIA,Manual,Generico
+SPN,2237,14,Sistema eléctrico de la puerta del pasajero - Problemas de comunicacion del enlace de datos,Eléctrico,MEDIA,Manual,Generico
+SID,4,2,"Interruptor de Luces Altas/Bajas - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,880,5,Circuito de luz stop - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,520461,9,Panel de interruptores 1 Defectuoso o Error de Enlace de Datos,Eléctrico,MEDIA,Manual,Generico
+SPN,520462,9,Panel de interruptores 2 Defectuoso o Error de Enlace de Datos,Eléctrico,MEDIA,Manual,Generico
+SPN,882,5,Relé de la lámpara de la matrícula del remolque - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,882,4,Relé de la lámpara de la matrícula del remolque - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eléctrico,MEDIA,Manual,Generico
+SPN,520553,2,Truck Equipment Manufacturer (TEM) Aux 1 Switch Error,Eléctrico,MEDIA,Manual,Generico
+SPN,520565,2,Truck Equipment Manufacturer (TEM) Aux 2 Switch Error,Eléctrico,MEDIA,Manual,Generico
+SPN,520578,2,Truck Equipment Manufacturer (TEM) Aux Solenoid 1 Switch Error,Eléctrico,MEDIA,Manual,Generico
+SPN,1069,1,Supervisión de la dimensión del neumático - Datos válidos pero inferiores al rango operativo normal - Nivel más severo,Eléctrico,MEDIA,Manual,Generico
+SPN,6971,6,Sensor de Posición del neumático - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,6971,5,Sensor de Posición del neumático - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,6965,4,Sensor de Posición del neumático - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eléctrico,MEDIA,Manual,Generico
+SPN,6988,6,Sensor de Presión del neumático - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,6966,4,Número de identificación del sensor del neumático - Voltaje por debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,1238,2,"Interruptor de anulación de control de tracción - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,2388,5,Actuador de interruptor o microinterruptor para las luces antiniebla - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,2387,2,Actuador de interruptor o microinterruptor para las luces antiniebla - Datos erraticos o intermitentes,Eléctrico,MEDIA,Manual,Generico
+SPN,2378,6,Luces de parqueo - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2378,5,Luces de parqueo - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,2362,6,Luz de trabajo - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2362,5,Luz de trabajo - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,520862,13,Interruptor inesperado en el panel de interruptores 1 (Interruptor 5 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,520852,13,Interruptor inesperado en el panel de interruptores 2 (Interruptor 1 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,520853,13,Interruptor inesperado en el panel de interruptores 2 (Interruptor 2 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,520854,13,Interruptor inesperado en el panel de interruptores 2 (Interruptor 3 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,520855,13,Interruptor inesperado en el panel de interruptores 2 (Interruptor 4 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,520856,13,Interruptor inesperado en el panel de interruptores 2 (Interruptor 5 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,520857,13,Interruptor inesperado en el panel de interruptores 2 (Interruptor 6 de 6) - Esta falla indica que el panel de interruptores puede no haber sido programado correctamente en el módulo de control del cuerpo (BCM),Eléctrico,MEDIA,Manual,Generico
+SPN,2636,6,Relé de encendido/apagado del limpiabrisas - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,2636,5,Relé de encendido/apagado del limpiabrisas - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,2637,5,Velocidad del motor del limpiaparabrisas - Corriente debajo de lo normal o circuito abierto,Eléctrico,MEDIA,Manual,Generico
+SPN,4057,6,Motor del limpiabrisas - Corriente por encima de lo normal,Eléctrico,MEDIA,Manual,Generico
+SPN,1547,0,Sensor de temperatura de entrada de HVAC - Datos validos pero por encima del rango normal de operacion,HVAC,MEDIA,Manual,Generico
+SPN,2011,9,Pérdida de comunicación con el controlador ABS,ABS,MEDIA,Manual,Generico
+SPN,1243,2,"ABS Fully Operational : Data Erratic, Intermittent Or Incorrect",Desconocido,MEDIA,Manual,Generico
+SPN,4334,1,Sensor de Presión del Fluido del Escape Diésel del Postratamiento - Datos válidos pero debajo del rango de funcionamiento normal - Nivel más severo,Postratamiento,MEDIA,Manual,Generico
+SPN,4340,4,Calentador de la línea del fluido de escape diesel del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Postratamiento,MEDIA,Manual,Generico
+SPN,5485,11,Controlador de emisiones de escape: Flujo restringido en el dosificador de la bomba del DEF,Postratamiento,MEDIA,Manual,Generico
+SPN,3031,9,Sensor de Temperatura del Tanque del Fluido del Escape Diésel del Postratamiento - Tasa de actualización anormal,Postratamiento,MEDIA,Manual,Generico
+SPN,3031,13,Sensor de Temperatura del Tanque del Fluido del Escape Diésel del Postratamiento - Fuera de calibración,Postratamiento,MEDIA,Manual,Generico
+SPN,1761,17,Circuito del Sensor de Nivel del Tanque del Fluido del Escape Diésel del Postratamiento - Datos válidos pero inferiores al rango de funcionamiento normal - Nivel menos grave,Postratamiento,MEDIA,Manual,Generico
+SPN,1761,18,Circuito del Sensor de Nivel del Tanque del Fluido del Escape Diésel del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Postratamiento,MEDIA,Manual,Generico
+SPN,1761,1,Circuito del Sensor de Nivel del Tanque del Fluido del Escape Diésel del Postratamiento - Datos válidos pero debajo del rango de funcionamiento normal - Nivel más severo,Postratamiento,MEDIA,Manual,Generico
+SPN,1761,13,Circuito del Sensor de Nivel del Tanque del Fluido del Escape Diésel del Postratamiento - Fuera de calibracion,Postratamiento,MEDIA,Manual,Generico
+SPN,3223,5,Calentador del sensor de gas de admisión de Postratamiento - Corriente debajo de lo normal o circuito abierto,Postratamiento,MEDIA,Manual,Generico
+SPN,3228,2,"Suministro de Energía del Sensor de NOx de Salida de Postratamiento - Datos Erráticos, Intermitentes o Incorrectos",Postratamiento,MEDIA,Manual,Generico
+SPN,3226,16,"Circuito del Sensor de NOx de la Salida del Postratamiento - Datos válidos, pero por encima del rango de funcionamiento normal - Nivel moderadamente grave",Postratamiento,MEDIA,Manual,Generico
+SPN,3226,20,Circuito del Sensor de NOx de la Salida del Postratamiento - Datos con desviación alta,Postratamiento,MEDIA,Manual,Generico
+SPN,3226,2,Circuito del Sensor de NOx de la Salida del Postratamiento - Datos erraticos o intermitentes,Postratamiento,MEDIA,Manual,Generico
+SPN,3226,0,Circuito del Sensor de NOx de la Salida del Postratamiento - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel más severo,Postratamiento,MEDIA,Manual,Generico
+SPN,3226,13,Circuito del Sensor de NOx de la Salida del Postratamiento - Fuera de calibracion,Postratamiento,MEDIA,Manual,Generico
+SPN,5031,10,Calefactor del sensor de NOx de la salida de postratamiento - Tasa de cambio anormal,Postratamiento,MEDIA,Manual,Generico
+SPN,3216,16,NOx de Admisión del Postratamiento - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Se ha detectado una condición de NOx alto en la salida del motor,Postratamiento,MEDIA,Manual,Generico
+SPN,4360,2,Circuito del Sensor de Temperatura de Entrada del SCR de Postratamiento - Datos erraticos o intermitentes,Postratamiento,MEDIA,Manual,Generico
+SPN,4363,3,Circuito del Sensor de Temperatura de salida del SCR de Postratamiento - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Postratamiento,MEDIA,Manual,Generico
+SPN,3361,9,Temperatura de la Unidad de Dosificación de Fluido del Escape Diésel del Postratamiento - Tasa de actualización anormal,Postratamiento,MEDIA,Manual,Generico
+SPN,3362,7,Líneas de entrada de la unidad de dosificación de líquido de escape diesel del postratamiento: El sistema mecánico no responde o está desajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,3226,15,Circuito del Sensor de NOx de la Salida del Postratamiento - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel menos severo,Postratamiento,MEDIA,Manual,Generico
+SPN,3226,5,Circuito del Sensor de NOx de la Salida del Postratamiento Circuito Abierto,Postratamiento,MEDIA,Manual,Generico
+SPN,6968,4,"Antenna Number : Voltage Below Normal, Or Shorted To Low Source",Desconocido,MEDIA,Manual,Generico
+SPN,563,14,Mensaje CAN del sistema ABS - El sistema de asistencia para arranque en pendientes (HSA) no está operativo,Transmisión,MEDIA,Manual,Generico
+PID,49,9,Mensajes CAN del sistema ABS - La TECU detecta que se ha perdido la comunicación con el módulo ABS a través del enlace de datos J1939,Transmisión,MEDIA,Manual,Generico
+PID,49,14,Mensaje CAN del sistema ABS - El sistema de asistencia para arranque en pendientes (HSA) no está operativo,Transmisión,MEDIA,Manual,Generico
+SPN,577,2,"Interruptor del Sistema de ayuda al arranque en pendiente - Datos erráticos, intermitentes o incorrectos",ABS,MEDIA,Manual,Generico
+SPN,576,14,Control automático de tracción (ATC) deshabilitado o modo de prueba en dinamómetro activo,ABS,MEDIA,Manual,Generico
+SPN,703,3,"Auxiliary I/O #03 : Voltage Above Normal, Or Shorted To High Source",Desconocido,MEDIA,Manual,Generico
+SPN,3840,0,Auxiliary I/O #17 : Data Valid But Above Normal Operational Range – Most Severe Level,Desconocido,MEDIA,Manual,Generico
+SPN,6954,7,Axle 4 Monitored Tire Count : Mechanical System Not Responding Or Out Of Adjustment,Eje,MEDIA,Manual,Generico
+SPN,1059,2,"Sensor de carga del eje - Datos erráticos, intermitentes o incorrectos",Frenos,MEDIA,Manual,Generico
+SPN,168,14,Fuente de alimentacion perdida en el Módulo de Control de Transmisión (TCM),Transmisión,MEDIA,Manual,Generico
+SPN,168,3,Controlador del sistema de frenos - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Frenos,MEDIA,Manual,Generico
+SPN,1727,4,"Baja presion en el eje trasero izquierdo - Voltaje por debajo de lo normal, o cortocircuitado a fuente baja",Eje,MEDIA,Manual,Generico
+SPN,116,1,Presión de aplicación del freno - Datos validos pero por debajo del Rango Normal De Operación - Nivel más severo,Frenos,MEDIA,Manual,Generico
+SPN,1067,2,"Sensor de señal de freno 1 - Datos erráticos, intermitentes o incorrectos",ABS,MEDIA,Manual,Generico
+SPN,1067,7,Sensor de señal de freno 1 - El sistema mecánico no responde o está desajustado,ABS,MEDIA,Manual,Generico
+SPN,1067,11,Sensor de señal de freno 1 - Causa raíz desconocida,ABS,MEDIA,Manual,Generico
+SPN,1068,2,"Sensor de señal de freno 2 - Datos erráticos, intermitentes o incorrectos",Frenos,MEDIA,Manual,Generico
+SPN,597,2,Las entradas del interruptor de freno no coinciden,Frenos,MEDIA,Manual,Generico
+SPN,597,0,Lectura del interruptor de freno por encima del rango normal,Frenos,MEDIA,Manual,Generico
+SPN,597,1,Lectura del interruptor de freno por debajo del rango normal,Frenos,MEDIA,Manual,Generico
+SPN,2609,15,Sensor de Presión de salida del compresor de refrigerante de aire acondicionado de la cabina - Datos válidos pero superiores al rango de funcionamiento normal: nivel menos grave,HVAC,MEDIA,Manual,Generico
+SPN,2609,16,Sensor de Presión de salida del compresor de refrigerante de aire acondicionado de la cabina - Datos válidos pero superiores al rango de funcionamiento normal - nivel moderadamente grave,HVAC,MEDIA,Manual,Generico
+SPN,2609,1,Sensor de Presión de salida del compresor de refrigerante de aire acondicionado de la cabina - Datos válidos pero debajo del rango de funcionamiento normal - Nivel más severo,HVAC,MEDIA,Manual,Generico
+SPN,2609,7,Sensor de Presión de salida del compresor de refrigerante de aire acondicionado de la cabina - El sistema mecanico no responde,HVAC,MEDIA,Manual,Generico
+SPN,3981,2,"Actuador de control de modo de A/C de cabina - Datos Erráticos, Intermitentes o Incorrectos",HVAC,MEDIA,Manual,Generico
+SPN,3984,2,"Actuador de control de puerta de recirculación de A/C de cabina - Datos Erráticos, Intermitentes o Incorrectos",HVAC,MEDIA,Manual,Generico
+SPN,3985,9,Controlador del sistema de A/C de la cabina - Tasa de actualización anormal,HVAC,MEDIA,Manual,Generico
+SID,248,9,CAN Electronic Clutch Actuator Message: Abnormal Update Rate,Desconocido,MEDIA,Manual,Generico
+SPN,521021,2,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,521022,2,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,521023,2,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,521024,2,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,1564,2,"Forward-looking Camera (Sistema Wingman) - Datos erráticos, intermitentes o incorrectos",Frenos,MEDIA,Manual,Generico
+SPN,598,1,Interruptor del embrague -Datos válidos pero debajo del rango de funcionamiento normal - Nivel más severo,Transmisión,MEDIA,Manual,Generico
+SPN,598,7,Interruptor del embrague - El sistema mecánico no responde o está desajustado,Transmisión,MEDIA,Manual,Generico
+SPN,598,14,"Interruptor del embrague superior, atascado en posición de abierto o cerrado",Transmisión,MEDIA,Manual,Generico
+SPN,6980,6,Cold Inflation Pressure : Current Above Normal Or Grounded Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,876,6,Compresor de acoplamiento del embrague del HVAC - Corriente por encima de lo normal,HVAC,MEDIA,Manual,Generico
+SPN,876,5,Compresor de acoplamiento del embrague del HVAC - Corriente debajo de lo normal o circuito abierto,HVAC,MEDIA,Manual,Generico
+SPN,232,0,Sistema de posicionamiento global diferencial (DGPS),Información,MEDIA,Manual,Generico
+SPN,566,5,Circuito de bloqueo del diferencial trasero central - Corriente debajo de lo normal o circuito abierto,Diferencial,MEDIA,Manual,Generico
+SPN,569,5,Circuito de bloqueo del diferencial trasero delantero - Corriente debajo de lo normal o circuito abierto,Diferencial,MEDIA,Manual,Generico
+SPN,569,2,"Circuito de bloqueo del diferencial trasero delantero - Datos erráticos, intermitentes o incorrectos",Diferencial,MEDIA,Manual,Generico
+SPN,691,2,Desactivar la solicitud de bloqueo del diferencial trasero cental- Error del interruptor de bloqueo del divisor de potencia,Diferencial,MEDIA,Manual,Generico
+SPN,687,2,Desactivar la solicitud de bloqueo del diferencial trasero 1- Error del interruptor de bloqueo del divisor de potencia,Diferencial,MEDIA,Manual,Generico
+SPN,4818,5,Driver Air Bag-Open Line,Desconocido,MEDIA,Manual,Generico
+PID,34,4,Actuador del embrague electrónico (ECA): Voltaje por debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SPN,1056,5,"Control electrónico de presión, control del remolque - Corriente por debajo de lo normal o circuito abierto",Frenos,MEDIA,Manual,Generico
+PID,118,4,Engine Brake Control Pressure Signal Out-Of-Range low,Desconocido,MEDIA,Manual,Generico
+SPN,2000,9,Engine Controller: Abnormal Update Rate,Desconocido,MEDIA,Manual,Generico
+SPN,7000,4,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,411,2,"Presión diferencial de recirculación de gases de escape del motor - Datos erráticos, intermitentes o incorrectos",Postratamiento,MEDIA,Manual,Generico
+SPN,411,4,Presión diferencial de recirculación de gases de escape del motor - Voltaje por debajo de lo normal o circuito abierto,Postratamiento,MEDIA,Manual,Generico
+SPN,2659,21,Recirculación de gases de escape del motor 1 : Caudal másico bajo,Postratamiento,MEDIA,Manual,Generico
+SPN,412,16,Temperatura de recirculación de gases de escape del motor - Datos válidos pero superiores al rango de funcionamiento normal - Nivel moderadamente severo,Postratamiento,MEDIA,Manual,Generico
+SPN,2791,8,Bobina de la válvula de recirculación de gases (EGRV) - Frecuencia anormal,Postratamiento,MEDIA,Manual,Generico
+SPN,2791,5,Bobina de la válvula de recirculación de gases (EGRV) - Corriente debajo de lo normal o circuito abierto,Postratamiento,MEDIA,Manual,Generico
+SPN,1209,2,"Engine Exhaust Pressure 1 : Data Erratic, Intermittent Or Incorrect",Desconocido,MEDIA,Manual,Generico
+SPN,3055,1,Engine Fuel System Monitor : Data Valid But Below Normal Operational Range - Most Severe Level,Desconocido,MEDIA,Manual,Generico
+SPN,172,0,Engine Intake 1 Air Temperature : Data Valid But Above Normal Operational Range - Most Severe Level,Desconocido,MEDIA,Manual,Generico
+SPN,172,3,"Engine Intake 1 Air Temperature : Voltage Above Normal, Or Shorted To High Source",Desconocido,MEDIA,Manual,Generico
+SPN,4228,15,Engine Variable Geometry Turbocharger Actuator 1 Temperature : Data Valid But Above Normal Operating Range - Least Severe Level,Desconocido,MEDIA,Manual,Generico
+SPN,1550,5,Porcentaje estimado de la velocidad del ventilador 2 - Corriente debajo de lo normal o circuito abierto,Desconocido,MEDIA,Manual,Generico
+SPN,6976,6,Extreme Under Pressure Percentage Threshold Setting : Current Above Normal Or Grounded Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,6976,5,Extreme Under Pressure Percentage Threshold Setting : Current Below Normal Or Open Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,77,1,Sensor de temperatura del eje trasero delantero - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,Eje,MEDIA,Manual,Generico
+SPN,1705,31,Forward View Imager System : Condition Exists,Desconocido,MEDIA,Manual,Generico
+SPN,1705,6,Forward View Imager System : Current Above Normal Or Grounded Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,1705,5,Forward View Imager System : Current Below Normal Or Open Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,1705,14,Imager System de vista frontal - Instrucciones Especiales,Wingman,MEDIA,Manual,Generico
+SPN,904,19,Velocidad del eje delantero - Datos de red recibidos en error,Eje,MEDIA,Manual,Generico
+SPN,520321,14,Grade Sensor : Special Instructions,Desconocido,MEDIA,Manual,Generico
+SPN,520211,7,Actuador de HVAC: el sistema mecánico no responde o no está ajustado,HVAC,MEDIA,Manual,Generico
+SPN,520210,3,Salida del soplador del HVAC - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,HVAC,MEDIA,Manual,Generico
+SPN,520210,4,Salida del soplador del HVAC - Voltaje por debajo de lo normal o circuito abierto,HVAC,MEDIA,Manual,Generico
+SPN,520465,2,Fallos múltiples en el motor del Cabezal de control de HVAC,HVAC,MEDIA,Manual,Generico
+SPN,1548,5,Temperatura del conducto de HVAC - Corriente debajo de lo normal o circuito abierto,HVAC,MEDIA,Manual,Generico
+SPN,1548,0,Temperatura del conducto de HVAC - Datos válidos pero superiores al rango de operación normal - Nivel más severo,HVAC,MEDIA,Manual,Generico
+SID,22,2,Injection Driver Module Incorrect Camshaft Position Output Signal Signature,Desconocido,MEDIA,Manual,Generico
+SID,22,8,Injection Driver Module Incorrect Crankshaft Position Output Signal Signature,Desconocido,MEDIA,Manual,Generico
+SID,19,2,Voltaje incorrecto en la palanca de cambios: Datos erráticos,Transmisión,MEDIA,Manual,Generico
+SPN,527,9,Desconocido,Desconocido,MEDIA,Manual,Generico
+SID,231,14,La TECU ha perdido comunicación o ha recibido señales erráticas de la ECU del motor a través del enlace de datos J1939 durante 5 segundos o más,Transmisión,MEDIA,Manual,Generico
+SPN,1231,9,J1939 Network #2 : Abnormal Update Rate,Desconocido,MEDIA,Manual,Generico
+SPN,520985,14,Key Switch : Special Instructions,Desconocido,MEDIA,Manual,Generico
+SPN,158,2,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,158,17,Key Switch Battery Potential : Data Valid But Below Normal Operating Range – Least Severe Level,Desconocido,MEDIA,Manual,Generico
+SPN,1747,2,"Interruptor de control de Inclinación - Datos erráticos, intermitentes o incorrectos",Eje,MEDIA,Manual,Generico
+SPN,516785,0,Left Steering Wheel Switch Pod Input is Above Normal Range,Desconocido,MEDIA,Manual,Generico
+SPN,1756,6,Solenoide de elevación de la suspensión neumática - Corriente por encima de lo normal,Eje,MEDIA,Manual,Generico
+SPN,1756,5,Solenoide de elevación de la suspensión neumática - Corriente debajo de lo normal o circuito abierto,Eje,MEDIA,Manual,Generico
+SPN,1755,5,Solenoide de descarga de la suspensión neumática - Corriente debajo de lo normal o circuito abierto,Eje,MEDIA,Manual,Generico
+SID,38,9,Missing Chassis Module CAN Message : Abnormal Update Rate,Desconocido,MEDIA,Manual,Generico
+SPN,520804,14,Missing Remote Keyless entry door pod,Desconocido,MEDIA,Manual,Generico
+SPN,805,14,Control automático de tracción (ATC) deshabilitado para evitar el debilitamiento de los frenos,ABS,MEDIA,Manual,Generico
+SPN,6991,6,Number of Engine Cylinders to Exclude from Combustion : Current Above Normal Or Grounded Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,1552,2,"Dispositivo de entrada del operador para el HVAC de la cabina: datos erráticos, intermitentes o incorrectos",HVAC,MEDIA,Manual,Generico
+SPN,520803,5,Relé del freno de estacionamiento - Baja corriente o circuito abierto,Frenos,MEDIA,Manual,Generico
+SPN,70,9,Freno de estacionamiento accionado por aire - Tasa de actualización anormal,Frenos,MEDIA,Manual,Generico
+SPN,70,19,Freno de estacionamiento accionado por aire - Datos de red recibidos por error,Frenos,MEDIA,Manual,Generico
+SPN,70,14,El freno de estacionamiento accionado por aire está bloqueado o no funciona normalmente - El freno de estacionamiento no se puede aplicar o no se puede liberar.,Frenos,MEDIA,Manual,Generico
+SPN,70,2,"Freno de estacionamiento accionado por aire - Datos erráticos, intermitentes o incorrectos",Frenos,MEDIA,Manual,Generico
+SPN,522,10,Deslizamiento del embrague - Tasa de cambio anormal,Transmisión,MEDIA,Manual,Generico
+SID,55,10,Deslizamiento del embrague - Tasa de cambio anormal,Transmisión,MEDIA,Manual,Generico
+SID,55,7,Desacoplamiento del embrague - Sistema mecánico que no responde,Transmisión,MEDIA,Manual,Generico
+SPN,610,14,Desconocido,Desconocido,MEDIA,Manual,Generico
+SID,18,5,Voltaje incorrecto en palanca de cambios - Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SID,39,5,Circuito del motor del riel - Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SID,36,12,Válvula de solenoide de rango bajo - Dispositivo inteligente o componente defectuoso,Transmisión,MEDIA,Manual,Generico
+SPN,78,1,Sensor de temperatura del eje trasero trasero - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,Eje,MEDIA,Manual,Generico
+SPN,3226,3,Circuito del Sensor de NOx de la Salida del Postratamiento - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Postratamiento,MEDIA,Manual,Generico
+SPN,6922,7,Limpieza del sistema SCR inhibida debido a que el pedal del acelerador está inactivo - El sistema mecánico no responde o no está ajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,6931,7,Limpieza del sistema SCR inhibida debido a que el motor no se calentó - El sistema mecánico no responde o no está ajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,6918,7,Limpieza del sistema SCR inhibida debido al interruptor de inhibición - El sistema mecánico no responde o está desajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,6923,7,Limpieza del sistema SCR inhibida por estar fuera de punto muerto - El sistema mecánico no responde o no está ajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,6920,7,Limpieza del sistema SCR inhibida debido al freno de servicio activo: El sistema mecánico no responde o está desajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,6932,7,Limpieza del sistema SCR inhibida debido a que la velocidad del vehículo se encuentra debajo de la velocidad permitida - El sistema mecánico no responde o no está ajustado,Postratamiento,MEDIA,Manual,Generico
+SPN,6915,6,Comando de limpieza del sistema SCR - Corriente por encima de lo normal,Postratamiento,MEDIA,Manual,Generico
+SPN,1087,0,Circuito 1 de Presión de aire del Freno de servicio - Datos válidos pero superiores al rango operativo normal - Nivel más severo,Frenos,MEDIA,Manual,Generico
+SPN,1087,1,Circuito 1 de Presión de aire del Freno de servicio - Datos válidos pero por debajo del rango de funcionamiento normal - Nivel más severo,Frenos,MEDIA,Manual,Generico
+SPN,1088,0,Circuito 2 de Presión de aire del Freno de servicio - Datos válidos pero superiores al rango operativo normal - Nivel más severo,Frenos,MEDIA,Manual,Generico
+SPN,1088,1,Circuito 2 de Presión de aire del Freno de servicio - Datos válidos pero por debajo del rango operativo normal - Nivel más severo,Frenos,MEDIA,Manual,Generico
+SID,18,14,Voltaje incorrecto en la palanca de cambios: La TECU ha detectado que se presionó el botón para subir o bajar de marcha por un tiempo inusualmente largo.,Transmisión,MEDIA,Manual,Generico
+SPN,2172,12,"Eje, unidad de potencia: Dispositivo o componente inteligente defectuoso",Eje,MEDIA,Manual,Generico
+SPN,2226,9,Source Address 226 : Abnormal Update Rate,Desconocido,MEDIA,Manual,Generico
+SPN,2003,9,Source Address 3 : Abnormal Update Rate,Desconocido,MEDIA,Manual,Generico
+SPN,2003,31,Verificar el indicador de cambio de marcha,Transmisión,MEDIA,Manual,Generico
+SPN,2058,9,El módulo de control del cuerpo (BCM) detecta una pérdida de comunicación con el módulo del sistema HVAC,HVAC,MEDIA,Manual,Generico
+SPN,2058,14,El módulo de control del cuerpo (BCM) detecta una pérdida de comunicación con el módulo del sistema HVAC,HVAC,MEDIA,Manual,Generico
+SPN,2071,19,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,1807,9,Ángulo de Dirección - Tasa de actualización anormal,ABS,MEDIA,Manual,Generico
+SPN,1807,3,Ángulo de Dirección - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,ABS,MEDIA,Manual,Generico
+SPN,613,14,Fallo en la entrada de aire del cabezal del control del HVAC,HVAC,MEDIA,Manual,Generico
+SPN,241,15,Presión de los neumáticos - Datos válidos pero superiores al rango de funcionamiento normal - Nivel menos severo,Neumáticos,MEDIA,Manual,Generico
+SPN,241,17,Presión de los neumáticos - Datos válidos pero inferiores al rango de funcionamiento normal - Nivel menos severo,Neumáticos,MEDIA,Manual,Generico
+SPN,241,18,Presión de los neumáticos - Datos válidos pero inferiores al rango de funcionamiento normal - Nivel moderadamente severo,Neumáticos,MEDIA,Manual,Generico
+SPN,6986,7,Tire Sensor Information : Mechanical System Not Responding Or Out Of Adjustment,Desconocido,MEDIA,Manual,Generico
+SPN,6970,6,Tire Sensor Number : Current Above Normal Or Grounded Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,242,15,Temperatura de los neumáticos - Datos válidos pero superiores al rango de funcionamiento normal - Nivel menos severo,Neumáticos,MEDIA,Manual,Generico
+SPN,248,0,Total Power Takeoff Hours : Data Valid But Above Normal Operational Range – Most Severe Level,Desconocido,MEDIA,Manual,Generico
+SPN,1792,5,Señal de advertencia de ABS del remolque - Corriente debajo de lo normal o circuito abierto,ABS,MEDIA,Manual,Generico
+SPN,191,10,Sensor de velocidad del eje de salida - La TECU detectó un cambio de velocidad excesivo.,Transmisión,MEDIA,Manual,Generico
+SPN,191,21,Sensor de velocidad del eje de salida - Datos con desviación baja,Transmisión,MEDIA,Manual,Generico
+SPN,191,2,"Sensor de velocidad del eje de salida: Datos Erráticos, Intermitentes o Incorrectos",Transmisión,MEDIA,Manual,Generico
+SPN,788,7,Actuador del embrague electrónico: El Sistema mecánico no responde,Transmisión,MEDIA,Manual,Generico
+PID,34,12,Actuador del embrague electrónico (ECA): Dispositivo inteligente o componente defectuoso,Transmisión,MEDIA,Manual,Generico
+PID,34,7,Actuador del embrague electrónico (ECA): El Sistema mecánico no responde,Transmisión,MEDIA,Manual,Generico
+PID,190,5,Sensor de velocidad del actuador de embrague electrónico - Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SPN,2900,9,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,6912,7,Transmission Internal Component 2 Speed : Mechanical System Not Responding Or Out Of Adjustment,Transmisión,MEDIA,Manual,Generico
+SPN,3027,4,Sensor de Nivel de aceite de la Transmisión - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,MEDIA,Manual,Generico
+SPN,177,3,Temperatura del aceite de transmisión 1- Voltaje por encima de lo normal o en corto,Transmisión,MEDIA,Manual,Generico
+SPN,751,8,Dispositivo de control de cambios J1939: Frecuencia anormal,Transmisión,MEDIA,Manual,Generico
+SPN,751,2,"Seelector de cambios de la Transmisión - Datos erráticos, intermitentes o incorrectos",Transmisión,MEDIA,Manual,Generico
+SPN,751,14,Posición incorrecta de la palanca de cambios: La posición seleccionada de la palanca de cambios es inválida,Transmisión,MEDIA,Manual,Generico
+SPN,768,5,Válvula de solenoide de control de rango - Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SPN,525,13,Transmission Requested Gear : Out Of Calibration,Transmisión,MEDIA,Manual,Generico
+SPN,752,2,Voltaje incorrecto en la palanca de cambios: Datos erráticos,Transmisión,MEDIA,Manual,Generico
+SID,19,14,Voltaje incorrecto en la palanca de cambios: La TECU ha detectado que se presionó el botón para subir o bajar de marcha por un tiempo inusualmente largo.,Transmisión,MEDIA,Manual,Generico
+SID,40,1,"Circuito del motor de engranajes - Datos válidos, pero por debajo de los valores",Transmisión,MEDIA,Manual,Generico
+SID,47,7,Se detectó que la caja de transmisión está enganchada - El Sistema mecánico no responde,Transmisión,MEDIA,Manual,Generico
+SPN,60,10,Sensor de posición del riel - Tasa anormal de cambio,Transmisión,MEDIA,Manual,Generico
+SPN,60,2,"Sensor de posición del riel - Datos erráticos, intermitentes o incorrectos",Transmisión,MEDIA,Manual,Generico
+SID,60,14,La TECU detecta que el dedo accionador está en una posición no neutra cuando se apaga el vehículo,Transmisión,MEDIA,Manual,Generico
+SPN,60,11,Sensor de posición del riel - Causa raíz desconocida,Transmisión,MEDIA,Manual,Generico
+SPN,770,12,Válvula de solenoide del divisor -Dispositivo inteligente o componente defectuoso,Transmisión,MEDIA,Manual,Generico
+SPN,770,5,Válvula de solenoide del divisor: Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SPN,770,4,Válvula de solenoide del divisor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,MEDIA,Manual,Generico
+SID,37,5,Válvula de solenoide del divisor: Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SID,37,4,Válvula de solenoide del divisor: Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,MEDIA,Manual,Generico
+SPN,771,5,Válvula de solenoide del divisor: Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SPN,771,4,Válvula de solenoide del divisor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,MEDIA,Manual,Generico
+SID,38,5,Válvula de solenoide del divisor: Corriente debajo de lo normal o circuito abierto,Transmisión,MEDIA,Manual,Generico
+SID,38,4,Válvula de solenoide del divisor: Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,MEDIA,Manual,Generico
+SPN,641,4,Turbo Control Circuit Failed Low,Desconocido,MEDIA,Manual,Generico
+SPN,6981,6,Under Pressure Percentage Threshold : Current Above Normal Or Grounded Circuit,Desconocido,MEDIA,Manual,Generico
+SPN,520930,13,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,520931,13,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,520932,13,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,520933,13,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,520934,13,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,520936,13,Desconocido,Desconocido,MEDIA,Manual,Generico
+SPN,1814,2,"VDC Fully Operational : Data Erratic, Intermittent Or Incorrect",Desconocido,MEDIA,Manual,Generico
+SID,17,2,"Velocidad del vehículo basada en las ruedas - Datos erráticos, intermitentes o incorrectos",Frenos,MEDIA,Manual,Generico
+SPN,789,12,Sensor de velocidad de la rueda (eje delantero izquierdo) - Dispositivo inteligente o componente defectuoso,ABS,MEDIA,Manual,Generico
+SPN,790,12,Sensor de velocidad de la rueda (eje delantero derecho) - Dispositivo inteligente o componente defectuoso,ABS,MEDIA,Manual,Generico
+SPN,790,4,Sensor de velocidad de la rueda (eje delantero derecho) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,ABS,MEDIA,Manual,Generico
+SPN,84,10,Datos de velocidad del vehículo basados ​​en las ruedas - Tasa de cambio anormal,ABS,MEDIA,Manual,Generico
+SPN,84,2,"Datos de velocidad del vehículo basados ​​en las ruedas erráticos, intermitentes o incorrectos",ABS,MEDIA,Manual,Generico
+SPN,84,15,Velocidad del vehículo basada ​​en las ruedas - Datos validos pero por encima del Rango Normal De Operación - Nivel menos severo,ABS,MEDIA,Manual,Generico
+SPN,84,19,Datos de velocidad del vehículo basados ​​en las ruedas - Datos de red recibidos por error,ABS,MEDIA,Manual,Generico
+SID,9,7,Entrada de la Posición de Reposo del Limpia Parabrisas - El Sistema mecánico no responde,Cab,MEDIA,Manual,Generico
+SPN,2917,19,XBR System State : Received Network Data In Error,Desconocido,MEDIA,Manual,Generico
+SPN,2623,4,Circuito del Sensor de Posición 2 del Pedal del Acelerador - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Manual,Generico
+SPN,91,8,Sensor De Posición Del Acelerador - Frecuencia anormal,Motor,ALTA,Manual,Generico
+SPN,91,2,"Sensor De Posición Del Acelerador - Datos erráticos, intermitentes o incorrectos",Motor,ALTA,Manual,Generico
+SPN,91,3,Sensor De Posición Del Acelerador - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Manual,Generico
+SPN,4340,3,Calentador de la línea del fluido de escape diesel del Postratamiento - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Postratamiento,ALTA,Manual,Generico
+SPN,3363,3,Calentador del Tanque del Fluido de Escape Diésel de Postratamiento - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Postratamiento,ALTA,Manual,Generico
+SPN,3226,4,Circuito del Sensor de NOx de la Salida del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Postratamiento,ALTA,Manual,Generico
+SPN,4794,31,Falta el sistema de catalizador SCR de postratamiento 1 - La condición existe,Postratamiento,ALTA,Manual,Generico
+SPN,2392,6,Luces y Alarma de Reversa - Corriente por encima de lo normal,Eléctrico,ALTA,Manual,Generico
+SPN,2392,5,Luces y Alarma de Reversa - Corriente debajo de lo normal o circuito abierto,Eléctrico,ALTA,Manual,Generico
+SID,152,6,Corto a tierra en el banco 2,Motor,ALTA,Manual,Generico
+SPN,168,18,El voltaje de alimentación del ECM está por debajo del nivel mínimo del voltaje del sistema - Nivel moderadamente grave,Motor,ALTA,Manual,Generico
+SPN,597,9,Interruptor de freno - Tasa de actualización anormal,Frenos,ALTA,Manual,Generico
+SPN,597,7,Interruptor de freno atascado en posición de abierto o cerrado,Frenos,ALTA,Manual,Generico
+SPN,597,14,Interruptor de freno atascado en posición de abierto o cerrado,Frenos,ALTA,Manual,Generico
+SPN,938,5,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 1 izquierdo) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,938,3,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 1 izquierdo) - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,939,3,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 1 derecho) - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,939,5,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 1 derecho) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,940,5,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 2 izquierdo) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,940,3,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 2 izquierdo) - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,940,4,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 2 izquierdo) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Frenos,ALTA,Manual,Generico
+SPN,941,5,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 2 derecho) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,941,3,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 2 derecho) - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,941,4,El solenoide de la Válvula moduladora de descarga del sistema de frenos (Eje 2 derecho) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Frenos,ALTA,Manual,Generico
+SPN,932,5,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 1 izquierdo) - Corriente debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,932,3,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 1 izquierdo) - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,932,4,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 1 izquierdo) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Frenos,ALTA,Manual,Generico
+SPN,933,5,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 1 derecho) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,934,5,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 2 izquierdo) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,934,3,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 2 izquierdo) - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,934,4,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 2 izquierdo) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Frenos,ALTA,Manual,Generico
+SPN,935,5,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 2 derecho) - Corriente por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,935,4,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 2 derecho) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Frenos,ALTA,Manual,Generico
+SPN,630,13,Calibration Memory : Out Of Calibration,Desconocido,ALTA,Manual,Generico
+SID,21,7,Posición del árbol de levas - Pérdida de sincronización continua,Motor,ALTA,Manual,Generico
+SPN,723,8,Velocidad del Motor y Sensor de Posición del Árbol de Levas - Frecuencia anormal,Motor,ALTA,Manual,Generico
+SPN,520273,9,La TECU pierde comunicación con el ECA durante dos segundos o más.,Transmisión,ALTA,Manual,Generico
+SPN,878,5,Relé de la luz del remolque - Corriente debajo de lo normal o circuito abierto,Eléctrico,ALTA,Manual,Generico
+SPN,629,8,Controlador del sistema de frenos - Frecuencia o período anormales,Frenos,ALTA,Manual,Generico
+SPN,629,9,Controller #1 : Abnormal Update Rate,Desconocido,ALTA,Manual,Generico
+SPN,629,12,"Error Interno En El ECM Relacionado Con Fallas Del Hardware De La Memoria, O De Circuitos Internos De Suministro De Voltaje Del ECM",Motor,ALTA,Manual,Generico
+SPN,629,13,Configuración incorrecta de la TECU - La TECU no puede determinar la configuración correcta de la transmisión.,Transmisión,ALTA,Manual,Generico
+SPN,629,11,Controlador del sistema de Frenos - Causa raíz desconocida,Frenos,ALTA,Manual,Generico
+SPN,629,14,Falla interna del módulo de control del motor (ECM) - Instrucciones especiales,Motor,ALTA,Manual,Generico
+SID,1,7,Prueba de contribución de cilindro 1 fallida,Motor,ALTA,Manual,Generico
+PID,1,4,Corriente debajo de lo normal en el inyector del cilindro 1,Motor,ALTA,Manual,Generico
+SID,2,7,Prueba de contribución de cilindro 2 fallida,Motor,ALTA,Manual,Generico
+SID,3,7,Prueba de contribución de cilindro 3 fallida,Motor,ALTA,Manual,Generico
+SID,4,7,Prueba de contribución de cilindro 4 fallida,Motor,ALTA,Manual,Generico
+SID,5,7,Prueba de contribución de cilindro 5 fallida,Motor,ALTA,Manual,Generico
+SID,6,7,Prueba de contribución de cilindro 6 fallida,Motor,ALTA,Manual,Generico
+SID,8,7,Prueba de contribución de cilindro 8 fallida,Motor,ALTA,Manual,Generico
+SPN,520271,4,Actuador del embrague electrónico (ECA): Voltaje por debajo de lo normal o circuito abierto,Transmisión,ALTA,Manual,Generico
+SPN,520274,4,Voltaje de ignición del ECA - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,ALTA,Manual,Generico
+SPN,2630,3,Temperatura de salida del enfriador de aire de carga del motor - Voltaje por encima de lo normal o en cortocircuito a una fuente alta,Motor,ALTA,Manual,Generico
+SPN,111,18,Nivel del Refrigerante del motor - Datos validos pero por debajo del Rango Normal De Operación,Motor,ALTA,Manual,Generico
+SPN,111,19,Sensor de nivel de refrigerante - Datos de red recibidos por error,Motor,ALTA,Manual,Generico
+SPN,110,15,Temperatura Del Refrigerante - Datos validos pero por encima del Rango Normal De Operación - Nivel menos severo,Motor,ALTA,Manual,Generico
+SPN,110,16,Temperatura Del Refrigerante - Datos validos pero por encima del Rango Normal De Operación - Nivel moderadamente severo,Motor,ALTA,Manual,Generico
+SPN,110,11,Circuito del Sensor de Temperatura 1 del Refrigerante del Motor - Causa raíz desconocida,Motor,ALTA,Manual,Generico
+PID,110,7,La Temperatura del refrigernate Del Motor Está por encima del nivel critico,Motor,ALTA,Manual,Generico
+SPN,27,7,Circuito de Posición de la Válvula EGR - El sistema mecánico no responde o está desajustado,Motor,ALTA,Manual,Generico
+SPN,651,7,Circuito Accionador del Solenoide del Inyector del Cilindro 1 - El sistema mecánico no responde o está desajustado,Motor,ALTA,Manual,Generico
+SPN,654,3,Controlador del solenoide del inyector del cilindro 4 - Voltaje por encima de lo normal o en cortocircuito a fuente alta,Motor,ALTA,Manual,Generico
+SPN,656,3,Circuito Accionador del Solenoide del Inyector del Cilindro 6 - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Manual,Generico
+SPN,2797,11,Engine Fuel 1 Injector Group 1 : Root Cause Not Known,Desconocido,ALTA,Manual,Generico
+SPN,2798,11,Engine Fuel 1 Injector Group 2 : Root Cause Not Known,Desconocido,ALTA,Manual,Generico
+SPN,157,16,Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Datos válidos pero superiores al rango de funcionamiento normal: nivel moderadamente grave,Motor,ALTA,Manual,Generico
+SPN,157,0,Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Datos validos pero por encima del Rango Normal De Operación - Nivel más severo,Motor,ALTA,Manual,Generico
+SPN,1244,5,Circuito de la Válvula Electrónica 2 de Control de Inyección de Combustible - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,3055,0,Engine Fuel System Monitor : Data Valid But Above Normal Operational Range – Most Severe Level,Desconocido,ALTA,Manual,Generico
+SPN,3563,4,Circuito del sensor de presión absoluta del múltiple de admisión (MAP) del motor -Voltaje por debajo de lo normal o en cortocircuito a una fuente baja,Motor,ALTA,Manual,Generico
+PID,100,2,Presión De Aceite Del Motor - Datos erraticos o intermitentes,Motor,ALTA,Manual,Generico
+PID,100,11,Falla en el circuito del medidor de presión de aceite - Causa raíz desconocida,Motor,ALTA,Manual,Generico
+SPN,100,17,Presión De Aceite Del Motor - Datos validos pero por debajo del Rango Normal De Operación - Nivel menos severo,Motor,ALTA,Manual,Generico
+SPN,100,18,Presión De Aceite Del Motor - Datos validos pero por debajo del Rango Normal De Operación,Motor,ALTA,Manual,Generico
+SPN,100,3,Presión De Aceite Del Motor - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Manual,Generico
+PID,100,7,La Presión De La Galería De Aceite Del Motor Está Debajo del nivel critico,Motor,ALTA,Manual,Generico
+SPN,898,7,Velocidad solicitada por el motor / Límite de velocidad - El sistema mecánico no responde o está desajustado.,Motor,ALTA,Manual,Generico
+SPN,190,15,Velocidad / posición del cigüeñal del motor - Datos válidos pero superiores al rango de funcionamiento normal - Nivel menos grave,Motor,ALTA,Manual,Generico
+SPN,641,7,Actuador del turbocompresor de geometría variable del motor - El sistema mecánico no responde o está desajustado,Motor,ALTA,Manual,Generico
+SPN,641,11,Actuador del turbocompresor de geometría variable del motor - Causa raíz desconocida,Motor,ALTA,Manual,Generico
+SPN,2622,5,Sistema de ayuda al arranque en pendiente (Hillholder system) - Corriente debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,2641,5,Bocina electrica - Corriente debajo de lo normal o circuito abierto,Eléctrico,ALTA,Manual,Generico
+SPN,639,12,Red del protocolo SAE J1939 - Dispositivo inteligente o componente defectuoso,Motor,ALTA,Manual,Generico
+SPN,639,5,Red del protocolo SAE J1939 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,639,2,"Red del protocolo SAE J1939 - Datos erráticos, intermitentes o incorrectos",Motor,ALTA,Manual,Generico
+SPN,2372,5,Luz stop izquierda - Corriente debajo de lo normal o circuito abierto,Eléctrico,ALTA,Manual,Generico
+SPN,879,6,Circuito de la lámpara direccional izquierda - Corriente por encima de lo normal,Eléctrico,ALTA,Manual,Generico
+SID,151,5,Corriente debajo de lo normal o circuito abierto en el banco 1,Motor,ALTA,Manual,Generico
+SID,152,5,Corriente debajo de lo normal o circuito abierto en el banco 2,Motor,ALTA,Manual,Generico
+SPN,98,18,Circuito del Sensor de Nivel de Aceite del Motor - Datos validos pero por debajo del Rango Normal De Operación,Motor,ALTA,Manual,Generico
+SPN,522,7,Desacoplamiento del embrague - Sistema mecánico que no responde,Transmisión,ALTA,Manual,Generico
+SPN,627,3,Fuente de alimentación perdida con la ignición encendida - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Eléctrico,ALTA,Manual,Generico
+SPN,627,4,Fuente de alimentación perdida con la ignición encendida - Voltaje por debajo de lo normal detectado en la fuente de alimentacion,Eléctrico,ALTA,Manual,Generico
+SPN,2390,5,Actuador de interruptor o microinterruptor para las luces antiniebla traseras - Corriente debajo de lo normal o circuito abierto,Eléctrico,ALTA,Manual,Generico
+SPN,802,12,(Relay Diagonal 1) Controlador del sistema de frenos - Dispositivo inteligente o componente defectuoso,Frenos,ALTA,Manual,Generico
+SPN,802,3,(Relay Diagonal 1) Controlador del sistema de frenos - Voltaje por encima de lo normal o cortocircuitado a fuente alta,Frenos,ALTA,Manual,Generico
+SPN,802,4,(Relay Diagonal 1) Controlador del sistema de frenos - Voltaje por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,803,3,(Relay Diagonal 2) Controlador del sistema de frenos - Voltaje por encima de lo normal o cortocircuitado a fuente alta,Frenos,ALTA,Manual,Generico
+SPN,803,4,(Relay Diagonal 2) Controlador del sistema de frenos - Voltaje por debajo de lo normal o circuito abierto,Frenos,ALTA,Manual,Generico
+SPN,801,2,(Retarder Control Relay) Controlador del sistema de frenos - Circuito Abierto o Cortocircuito a Tierra,Frenos,ALTA,Manual,Generico
+SPN,881,6,Circuito de la lámpara direccional derecha - Corriente por encima de lo normal,Eléctrico,ALTA,Manual,Generico
+SPN,810,7,Sensores de velocidad de rueda invertidos en un eje,Frenos,ALTA,Manual,Generico
+SPN,810,14,Entrada de señal de velocidad: instrucciones especiales,Frenos,ALTA,Manual,Generico
+SPN,241,1,Presión de los neumáticos - Datos válidos pero por debajo del rango de funcionamiento normal - Nivel más severo,Neumáticos,ALTA,Manual,Generico
+SPN,788,12,Actuador del embrague electrónico: Dispositivo inteligente o componente defectuoso,Transmisión,ALTA,Manual,Generico
+SPN,560,11,No se pudo desenganchar el cambio - Causa principal desconocida,Transmisión,ALTA,Manual,Generico
+SPN,751,11,Dispositivo de control de cambios J1939: FMI desconocido,Transmisión,ALTA,Manual,Generico
+SPN,769,12,Transmission Range Low Actuator - Dispositivo inteligente o componente defectuoso,Transmisión,ALTA,Manual,Generico
+SPN,769,7,No se pudo enganchar el intervalo de cambios: El Sistema mecánico no responde,Transmisión,ALTA,Manual,Generico
+SPN,781,7,No se pudo acoplar el cambio: El Sistema mecánico no responde,Transmisión,ALTA,Manual,Generico
+SPN,773,1,"Circuito del motor de engranajes - Datos válidos, pero por debajo de los valores",Transmisión,ALTA,Manual,Generico
+SPN,772,7,Circuito del motor del riel - El Sistema mecánico no responde,Transmisión,ALTA,Manual,Generico
+SID,27,5,Control turbo de geometría variable (VGT) - Ciclo de trabajo excesivo,Motor,ALTA,Manual,Generico
+PID,103,0,Sobrevelocidad en el turbo de geometría variable (VTG),Motor,ALTA,Manual,Generico
+PID,102,0,Turbo de geometría variable (VTG) no puede generar un impulso suficiente,Motor,ALTA,Manual,Generico
+SPN,811,2,"Bombilla de luz de advertencia - Datos erráticos, intermitentes o incorrectos",Eléctrico,ALTA,Manual,Generico
+SPN,806,5,Dif 1 - Válvula de control de tracción (TCV) - Corriente debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,806,3,Dif 1 - Válvula de control de tracción (TCV) - Voltaje por encima de lo normal o cortocircuitado a fuente alta,ABS,ALTA,Manual,Generico
+SPN,806,4,Dif 1 - Válvula de control de tracción (TCV) - Voltaje por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,807,3,Dif 2 - Válvula de control de tracción (TCV) - Voltaje por encima de lo normal o cortocircuitado a fuente alta,ABS,ALTA,Manual,Generico
+SPN,795,5,Válvula moduladora de presión ABS (eje delantero izquierdo) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,795,3,Válvula moduladora de presión ABS (eje delantero izquierdo) - Voltaje por encima de lo normal o cortocircuitado a fuente alta,ABS,ALTA,Manual,Generico
+SPN,795,4,Válvula moduladora de presión ABS (eje delantero izquierdo) - Voltaje por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,796,5,Válvula moduladora de presión ABS (eje delantero derecho) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,796,3,Válvula moduladora de presión ABS (eje delantero derecho) - Voltaje por encima de lo normal o cortocircuitado a fuente alta,ABS,ALTA,Manual,Generico
+SPN,796,4,Válvula moduladora de presión ABS (eje delantero derecho) - Voltaje por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,797,5,Válvula moduladora de presión ABS (eje motriz izquierdo) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,797,4,Válvula moduladora de presión ABS (eje motriz izquierdo) - Voltaje por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,798,5,Válvula moduladora de presión ABS (eje motriz derecho) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,798,4,Válvula moduladora de presión ABS (eje motriz derecho) - Voltaje por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,799,5,Válvula moduladora de presión ABS (eje intermedio izquierdo) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,800,5,Válvula moduladora de presión ABS (eje intermedio izquierdo) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,1807,12,Ángulo de Dirección - Dispositivo inteligente o componente defectuoso,ABS,ALTA,Manual,Generico
+SPN,1807,2,Ángulo de Dirección - Datos erraticos o intermitentes,ABS,ALTA,Manual,Generico
+SPN,789,10,Sensor de velocidad de la rueda (eje delantero izquierdo) - Tasa de cambio anormal,ABS,ALTA,Manual,Generico
+SPN,789,9,Sensor de velocidad de la rueda (eje delantero izquierdo) - Tasa de actualización anormal,ABS,ALTA,Manual,Generico
+SPN,789,5,Sensor de velocidad de la rueda (eje delantero izquierdo) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,789,2,"Sensor de velocidad de la rueda (eje delantero izquierdo) - Datos erráticos, intermitentes o incorrectos",ABS,ALTA,Manual,Generico
+SPN,789,1,Sensor de velocidad de la rueda (eje delantero izquierdo) - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,ABS,ALTA,Manual,Generico
+SPN,789,7,Sensor de velocidad de la rueda (eje delantero izquierdo) - El Sistema mecánico no responde,ABS,ALTA,Manual,Generico
+SPN,789,4,Sensor de velocidad de la rueda (eje delantero izquierdo) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,ABS,ALTA,Manual,Generico
+SPN,790,8,Sensor de velocidad de la rueda (eje delantero derecho) - Frecuencia anormal,ABS,ALTA,Manual,Generico
+SPN,790,9,Sensor de velocidad de la rueda (eje delantero derecho) -Tasa de actualización anormal,ABS,ALTA,Manual,Generico
+SPN,790,5,Sensor de velocidad de la rueda (eje delantero derecho) - Corriente debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,790,2,"Sensor de velocidad de la rueda (eje delantero derecho) - Datos erráticos, intermitentes o incorrectos",ABS,ALTA,Manual,Generico
+SPN,790,1,Sensor de velocidad de la rueda (eje delantero derecho) - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,ABS,ALTA,Manual,Generico
+SPN,790,7,Sensor de velocidad de la rueda (eje delantero derecho) - El Sistema mecánico no responde,ABS,ALTA,Manual,Generico
+SPN,790,14,Sensor de velocidad de la rueda (eje delantero derecho) - Falla de funcionamiento del sensor de velocidad de la rueda,ABS,ALTA,Manual,Generico
+SPN,791,10,Sensor de velocidad de la rueda (eje motriz izquierdo) - Tasa de cambio anormal,ABS,ALTA,Manual,Generico
+SPN,791,9,Sensor de velocidad de la rueda (eje motriz izquierdo) - Tasa de actualización anormal,ABS,ALTA,Manual,Generico
+SPN,791,12,Sensor de velocidad de la rueda (eje motriz izquierdo) - Dispositivo inteligente o componente defectuoso,ABS,ALTA,Manual,Generico
+SPN,791,5,Sensor de velocidad de la rueda (eje motriz izquierdo) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,791,2,"Sensor de velocidad de la rueda (eje motriz izquierdo) - Datos erráticos, intermitentes o incorrectos",ABS,ALTA,Manual,Generico
+SPN,791,1,Sensor de velocidad de la rueda (eje motriz izquierdo) - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,ABS,ALTA,Manual,Generico
+SPN,791,7,Sensor de velocidad de la rueda (eje motriz izquierdo) - El Sistema mecánico no responde,ABS,ALTA,Manual,Generico
+SPN,791,14,Sensor de velocidad de la rueda (eje motriz izquierdo) - Falla de funcionamiento del sensor de velocidad de la rueda,ABS,ALTA,Manual,Generico
+SPN,791,3,Sensor de velocidad de la rueda (eje motriz izquierdo) - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,ABS,ALTA,Manual,Generico
+SPN,791,4,Sensor de velocidad de la rueda (eje motriz izquierdo) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,ABS,ALTA,Manual,Generico
+SPN,792,14,Sensor de velocidad de la rueda (eje motriz derecho) - Falla de funcionamiento del sensor de velocidad de la rueda,ABS,ALTA,Manual,Generico
+SPN,792,8,Sensor de velocidad de la rueda (eje motriz derecho) - Frecuencia anormal,ABS,ALTA,Manual,Generico
+SPN,792,10,Sensor de velocidad de la rueda (eje motriz derecho) - Tasa de cambio anormal,ABS,ALTA,Manual,Generico
+SPN,792,9,Sensor de velocidad de la rueda (eje motriz derecho) - Tasa de actualización anormal,ABS,ALTA,Manual,Generico
+SPN,792,12,Sensor de velocidad de la rueda (eje motriz derecho) - Dispositivo inteligente o componente defectuoso,ABS,ALTA,Manual,Generico
+SPN,792,6,Sensor de velocidad de la rueda (eje motriz derecho) - Corriente por encima de lo normal,ABS,ALTA,Manual,Generico
+SPN,792,5,Sensor de velocidad de la rueda (eje motriz derecho) - Corriente por debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,792,2,"Sensor de velocidad de la rueda (eje motriz derecho) - Datos Erráticos, Intermitentes o Incorrectos",ABS,ALTA,Manual,Generico
+SPN,792,1,Sensor de velocidad de la rueda (eje motriz derecho) - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,ABS,ALTA,Manual,Generico
+SPN,792,7,Sensor de velocidad de la rueda (eje motriz derecho) - El Sistema mecánico no responde,ABS,ALTA,Manual,Generico
+SPN,792,3,Sensor de velocidad de la rueda (eje motriz derecho) - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,ABS,ALTA,Manual,Generico
+SPN,792,4,Sensor de velocidad de la rueda (eje motriz derecho) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,ABS,ALTA,Manual,Generico
+SPN,793,2,"Sensor de velocidad de la rueda (eje intermedio izquierdo) - Datos erráticos, intermitentes o incorrectos",ABS,ALTA,Manual,Generico
+SPN,793,1,Sensor de velocidad de la rueda (eje intermedio izquierdo) - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,ABS,ALTA,Manual,Generico
+SPN,793,14,Sensor de velocidad de la rueda (eje intermedio izquierdo) - Falla de funcionamiento del sensor de velocidad de la rueda,ABS,ALTA,Manual,Generico
+SPN,794,10,Sensor de velocidad de la rueda (eje intermedio derecho) - Tasa de cambio anormal,ABS,ALTA,Manual,Generico
+SPN,794,5,Sensor de velocidad de la rueda (eje intermedio derecho) - Corriente debajo de lo normal o circuito abierto,ABS,ALTA,Manual,Generico
+SPN,794,2,"Sensor de velocidad de la rueda (eje intermedio derecho) - Datos Erráticos, Intermitentes o Incorrectos",ABS,ALTA,Manual,Generico
+SPN,794,1,Sensor de velocidad de la rueda (eje intermedio derecho) - Datos válidos pero inferiores al rango de operacion normal: nivel más severo,ABS,ALTA,Manual,Generico
+SPN,794,14,Sensor de velocidad de la rueda (eje intermedio derecho) - Falla de funcionamiento del sensor de velocidad de la rueda,ABS,ALTA,Manual,Generico
+SPN,1808,9,Velocidad de desvío: Tasa de actualización anormal,ABS,ALTA,Manual,Generico
+SPN,1808,2,"Velocidad de desvío: Datos Erráticos, Intermitentes o Incorrectos",ABS,ALTA,Manual,Generico
+SPN,1808,14,Velocidad de desvío: Instrucciones especiales,ABS,ALTA,Manual,Generico
+SPN,91,4,Sensor De Posición Del Acelerador - Voltaje por debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,4334,16,Sensor de Presión del Fluido del Escape Diésel del Postratamiento - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel moderadamente severo,Postratamiento,ALTA,Manual,Generico
+SPN,3226,12,Circuito del Sensor de NOx de la Salida del Postratamiento - Dispositivo inteligente o componente defectuoso,Postratamiento,BAJA,Manual,Generico
+SPN,3226,9,Circuito del Sensor de NOx de la Salida del Postratamiento - Tasa de actualización anormal,Postratamiento,ALTA,Manual,Generico
+SPN,4360,3,Circuito del Sensor de Temperatura de Entrada del SCR de Postratamiento - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Postratamiento,BAJA,Manual,Generico
+SPN,5392,31,Pérdida de cebado de la unidad de dosificación de líquido de escape de diésel de postratamiento - La condicion existe,Postratamiento,BAJA,Manual,Generico
+SPN,171,9,Circuito de temperatura de aire ambiente - Tasa de actualización anormal,Motor,BAJA,Manual,Generico
+SPN,563,9,Mensajes CAN del sistema ABS - La TECU detecta que se ha perdido la comunicación con el módulo ABS a través del enlace de datos J1939,Transmisión,BAJA,Manual,Generico
+PID,108,9,Circuito del Sensor de Presión de Aire Ambiente - Tasa de actualización anormal,Motor,BAJA,Manual,Generico
+SPN,936,2,"El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 3 izquierdo) - Datos erráticos, intermitentes o incorrectos",Frenos,BAJA,Manual,Generico
+SPN,935,3,El solenoide de la Válvula moduladora de retención del sistema de frenos (Eje 2 derecho) - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Frenos,ALTA,Manual,Generico
+SPN,520216,31,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,1,12,Válvula solenoide del Cilindro 1 - Dispositivo inteligente o componente defectuoso,Motor,BAJA,Manual,Generico
+SID,2,0,Válvula solenoide del Cilindro 2 - Datos válidos pero superiores al rango de funcionamiento normal - Nivel más severo,Motor,BAJA,Manual,Generico
+SID,3,12,Válvula solenoide del Cilindro 3 - Dispositivo inteligente o componente defectuoso,Motor,BAJA,Manual,Generico
+SPN,256,0,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,167,1,Charging System Potential (Voltage) : Data Valid But Below Normal Operating Range - Most Severe Level,Desconocido,ALTA,Manual,Generico
+SPN,596,0,Circuito de interruptores de control de crucero - Datos Válidos pero Por Encima de la Gama Normal de Operación - Nivel Más Grave,Motor,BAJA,Manual,Generico
+SID,244,2,"Circuito del interruptor de Control de Crucero-PTO - Datos erráticos, intermitentes o incorrectos",Motor,BAJA,Manual,Generico
+SPN,521517,12,Interruptor de bloqueo del seguro eléctrico del conductor - Dispositivo inteligente o componente defectuoso,Eléctrico,MEDIA,Manual,Generico
+SPN,3452,2,"Interruptor de activación del PTO - Datos erráticos, intermitentes o incorrectos",Eléctrico,BAJA,Manual,Generico
+SPN,3456,5,Solenoide del PTO 1 de la transmision - Corriente debajo de lo normal o circuito abierto,Eléctrico,BAJA,Manual,Generico
+PID,497,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 6,Motor,BAJA,Manual,Generico
+SPN,0,2,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,111,1,Nivel del Refrigerante del motor - Datos validos pero por debajo del Rango Normal De Operación - Nivel más severo,Motor,ALTA,Manual,Generico
+SPN,110,0,Temperatura Del Refrigerante - Datos validos pero por encima del Rango Normal De Operación - Nivel más severo,Motor,ALTA,Manual,Generico
+SPN,110,3,Temperatura Del Refrigerante - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Manual,Generico
+PID,110,1,La temperatura del refrigerante del motor no puede alcanzar el punto de ajuste ordenado,Motor,ALTA,Manual,Generico
+SPN,7002,4,Excluir solicitud de combustión del cilindro 11 - Voltaje por debajo de lo normal o circuito abierto,Motor,BAJA,Manual,Generico
+SPN,647,5,Corriente debajo de lo normal o circuito abierto detectado en el Fan Clutch cuando está activado,Motor,MEDIA,Manual,Generico
+SPN,651,5,Circuito Accionador del Solenoide del Inyector del Cilindro 1 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,652,5,Circuito Accionador del Solenoide del Inyector del Cilindro 2 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,653,5,Circuito Accionador del Solenoide del Inyector del Cilindro 3 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,654,5,Circuito Accionador del Solenoide del Inyector del Cilindro 4 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,655,5,Circuito Accionador del Solenoide del Inyector del Cilindro 5 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,656,5,Circuito Accionador del Solenoide del Inyector del Cilindro 6 - Corriente debajo de lo normal o circuito abierto,Motor,ALTA,Manual,Generico
+SPN,157,20,Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Datos elevados,Motor,MEDIA,Manual,Generico
+SPN,157,3,Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,BAJA,Manual,Generico
+SPN,174,0,Temperatura Del Combustible Del Motor - Datos validos pero por encima del Rango Normal De Operación,Motor,ALTA,Manual,Generico
+SPN,633,31,Circuito del actuador frontal de dosificación de combustible - La condición existe,Motor,BAJA,Manual,Generico
+SPN,632,4,Bajo Voltaje Detectado En El Circuito De Alimentación Del Solenoide De Cierre Del Combustible,Motor,ALTA,Manual,Generico
+SPN,3055,15,Engine Fuel System Monitor : Data Valid But Above Normal Operating Range - Least Severe Level,Desconocido,ALTA,Manual,Generico
+SPN,105,0,Temperatura Del Múltiple De Admisión 1 - Datos validos pero por encima del Rango Normal De Operación,Motor,ALTA,Manual,Generico
+SPN,105,3,Temperatura Del Múltiple De Admisión 1 - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Manual,Generico
+SPN,105,4,Temperatura Del Múltiple De Admisión 1 - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Manual,Generico
+SPN,1319,2,Fue detectado un error por el ECM en la señal del sensor de presión del múltiple de admisión.,Motor,BAJA,Manual,Generico
+SPN,612,2,Circuito del Sensor de Posición del Motor - No se detecta señal de velocidad del motor en ambos circuitos del sensor de posición del motor,Motor,ALTA,Manual,Generico
+SPN,100,1,Presión De Aceite Del Motor - Datos validos pero por debajo del Rango Normal De Operación - Nivel más severo,Motor,ALTA,Manual,Generico
+PID,100,0,Presión De Aceite Del Motor - Datos válidos pero superiores al rango de funcionamiento normal - Nivel más severo,Motor,ALTA,Manual,Generico
+SPN,175,16,Temperatura del aceite del motor - Datos válidos pero superiores al rango de funcionamiento normal - Nivel moderadamente severo,Motor,ALTA,Manual,Generico
+SPN,175,0,Temperatura De Aceite Del Motor - Datos validos pero por encima del Rango Normal De Operación - Nivel más severo,Motor,ALTA,Manual,Generico
+SPN,636,2,"Sensor de posición del motor - Datos erráticos, intermitentes o incorrectos",Motor,BAJA,Manual,Generico
+SPN,190,0,Sobrevelocidad del Motor - Datos validos pero por encima del Rango Normal De Operación - Nivel más severo,Motor,ALTA,Manual,Generico
+SPN,677,3,Relé de arranque del motor - Voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,Manual,Generico
+PID,14,9,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,58,7,No se pudo acoplar el cambio: El Sistema mecánico no responde,Transmisión,BAJA,Manual,Generico
+SPN,520197,5,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520198,5,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,77,3,Sensor de temperatura del eje trasero delantero - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Eje,BAJA,Manual,Generico
+SPN,77,4,Sensor de temperatura del eje trasero delantero - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Eje,BAJA,Manual,Generico
+SPN,524042,19,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,1705,2,Forward View Imager System : Data Erratic; Intermittent Or Incorrect,Desconocido,MEDIA,Manual,Generico
+SPN,95,16,Presión diferencial del filtro de combustible - Datos válidos pero superiores al rango de funcionamiento normal - Nivel moderadamente grave,Motor,MEDIA,Manual,Generico
+SPN,94,16,Reemplazo del filtro de combustible requerido,Motor,BAJA,Manual,Generico
+SPN,96,4,Circuito del sensor de nivel de combustible (tanque principal) - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,BAJA,Manual,Generico
+SPN,94,18,Presión de distribucion de la bomba de combustible - Datos válidos pero inferiores al rango de funcionamiento normal - Nivel moderadamente grave,Motor,BAJA,Manual,Generico
+SPN,833,4,Sensor de posición del rack de combustible,Desconocido,BAJA,Manual,Generico
+SPN,833,10,Sensor de posición del rack de combustible,Desconocido,BAJA,Manual,Generico
+SPN,833,14,Sensor de posición del rack de combustible,Desconocido,BAJA,Manual,Generico
+PID,183,0,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,1,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,4,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,5,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,7,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,8,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,9,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,11,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,183,14,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,523010,31,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,1,14,Desconocido,Motor,BAJA,Manual,Generico
+PID,2,12,Dispositivo inteligente o componente defectuoso en el inyector del cilindro 2,Motor,BAJA,Manual,Generico
+SID,1,9,Tasa de actualización anormal en el cilindro 1,Motor,BAJA,Manual,Generico
+SID,10,9,Tasa de actualización anormal en el cilindro 10,Motor,BAJA,Manual,Generico
+SID,3,3,Voltaje por Encima de lo Normal en el inyector del cilindro 3,Motor,BAJA,Manual,Generico
+SID,4,3,Voltaje por Encima de lo Normal en el inyector del cilindro 4,Motor,BAJA,Manual,Generico
+SID,4,9,Tasa de actualización anormal en el cilindro 4,Motor,BAJA,Manual,Generico
+SID,4,12,Dispositivo inteligente o componente defectuoso en el inyector del cilindro 4,Motor,BAJA,Manual,Generico
+SID,5,3,Voltaje por Encima de lo Normal en el inyector del cilindro 5,Motor,BAJA,Manual,Generico
+SID,5,9,Tasa de actualización anormal en el cilindro 5,Motor,BAJA,Manual,Generico
+SID,5,12,Dispositivo inteligente o componente defectuoso en el inyector del cilindro 5,Motor,BAJA,Manual,Generico
+SID,6,3,Voltaje por Encima de lo Normal en el inyector del cilindro 6,Motor,BAJA,Manual,Generico
+SID,7,3,Voltaje por Encima de lo Normal en el inyector del cilindro 7,Motor,BAJA,Manual,Generico
+SID,8,3,Voltaje por Encima de lo Normal en el inyector del cilindro 8,Motor,BAJA,Manual,Generico
+SID,8,9,Tasa de actualización anormal en el cilindro 8,Motor,BAJA,Manual,Generico
+SID,8,12,Dispositivo inteligente o componente defectuoso en el inyector del cilindro 8,Motor,BAJA,Manual,Generico
+SID,9,5,Corriente debajo de lo normal o circuito abierto en el inyector del cilindro 9,Motor,BAJA,Manual,Generico
+SID,9,6,Corto a tierra en el inyector del cilindro 9,Motor,BAJA,Manual,Generico
+SID,9,9,Tasa de actualización anormal en el cilindro 9,Motor,BAJA,Manual,Generico
+PID,184,6,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,184,7,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,184,8,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,184,9,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,105,9,Desconocido,Motor,BAJA,Manual,Generico
+PID,105,11,Desconocido,Motor,BAJA,Manual,Generico
+SID,231,2,"Enlace de comunicación J1939 - Datos erráticos, intermitentes o incorrectos",Eléctrico,MEDIA,Manual,Generico
+SPN,829,4,Sensor del tanque de combustible - Voltaje por debajo de lo normal o circuito abierto,Motor,BAJA,Manual,Generico
+SPN,879,3,Circuito de la lámpara direccional izquierda - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Eléctrico,BAJA,Manual,Generico
+SPN,520197,31,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520921,5,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520501,2,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520201,7,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,524011,19,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,521921,5,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520201,3,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,524264,4,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520409,4,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,627,5,Fuente de alimentación perdida con la ignición encendida - Corriente debajo de lo normal o circuito abierto,Eléctrico,BAJA,Manual,Generico
+PID,164,12,Presión de control de inyección - Dispositivo inteligente o componente defectuoso,Motor,BAJA,Manual,Generico
+SPN,798,3,Válvula moduladora de presión ABS (eje motriz derecho) - Voltaje por encima de lo normal o cortocircuitado a fuente alta,ABS,BAJA,Manual,Generico
+SPN,625,9,Error Del Enlace De Datos Patentado (Enlace De Datos Del OEM/Vehículo) - Índice De Actualización Anormal,Motor,BAJA,Manual,Generico
+SPN,78,3,Sensor de temperatura del eje trasero trasero - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Eje,BAJA,Manual,Generico
+SPN,905,9,"Velocidad relativa, Eje delantero, rueda izquierda - Tasa de actualización anormal",Eje,BAJA,Manual,Generico
+SPN,906,9,"Velocidad relativa, Eje delantero, rueda derecha - Tasa de actualización anormal",Eje,BAJA,Manual,Generico
+SPN,906,19,"Velocidad relativa, Eje delantero, rueda derecha - Datos de red recibidos en error",Eje,BAJA,Manual,Generico
+SPN,907,9,"Velocidad relativa, Eje trasero 1, rueda izquierda - Tasa de actualización anormal",Eje,BAJA,Manual,Generico
+SPN,908,9,"Velocidad relativa, Eje trasero 1, rueda derecha - Tasa de actualización anormal",Eje,BAJA,Manual,Generico
+SPN,974,4,Circuito del sensor de posición de la palanca 1 o del pedal del acelerador remoto - voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,ALTA,Manual,Generico
+SID,29,3,Señal del acelerador remoto - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,BAJA,Manual,Generico
+SPN,520473,14,RPM 1 Canal 3 Entrada analógica Datos no disponibles,Eléctrico,MEDIA,Manual,Generico
+SPN,520475,14,RPM 1 Canal 4 Entrada analógica Datos no disponibles,Eléctrico,MEDIA,Manual,Generico
+SPN,520477,14,RPM 1 Canal 5 Entrada analógica Datos no disponibles,Eléctrico,MEDIA,Manual,Generico
+SPN,520477,19,RPM 1 Canal 5 Entrada analógica Datos no válidos,Eléctrico,BAJA,Manual,Generico
+SPN,520479,14,RPM 1 Canal 6 Entrada analógica Datos no disponibles,Eléctrico,MEDIA,Manual,Generico
+SPN,6915,4,Comando de limpieza del sistema SCR - Voltaje por debajo de lo normal o cortocircuitado a fuente baja,Postratamiento,MEDIA,Manual,Generico
+SPN,3510,4,Circuito número 2 de alimentación de sensores - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,BAJA,Manual,Generico
+SPN,611,14,Falla en el sensor de velocidad de la rueda en el ciclo de encendido anterior,Frenos,BAJA,Manual,Generico
+SPN,6967,4,"Total Number of Antennas Used : Voltage Below Normal, Or Shorted To Low Source",Desconocido,MEDIA,Manual,Generico
+SPN,191,8,Sensor de velocidad del eje de salida: Frecuencia anormal,Transmisión,BAJA,Manual,Generico
+SPN,191,11,Sensor de velocidad del eje de salida: Causa principal desconocida,Transmisión,BAJA,Manual,Generico
+SPN,5052,2,Sensor de velocidad del actuador de embrague electrónico: Datos erráticos,Transmisión,BAJA,Manual,Generico
+SPN,3649,3,Selector de transmisión -Voltaje por encima de lo normal o en corto,Transmisión,BAJA,Manual,Generico
+SPN,1855,2,Falla detectada en el interruptor selector de modo de la transmision,Transmisión,BAJA,Manual,Generico
+SPN,177,0,Temperatura del aceite de transmisión 1- Datos válidos pero superiores al rango de funcionamiento normal - Nivel más severo,Transmisión,BAJA,Manual,Generico
+SPN,177,4,Temperatura del aceite de transmisión 1- Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Transmisión,BAJA,Manual,Generico
+PID,18,2,Voltaje incorrecto en la palanca de cambios: Datos erráticos,Transmisión,BAJA,Manual,Generico
+SPN,3647,3,"Transmission Reverse Selector : Voltage Above Normal, Or Shorted To High Source",Transmisión,MEDIA,Manual,Generico
+SPN,752,3,Palanca de cambios - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,Transmisión,BAJA,Manual,Generico
+SPN,752,14,Voltaje incorrecto en la palanca de cambios: La TECU ha detectado que se presionó el botón para subir o bajar de marcha por un tiempo inusualmente largo,Transmisión,BAJA,Manual,Generico
+SPN,88133,17,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,77846,25,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,77845,25,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,66,3,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,524011,9,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,184,0,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,184,2,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,184,5,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,184,13,Desconocido,Desconocido,BAJA,Manual,Generico
+SID,173,2,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,337,2,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,334,2,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,332,2,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,331,2,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,314,2,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,296,3,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,520200,31,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,523530,31,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,76372,19,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,79929,19,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,151117,19,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,225325,18,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,43185,0,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,76336,0,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,77876,25,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,79408,16,Desconocido,Desconocido,BAJA,Manual,Generico
+SPN,87082,18,Desconocido,Desconocido,BAJA,Manual,Generico
+PID,97,0,Indicador De Agua En El Combustible - Datos válidos pero por encima del Rango Normal De Operación,Motor,ALTA,Manual,Generico
+SPN,97,15,Indicador De Agua En El Combustible - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel menos severo,Motor,BAJA,Manual,Generico
+SPN,97,4,Indicador De Agua En El Combustible - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Manual,Generico
+SPN,789,14,Sensor de velocidad de la rueda (eje delantero izquierdo) - Falla de funcionamiento del sensor de velocidad de la rueda,ABS,BAJA,Manual,Generico
+SPN,790,10,Sensor de velocidad de la rueda (eje delantero derecho) - Tasa de cambio anormal,ABS,BAJA,Manual,Generico
+SPN,793,3,Sensor de velocidad de la rueda (eje intermedio izquierdo) - Voltaje por Encima de lo Normal o en Corto con Fuente Alta,ABS,BAJA,Manual,Generico
+SPN,84,9,Velocidad del vehículo basada ​​en las ruedas - Tasa de actualización anormal,ABS,BAJA,Manual,Generico
+SPN,27,2,"Posición de la válvula EGR - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,27,4,Circuito de posición de válvulas EGR: voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,38,9, Nivel de combustible 2 - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,38,13, Nivel de combustible 2 - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,51,2,"Sensor de posición del actuador de la admisión del acelerador del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,51,3,Sensor de posición del actuador de la admisión del acelerador del motor - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,51,4,Sensor de posición del actuador de la admisión del acelerador del motor - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,81,16,Presión de admisión del filtro de partículas diésel del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,84,2,"Velocidad del vehículo basado en ruedas: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,84,9,Velocidad del vehículo basado en ruedas - Tasa de actualización anormal,Motor,BAJA,Heredado_Manual,X12
+SPN,84,10,Se ha detectado manipulación del circuito del sensor de velocidad del vehículo basado en ruedas - Tasa de cambio anormal,Motor,MEDIA,Heredado_Manual,X12
+SPN,84,19,Velocidad de vehículo basado en ruedas - Datos de red recibidos por error,Motor,MEDIA,Heredado_Manual,X12
+SPN,91,2,"Sensor de posición del pedal del acelerador o de la palanca 1 - datos erráticos, intermitentes o incorrectos",Motor,ALTA,Heredado_Manual,X12
+SPN,91,3,Sensor de posición del pedal del acelerador o palanca 1 circuito - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,ALTA,Heredado_Manual,X12
+SPN,91,4,Sensor de posición del pedal del acelerador o palanca 1 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,ALTA,Heredado_Manual,X12
+SPN,91,8,Sensor de posición del pedal del acelerador o palanca 1 Frecuencia del circuito - Frecuencia o ancho o periodo de pulso anormales,Motor,ALTA,Heredado_Manual,X12
+SPN,91,9, Sistema de pedal o sensor de palanca multiplexado SAE J1939 - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,91,13,Sistema de pedal acelerador multiplexado o sensor de palanca SAE J1939 - fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,91,19, Sistema de pedal de acelerador multiplexado SAE J1939 o sensor de palanca - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,96,3,Circuito del sensor de nivel de combustible (depósito principal): voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,96,4,Circuito del sensor de nivel de combustible (depósito principal): voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,BAJA,Heredado_Manual,X12
+SPN,96,9,Nivel de combustible 1 - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,96,13,Nivel de combustible 1 - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,97,3,Agua en el circuito sensor indicador de combustible - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,97,3, Agua en el circuito sensor indicador de combustible - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,97,4,Agua en el circuito sensor del indicador de combustible - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,97,4,Agua en el circuito sensor del indicador de combustible - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,97,15,Indicador de agua en combustible - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Heredado_Manual,X12
+SPN,97,16,Indicador de agua en combustible - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,100,1,Presión del rifle de aceite del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Heredado_Manual,X12
+SPN,100,2," Presión del rifle de aceite del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,100,3,Presión de rifle de aceite de motor 1 circuito sensor - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,ALTA,Heredado_Manual,X12
+SPN,100,4,Presión del rifle de aceite del motor 1 Circuito sensor - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,100,18,Presión del rifle de aceite del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,101,0,Presión del cárter - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,101,2,"Presión del cárter - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,101,3,Circuito de presión del cárter: voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,101,4, Circuito de presión del cárter: voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,101,15,Presión del cárter - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,101,16,Presión del cárter - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,102,1,Presión del colector de admisión del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,102,2,"Presión del colector de admisión 1 - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,102,3,Colector de admisión 1 Circuito sensor de presión - voltaje por encima de lo normal o en cortocircuito a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,102,4,Colector de admisión 1 Circuito sensor de presión - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,102,10, Presión del colector de admisión 1 - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,102,16,Colector de admisión 1 Presión - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,102,17,Presión del colector de admisión 1 - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,102,18,Presión del colector de admisión 1 - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,102,20,Presión del colector de admisión 1 - datos no racionales - derivado alto,Motor,MEDIA,FMI,X12
+SPN,102,21,Presión del colector de admisión 1 - Datos no racionales - Derivado bajo,Motor,MEDIA,FMI,X12
+SPN,103,7,Turbocompresor del motor 1 velocidad - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,103,15,Turbocompresor 1 velocidad - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,103,16,Turbocompresor 1 velocidad - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,103,18, Turbocompresor 1 velocidad - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,105,2,"Temperatura del colector de admisión 1 - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,105,3,Colector de admisión 1 Circuito sensor de temperatura - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,ALTA,Heredado_Manual,X12
+SPN,105,4,Colector de admisión 1 Circuito sensor de temperatura - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,ALTA,Heredado_Manual,X12
+SPN,105,15,Temperatura del colector de admisión 1 - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,105,16, Temperatura del colector de admisión 1 - datos válidos por encima del rango normal de funcionamiento - nivel moderado severo,Motor,MEDIA,FMI,X12
+SPN,105,18,Temperatura del colector de admisión 1 - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,108,2,"Presión barométrica - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,108,3,Circuito sensor de presión barométrica - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,108,4,Circuito sensor de presión barométrica - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,110,0,Temperatura del refrigerante del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Heredado_Manual,X12
+SPN,110,2,"Temperatura del refrigerante del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,110,3,Temperatura del refrigerante del motor 1 Circuito del sensor - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,ALTA,Heredado_Manual,X12
+SPN,110,4,Temperatura del refrigerante del motor 1 Circuito sensor - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,110,15,Temperatura del refrigerante del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,ALTA,Heredado_Manual,X12
+SPN,110,16,Temperatura del refrigerante del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,110,18,Temperatura del refrigerante del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,110,31,Temperatura del refrigerante del motor - condición existente,Motor,BAJA,FMI,X12
+SPN,111,1,Nivel de refrigerante - datos válidos pero por debajo del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Heredado_Manual,X12
+SPN,111,3,Sensor de nivel de refrigerante 1 circuito - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,111,4,Sensor de nivel de refrigerante 1 Circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,111,17,Nivel de refrigerante - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,111,18,Nivel de refrigerante - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,111,18,Nivel de refrigerante - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,157,3,Circuito sensor de presión del raíl de medición del inyector 1 - voltaje por encima de lo normal o en corto a una fuente alta,Motor,BAJA,Heredado_Manual,X12
+SPN,157,4,Circuito del sensor de presión del raíl de medición del inyector 1 - voltaje por debajo de lo normal o en cortocircuito a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,157,7,Presión del raíl de dosificación del inyector 1 - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,157,15,Presión del Inyector Radial de Medición 1 - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,157,16,Presión del Inyector Riel de Medición 1 - Datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,157,18,Presión del Inyector Miding Rail 1 - datos válidos pero por debajo del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,167,16,Voltaje del sistema de carga eléctrica - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,167,18,Voltaje del sistema de carga eléctrica - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,168,15,Voltaje de la batería 1 - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,168,17, Voltaje de la batería 1 - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,168,17,Voltaje de la batería 1 - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,171,2,"Temperatura del aire ambiente - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,171,3,Sensor de temperatura del aire ambiente 1 Circuito - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,171,4,Sensor de temperatura del aire ambiente 1 Circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,175,0,Temperatura del aceite de motor - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Heredado_Manual,X12
+SPN,175,2,"Temperatura del aceite de motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,175,3,Sensor de temperatura de aceite de motor 1 Circuito - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,175,4,Sensor de temperatura de aceite de motor 1 Circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,175,16, Temperatura del aceite del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,188,16,Régimen del motor en ralentí - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,188,17,Régimen del motor en ralentí - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,188,18,Régimen del motor en ralentí - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,190,0,Velocidad/posición del cigüeñal del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Heredado_Manual,X12
+SPN,190,2,"Velocidad/posición del cigüeñal del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,190,2,"Velocidad/posición del cigüeñal del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,190,11,Velocidad del motor - causa raíz desconocida,Motor,MEDIA,Heredado_Manual,X12
+SPN,190,16,Velocidad/posición del cigüeñal del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,191,9,Velocidad de salida del eje de la transmisión - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,191,19, Velocidad de salida del eje de transmisión - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,237,13,Número de identificación del vehículo - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,251,10,Reloj en tiempo real - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,251,13,Reloj en tiempo real - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,411,2,"Presión diferencial de recirculación de gases de escape - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,411,3,Circuito sensor de presión Delta de la válvula de recirculación de gases de escape: voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,411,4,Circuito del sensor de presión delta de la válvula de recirculación de gases de escape - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,412,2,"Temperatura de recirculación de gases de escape - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,412,3, Circuito del sensor de temperatura de recirculación de gases de escape - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,412,4,Circuito del sensor de temperatura de recirculación de gases de escape - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,412,15,Temperatura de recirculación de gases de escape - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,412,16, Temperatura de recirculación de gases de escape - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,521,2,"Posición del pedal de freno - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,558,9,Pedal del acelerador o interruptor de validación del ralentí de la palanca - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,558,19,Pedal del acelerador o interruptor de validación de ralentí de la palanca - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,563,9,Controlador de frenado antibloqueo (ABS) - Tasa de actualización anormal,Motor,BAJA,Heredado_Manual,X12
+SPN,563,31,Frenado antibloqueo (ABS) activo - Condición existente,Motor,BAJA,FMI,X12
+SPN,581,9,Módulo de relación de transmisión - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,612,2,"La velocidad/posición magnética del motor perdió ambas señales: datos erráticos, intermitentes o incorrectos",Motor,ALTA,Heredado_Manual,X12
+SPN,626,3,Encendido del motor Dispositivo 1 Circuito - voltaje por encima de lo normal o en corte a fuente alta,Motor,MEDIA,FMI,X12
+SPN,626,4,Encendido del motor Dispositivo 1 Circuito - voltaje por debajo de lo normal o cortocircuitado a la fuente baja,Motor,MEDIA,FMI,X12
+SPN,629,12,Fallo interno crítico del módulo de control del motor - Dispositivo o componente inteligente defectuoso,Motor,ALTA,Heredado_Manual,X12
+SPN,629,12,Advertencia del módulo de control del motor Fallo interno de hardware - Dispositivo o componente inteligente defectuoso,Motor,ALTA,Heredado_Manual,X12
+SPN,630,12,Software de memoria para calibración del módulo de control del motor - Elección,Motor,ALTA,FMI,X12
+SPN,630,12,Memoria de calibración del módulo de control del motor - dispositivo inteligente defectuoso o componente,Motor,ALTA,FMI,X12
+SPN,633,31,Circuito de control de la válvula de inyección electrónica de combustible - condición existente,Motor,BAJA,Heredado_Manual,X12
+SPN,639,9,Error de timeout PGN multiplexado SAE J1939 - Tasa de actualización anormal,Motor,MEDIA,Heredado_Manual,X12
+SPN,639,9,Enlace de datos SAE J1939 - Tasa de actualización anormal,Motor,MEDIA,Heredado_Manual,X12
+SPN,639,13,Error de configuración de multiplexación SAE J1939 - Fuera de calibración,Motor,MEDIA,Heredado_Manual,X12
+SPN,641,7,Circuito de conducción del actuador VGT (motor) - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,Heredado_Manual,X12
+SPN,641,9,Circuito de controlador de actuador VGT - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,641,9,Circuito de controlador de actuador VGT - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,641,11,Circuito controlador del actuador VGT - causa raíz desconocida,Motor,ALTA,Heredado_Manual,X12
+SPN,641,12,Controlador de actuador VGT - Dispositivo o componente inteligente defectuoso,Motor,ALTA,FMI,X12
+SPN,641,13, Controlador de actuadores VGT - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,641,14,Controlador de actuadores VGT - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,641,15,Temperatura del controlador del actuador VGT - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,641,31,Circuito controlador del actuador VGT - Condición existente,Motor,BAJA,FMI,X12
+SPN,647,3,Circuito de control del ventilador - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,647,4,Circuito de control del ventilador - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,651,5,Cilindro del controlador del solenoide del inyector 1 circuito - corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_Manual,X12
+SPN,651,7,Cilindro del driver del solenoide del inyector 1 - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,Heredado_Manual,X12
+SPN,652,5,Cilindro del controlador del solenoide del inyector 2 circuito - corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_Manual,X12
+SPN,652,7,Cilindro del driver del solenoide del inyector 2 - Sistema mecánico que no responde o está fuera de ajuste,Motor,MEDIA,Heredado_Manual,X12
+SPN,653,5,Cilindro del controlador del solenoide del inyector 3 circuito - corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_Manual,X12
+SPN,653,7,Cilindro 3 del driver del solenoide inyector - Sistema mecánico que no responde o está fuera de ajuste,Motor,MEDIA,Heredado_Manual,X12
+SPN,654,5,Cilindro de control del solenoide del inyector 4 circuito - corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_Manual,X12
+SPN,654,7,Cilindro 4 del driver del solenoide del inyector - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,655,5,Cilindro de conducción del solenoide del inyector 5 circuito - corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_Manual,X12
+SPN,655,7,Cilindro 5 del driver del inyector del solenoide - Sistema mecánico que no responde o está fuera de ajuste,Motor,MEDIA,Heredado_Manual,X12
+SPN,656,5,Cilindro 6 del driver del solenoide del inyector - corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_Manual,X12
+SPN,656,7,Cilindro 6 del driver del solenoide inyector - Sistema mecánico que no responde o está fuera de ajuste,Motor,MEDIA,Heredado_Manual,X12
+SPN,677,3,Circuito de relé del motor de arranque - voltaje por encima de lo normal o en corte a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,677,4,Circuito de relé del motor de arranque del motor - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,723,2,"Sensor de velocidad/posición del árbol de levas del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,723,2,"Sensor de velocidad/posición del árbol de levas del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,723,7,Desalineación de velocidad/posición del motor en el árbol de levas y cigüeñal - Sistema mecánico que no responde o está fuera de ajuste,Motor,MEDIA,Heredado_Manual,X12
+SPN,729,3,Calentador de aire de admisión del motor 1 circuito - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,729,4,Calentador de aire de admisión del motor 1 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,729,5,Calentador de aire de admisión del motor 1 circuito - corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,FMI,X12
+SPN,747,13,Coincidencia motor/transmisión - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,747,19,Coincidencia motor/transmisión - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,862,3,Circuito del filtro de respiración del cárter - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,862,4,Circuito del filtro de respiración del cárter - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,862,4,Circuito del filtro de respiración del cárter - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,974,3,Sensor remoto de pedal o posición de palanca 1 circuito - voltaje por encima de lo normal o en corte a fuente alta,Motor,MEDIA,FMI,X12
+SPN,974,3,Sensor remoto de pedal o posición de palanca 1 circuito - voltaje por encima de lo normal o en corte a fuente alta,Motor,MEDIA,FMI,X12
+SPN,974,4,Sensor de posición remoto del pedal o palanca del acelerador 1 circuito - voltaje por debajo de lo normal o en corto a una fuente baja,Motor,ALTA,Heredado_Manual,X12
+SPN,974,4,Sensor de posición remoto del pedal o palanca del acelerador 1 circuito - voltaje por debajo de lo normal o en corto a una fuente baja,Motor,ALTA,Heredado_Manual,X12
+SPN,974,19,Sistema de sensor de posición de acelerador o palanca multiplexante SAE J1939 - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,974,19,Sistema de sensores de acelerador o palanca multiplexados SAE J1939 - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,1072,3,Conductor del actuador de freno del motor 1 Circuito - voltaje por encima de lo normal o en cortocircuito a fuente alta,Motor,MEDIA,FMI,X12
+SPN,1072,3,Conductor del actuador de freno del motor 1 Circuito - voltaje por encima de lo normal o en cortocircuito a fuente alta,Motor,MEDIA,FMI,X12
+SPN,1072,4,Conductor del actuador de freno del motor 1 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1072,4,Conductor del actuador de freno del motor 1 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1073,3,Salida del conductor del actuador del freno del motor 2 circuito - voltaje por encima de lo normal o en circuito a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,1073,3,Salida del conductor del actuador del freno del motor 2 circuito - voltaje por encima de lo normal o en circuito a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,1073,4,Salida del conductor del actuador del freno del motor 2 circuitos - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,1073,4,Salida del conductor del actuador del freno del motor 2 circuitos - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,1075,3,Bomba eléctrica de elevación para el suministro de combustible del motor - voltaje por encima de lo normal o cortocircuitada a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,1075,4,Bomba eléctrica de elevación para el suministro de combustible del motor - voltaje por debajo de lo normal o cortocircuitada a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1081,7,Luz de espera para arrancar el motor - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,1112,3,Conductor del actuador de freno del motor 3 circuito - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,1112,4,Salida del conductor del actuador de freno del motor 3 circuitos - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1172,2,"Temperatura de admisión del compresor del turbocompresor 1 - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,1172,3, Turbocompresor 1 Circuito de temperatura de admisión - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,1172,4, Circuito de temperatura de entrada del compresor Turbo 1 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1176,1, Turbocompresor 1 Presión de admisión del compresor - datos válidos pero por debajo del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,1176,18,Presión de admisión del compresor del turbocompresor 1 - datos válidos por debajo del rango normal de funcionamiento - nivel moderado severo,Motor,MEDIA,FMI,X12
+SPN,1209,2,"Presión de gases de escape 1 - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,1209,3, Circuito sensor de presión de gases de escape: voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,1209,4, Circuito del sensor de presión de gases de escape: voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1209,16,Presión de gases de escape - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,1209,18,Presión de gases de escape - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,1209,21,Presión de gases de escape - datos no racionales - Derivado bajo,Motor,MEDIA,FMI,X12
+SPN,1239,16,Fuga de combustible del motor - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,1267,3,Apagado en ralentí Circuito de relé del conductor del vehículo - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,1267,4,Apagado en ralentí Circuito del controlador de relés del vehículo - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1322,11,Fallo de encendido del motor en varios cilindros - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1322,31,Fallo de encendido del motor para múltiples cilindros - condición existente,Motor,BAJA,FMI,X12
+SPN,1323,11,Cilindro de fallo del motor #1 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1323,31,Fallo de encendido del motor Cilindro 1 - Condición existente,Motor,BAJA,FMI,X12
+SPN,1324,11,Fallo de encendido del motor #2 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1324,31,Fallo de encendido del motor Cilindro 2 - Condición existente,Motor,BAJA,FMI,X12
+SPN,1325,11,Fallo del motor #3 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1325,31,Fallo de encendido del motor Cilindro 3 - Condición existente,Motor,BAJA,FMI,X12
+SPN,1326,11,Fallo de encendido del motor #4 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1326,31,Fallo de encendido del motor Cilindro 4 - Condición existente,Motor,BAJA,FMI,X12
+SPN,1327,11,Fallo de encendido del motor #5 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1327,31,Fallo de encendido del motor Cilindro 5 - Estado,Motor,BAJA,FMI,X12
+SPN,1328,11,Fallo de encendido del motor #6 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1328,31,Fallo de encendido del motor Cilindro 6 - Estado Existente,Motor,BAJA,FMI,X12
+SPN,1347,2,"Conjunto de presurización de la bomba de combustible del motor 1 - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,1347,3,Conjunto de presurización de la bomba de combustible del motor 1 circuito - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,1347,4,Conjunto de presurización de la bomba de combustible del motor 1 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1349,3,Circuito sensor de presión del Inyector Miding Rail 2 - voltaje por encima de lo normal o en circuito a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,1349,4,Circuito del sensor de presión del raíl medidor del inyector 2 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1378,31,Intervalo de cambio de aceite del motor - Condiciones existentes,Motor,MEDIA,Heredado_Manual,X12
+SPN,1569,15, Reducción de par de motor - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,1569,31,Reducción de par de protección del motor - condición existente,Motor,BAJA,FMI,X12
+SPN,1590,2," Modo de control de crucero adaptativo - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,1590,9,Modo de control de crucero adaptativo - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,1590,19,Modo de control de crucero adaptativo - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,1675,31,Modo de arranque del motor - Protección sobre el cigüeñal - Condición existente,Motor,BAJA,FMI,X12
+SPN,1761,1,Nivel del depósito de líquido de escape diésel 1 - datos válidos pero por debajo del rango normal de funcionamiento - nivel más grave,Motor,MEDIA,Heredado_Manual,X12
+SPN,1761,3,Tratamiento posterior 1 Circuito sensor del tanque del tanque de líquido de escape diésel - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,1761,4,Postratamiento 1 Circuito del sensor del tanque del líquido de escape diésel - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,1761,5,Postratamiento 1 Circuito sensor del tanque del líquido de escape diésel - Corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,FMI,X12
+SPN,1761,9,Postratamiento 1 Nivel del depósito de líquido de escape diésel - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,1761,10,Postratamiento 1 Sensor de nivel del depósito de líquido de escape diésel - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,1761,11,Sensor de nivel del tanque del tanque de líquido de escape diésel 1 - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,1761,13,Sensor de nivel del depósito de líquido de escape diésel 1 - fuera de calibración,Motor,MEDIA,Heredado_Manual,X12
+SPN,1761,17,Nivel del depósito de líquido de escape diésel de postratamiento - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,1761,18, Nivel del depósito de líquido de escape diésel de postratamiento - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,1818,31, Control de frenos contra la protección contra volteos - Condición existente,Motor,BAJA,FMI,X12
+SPN,2623,3,Sensor de posición del pedal del acelerador o palanca 2 circuito - voltaje por encima de lo normal o en cortocircuito a fuente alta,Motor,MEDIA,FMI,X12
+SPN,2623,4,Sensor de posición del pedal del acelerador o de la palanca 2 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,ALTA,Heredado_Manual,X12
+SPN,2623,8,Sensor de posición del pedal del acelerador o palanca 2 Frecuencia del circuito - Frecuencia o ancho o periodo de pulso anormales,Motor,MEDIA,FMI,X12
+SPN,2629,15,Temperatura de salida del compresor del turbocompresor (calculada) - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,2789,15,Temperatura de admisión de la turbina del turbocompresor - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,2789,16,Temperatura de admisión de la turbina del turbocompresor - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,2791,5,Circuito de control de válvulas EGR - corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,Heredado_Manual,X12
+SPN,2791,6, Circuito de control de válvulas EGR - Corriente por encima de lo normal o circuito conectado a tierra,Motor,MEDIA,FMI,X12
+SPN,2791,13,Controlador de válvulas EGR - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,2791,15,Circuito de control de válvulas EGR sobre temperatura - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,2978,9,Pérdidas parásitas estimadas del motor - Porcentaje de par - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,3031,2,"Temperatura del tanque de líquido de escape diésel 1 - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3031,3,Sensor de temperatura del tanque de líquido de escape diésel 1 - voltaje superior a lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,3031,4,Postratamiento 1 Sensor de temperatura del tanque de líquido de escape diésel - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3031,9,Postratamiento 1 Temperatura del tanque de líquido de escape diésel - Tasa de actualización anormal,Motor,MEDIA,Heredado_Manual,X12
+SPN,3031,11,Temperatura del tanque de líquido de escape diésel 1 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,3031,13,Sensor de temperatura del tanque de líquido de escape diésel 1 - fuera de calibración,Motor,MEDIA,Heredado_Manual,X12
+SPN,3031,20,Sensor de temperatura del tanque de líquido de escape diésel 1 - datos no racionales - derivado alto,Motor,MEDIA,FMI,X12
+SPN,3031,21,Sensor de temperatura del tanque de líquido de escape diésel 1 - datos no racionales - Derivado bajo,Motor,MEDIA,FMI,X12
+SPN,3058,0,Sistema de recirculación de gases de escape del motor (EGR) - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,3058,10,Sistema de recirculación de gases de escape del motor (EGR) - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3058,16, Sistema de recirculación de gases de escape del motor (EGR) - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3058,18,Sistema de recirculación de gases de escape del motor (EGR) - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3060,18,Monitor del sistema de refrigeración del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3216,2,"Sensor de NOx de admisión posterior al tratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3216,2,"NOx de entrada de 1 posttratamiento - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3216,4,Circuito sensor NOx de entrada de 1 posttratamiento - voltaje por debajo de lo normal o en cortocircuito a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3216,9,Sensor de NOx de admisión posterior al tratamiento - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,3216,10,Sensor de NOx de admisión posterior al tratamiento - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3216,13,NOx de admisión posterior al tratamiento - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,3216,14,Sensor NOx de admisión SCR 1 Aftertreatment - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,3216,20, Sensor de NOx de admisión posterior al tratamiento - Datos no racionales - Derivados altos,Motor,MEDIA,FMI,X12
+SPN,3216,20,Sensor de NOx de admisión de 1 posttratamiento - datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,3216,21,Sensor de NOx de admisión de 1 posttratamiento - datos no racionales - Bajos desviados,Motor,MEDIA,FMI,X12
+SPN,3216,31,Sensor NOx de admisión SCR 1 - Condición existente,Motor,BAJA,FMI,X12
+SPN,3217,14,Sensor de oxígeno de admisión posterior al tratamiento - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,3217,20,Sensor de oxígeno de admisión posterior al tratamiento - Datos no racionales - Derivados altos,Motor,MEDIA,FMI,X12
+SPN,3217,21,Sensor de oxígeno de admisión posterior al tratamiento - datos no racionales - Bajos derivados,Motor,MEDIA,FMI,X12
+SPN,3218,2,"Fuente de alimentación del sensor NOx de entrada de 1 entrada de posttratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3222,5,Calentador sensor de gas de admisión de posttratamiento - corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,FMI,X12
+SPN,3226,2,"Sensor NOx de 1 salida de postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,3226,4,Circuito sensor de NOx de 1 toma de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,ALTA,Heredado_Manual,X12
+SPN,3226,9,Sensor NOx de salida de 1 salida posterior al tratamiento - Tasa de actualización anormal,Motor,ALTA,Heredado_Manual,X12
+SPN,3226,10,Sensor de NOx de salida de postratamiento - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3226,11,Sensor NOx de 1 salida en postratamiento - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,3226,13,Sensor NOx de salida de postratamiento - Fuera de calibración,Motor,MEDIA,Heredado_Manual,X12
+SPN,3226,20, Sensor de NOx de salida de postratamiento - datos no racionales - Derivados a alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,3226,20,Sensor NOx de 1 salida de postratamiento - Datos no racionales - Derivados a altas,Motor,MEDIA,Heredado_Manual,X12
+SPN,3226,21,Sensor de NOx de una salida posterior al tratamiento - datos no racionales - Bajo desviado,Motor,MEDIA,FMI,X12
+SPN,3226,31,Sensor NOx de 1 salida de postratamiento - Condición existente,Motor,BAJA,FMI,X12
+SPN,3227,10,Oxígeno de salida posterior al tratamiento - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3227,20,Oxígeno de salida de postratamiento - Datos no racionales - Derivados altos,Motor,MEDIA,FMI,X12
+SPN,3227,20,Sensor de oxígeno de salida de 1 salida de postratamiento - datos no racionales - Derivados altos,Motor,MEDIA,FMI,X12
+SPN,3227,21,Oxígeno de la salida de postratamiento - Datos no racionales - Bajos derivados,Motor,MEDIA,FMI,X12
+SPN,3227,21,Sensor de osígeno de 1 salida de postratamiento - datos no racionales - Derivados bajos,Motor,MEDIA,FMI,X12
+SPN,3228,2,"Fuente de alimentación del sensor NOx de 1 toma de postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,3242,0,Temperatura de admisión del filtro de partículas diésel posterior al tratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,3242,2," Temperatura de admisión del filtro de partículas diésel de postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3242,3,Circuito sensor de temperatura del filtro de partículas diésel de admisión de partículas - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3242,4,Circuito sensor de temperatura del filtro de partículas diésel de admisión de partículas de posttratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3242,15,Temperatura de admisión del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,3242,16,Temperatura de admisión del filtro de partículas diésel de posttratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3246,0,Temperatura de salida del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,3246,2,"Temperatura de salida del filtro de partículas diésel para postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3246,3, Circuito sensor de temperatura del filtro de partículas diésel de salida - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3246,4,Circuito sensor de temperatura del filtro de partículas diésel de salida - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3246,15,Temperatura de salida del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,3246,16,Temperatura de salida del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3246,20,Sensor de temperatura de salida del filtro de partículas diésel 1 - datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,3246,20,Sensor de temperatura de salida del filtro de partículas diésel 1 - datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,3246,21,Sensor de temperatura de salida del filtro de partículas diésel 1 - datos no racionales - Derivados a baja,Motor,MEDIA,FMI,X12
+SPN,3251,0,Presión diferencial del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,3251,2,"Presión diferencial del filtro de partículas diésel en el posttratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3251,3,Circuito sensor diferencial de presión del filtro de partículas diésel de postratamiento - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3251,4,Circuito sensor diferencial de presión del filtro de partículas diésel de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3251,10,Postratamiento 1 Presión diferencial del filtro de partículas diésel - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3251,15,Presión diferencial del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,3251,16,Presión diferencial del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3251,20,Sensor diferencial de presión diferencial del filtro de partículas diésel 1 - datos no racionales - derivado alto,Motor,MEDIA,FMI,X12
+SPN,3251,21,Sensor diferencial de presión del filtro de partículas diésel 1 - datos no racionales - derivados a baja,Motor,MEDIA,FMI,X12
+SPN,3361,3,Postratamiento 1 Unidad de dosificación de líquido de escape diésel - voltaje por encima de lo normal o cortocircuitada a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3361,4,Postratamiento 1 Unidad de dosificación de fluido de escape diésel - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3362,31,Postratamiento 1 Unidad de dosificación de líquido de escape diésel Líneas de entrada - Condición existente,Motor,BAJA,FMI,X12
+SPN,3363,3,Postratamiento 1 Calentador del depósito de líquido de escape diésel - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,ALTA,Heredado_Manual,X12
+SPN,3363,4,Postratamiento 1 Calentador del tanque de líquido de escape diésel - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3363,7,Calentador del depósito de líquido de escape diésel 1 - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,3363,16,Aftertreatment 1 Calentador del tanque de líquido de escape diésel - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3363,18,Calentador del tanque de líquido de escape diésel de postratamiento - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3364,1,Calidad del líquido de escape diésel tras el tratamiento - datos válidos pero por debajo del rango normal de funcionamiento - nivel más grave,Motor,ALTA,FMI,X12
+SPN,3364,2,"Calidad del líquido de escape diésel tras el tratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3364,3,Circuito sensor de calidad del líquido de escape diésel de postratamiento - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3364,4,Circuito sensor de calidad del líquido de escape diésel de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3364,9,Calidad del líquido de escape diésel tras el tratamiento - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,3364,10,Calidad del líquido de escape diésel tras el tratamiento - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3364,11,Calidad del líquido de escape diésel tras el tratamiento - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,3364,13,Calidad del líquido de escape diésel de postratamiento - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,3364,15,Calidad del líquido de escape diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,3364,18,Calidad del líquido de escape diésel posterior al tratamiento - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3464,3,Circuito controlador del actuador de control electrónico del acelerador - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,3464,3,Circuito controlador del actuador de control electrónico del acelerador - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,3464,4,Circuito controlador del actuador de control electrónico del acelerador - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3464,4, Circuito controlador del actuador de control electrónico del acelerador - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3464,7,Actuador de control electrónico del acelerador - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,3464,7,Actuador de control electrónico del acelerador - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,3509,3,Circuito de alimentación del sensor 1 - voltaje por encima de lo normal o en corto a una fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,3509,4, Circuito de alimentación del sensor 1 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3510,3,Circuito de alimentación del sensor 2 - voltaje por encima de lo normal o en corto a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3510,4,Circuito de alimentación del sensor 2 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,BAJA,Heredado_Manual,X12
+SPN,3511,3,Circuito de alimentación del sensor 3 - voltaje por encima de lo normal o en corto a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3511,4,Circuito de alimentación del sensor 3 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3512,3,Circuito de alimentación del sensor 4 - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3512,4,Alimentación del sensor 4 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3513,3,Circuito de alimentación del sensor 5 - voltaje por encima de lo normal o en circuito a fuente alta,Motor,MEDIA,FMI,X12
+SPN,3513,4,Circuito de alimentación del sensor 5 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3514,3,Fuente de sensor 6 circuito - voltaje por encima de lo normal o en corto a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,3514,4, Circuito de alimentación del sensor 6 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3515,3,Tratamiento posterior 1 Temperatura del líquido de escape diésel 2 Circuito sensor - voltaje por encima de lo normal o en circuito a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,3515,4,Tratamiento posterior 1 Temperatura del líquido de escape diésel 2 Circuito sensor - voltaje por debajo de lo normal o cortocircuitado a la fuente baja,Motor,MEDIA,FMI,X12
+SPN,3515,10,Postratamiento 1 Temperatura del líquido de escape diésel 2 - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3515,11,Tratamiento posterior 1 Temperatura del líquido de escape diésel 2 - Causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,3515,20,Postratamiento 1 Sensor de temperatura del líquido de escape diésel 2 - Datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,3515,21,Postratamiento 1 Sensor de temperatura del líquido de escape diésel 2 - Datos no racionales - Derivado bajo,Motor,MEDIA,FMI,X12
+SPN,3521,11,Postratamiento 1 Propiedad del líquido de escape diésel - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,3521,16,Postratamiento 1 Propiedad del líquido de escape diésel - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3521,18,Postratamiento 1 Propiedad del líquido de escape diésel - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3521,31,Posttratamiento 1 Propiedad del líquido de escape diésel - condición existente,Motor,BAJA,FMI,X12
+SPN,3521,31,Posttratamiento 1 Propiedad del líquido de escape diésel - condición existente,Motor,BAJA,FMI,X12
+SPN,3555,17,Densidad del aire ambiente - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,MEDIA,Heredado_Manual,X12
+SPN,3597,2,"Alimentación perdida con el encendido encendido - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_Manual,X12
+SPN,3597,12,Fuente de alimentación inyectora - Dispositivo o componente inteligente defectuoso,Motor,ALTA,FMI,X12
+SPN,3597,18,Tensión de salida de la ECU Alimentación 1 - Datos válidos pero por debajo del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,3610,2,"Presión de salida del filtro de partículas diésel en el posttratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3610,3,Circuito del sensor de presión de salida del filtro de partículas diésel de postratamiento - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,3610,4,Circuito sensor de presión de salida del filtro de partículas diésel de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,3610,10,Postratamiento 1 Presión de salida del filtro de partículas diésel - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,3610,20,Sensor de presión de salida del filtro de partículas diésel 1 - datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,3610,21,Sensor de presión de salida del filtro de partículas diésel 1 - datos no racionales - Derivado bajo,Motor,MEDIA,FMI,X12
+SPN,3667,2,"Estado del apagado del aire del motor - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3667,7, Apagado del aire del motor - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,3667,14,Estado del apagado del aire del motor - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,3667,31,Corte de aire del motor - condición existente,Motor,BAJA,FMI,X12
+SPN,3695,2,"Conmutador inhibidor de regeneración posterior al tratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3703,31,Regeneración activa de la trampa de partículas inhibida debido al interruptor de inhibición - Existe la condición,Motor,BAJA,FMI,X12
+SPN,3703,31,Regeneración posterior al tratamiento inhibida debido al interruptor inhibidor - Existe la condición,Motor,BAJA,FMI,X12
+SPN,3720,15,Postratamiento 1 Porcentaje de carga de ceniza del filtro de partículas diésel - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,3750,31,Filtro de partículas diésel de postratamiento 1 No se cumplen condiciones para la regeneración activa - Existe condición,Motor,BAJA,FMI,X12
+SPN,3936,2,"Sistema de filtro de partículas diésel de postratamiento 1 - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,3936,14,Sistema de filtro de partículas diésel de postratamiento - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,3936,15,Postratamiento 1 Sistema de filtro de partículas diésel - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,4096,31, Depósito de líquido de escape diésel de postratamiento vacío - Condición existente,Motor,BAJA,FMI,X12
+SPN,4331,16,Tratamiento posterior 1 Líquido de escape diésel Cantidad real de dosificación - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,4331,18,Tratamiento posterior 1 Líquido de escape diésel Cantidad real de dosificación - datos válidos pero por debajo del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,4334,2,"Sensor de presión del líquido de escape diésel de postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,4334,3,Tratamiento posterior 1 Circuito sensor de presión del líquido de escape diésel - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,4334,4,Tratamiento posterior 1 Circuito sensor de presión del líquido de escape diésel - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,4334,7,Postratamiento 1 Presión del líquido de escape diésel - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,4334,15,Postratamiento 1 Presión del líquido de escape diésel - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,4334,16,Postratamiento 1 Presión del líquido de escape diésel - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,ALTA,Heredado_Manual,X12
+SPN,4334,18,Postratamiento 1 Presión del líquido de escape diésel - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,4334,20,Sensor de presión del líquido de escape diésel 1 - datos no racionales - derivado alto,Motor,MEDIA,FMI,X12
+SPN,4334,21,Sensor de presión del líquido de escape diésel 1 - datos no racionales - derivado bajo,Motor,MEDIA,FMI,X12
+SPN,4339,7,) Postratamiento 1 Estado del control de retroalimentación SCR - Sistema mecánico no responde o está fuera de ajuste,Motor,ALTA,Texto,X12
+SPN,4340,3,Calentador de línea de líquido de escape diésel de postratamiento 1 circuito - voltaje por encima de lo normal o en corte a fuente alta,Motor,ALTA,Heredado_Manual,X12
+SPN,4340,4,Tratamiento posterior 1 Calentador de línea de líquido de escape diésel 1 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,Heredado_Manual,X12
+SPN,4342,3,Calentador de línea de líquido de escape diésel de postratamiento circuito 2 - voltaje por encima de lo normal o en corte a fuente alta,Motor,MEDIA,FMI,X12
+SPN,4342,4,Tratamiento posterior 1 Calentador de línea de líquido de escape diésel 2 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,4344,3, Calentador de línea de líquido de escape diésel de postratamiento circuito 3 - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,4344,4,Tratamiento posterior 1 Calentador de línea de líquido de escape diésel 3 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,4363,0,Temperatura de salida SCR de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,4363,2,"Sensor de temperatura de salida SCR de postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,4363,3,Postratamiento 1 Circuito del sensor de temperatura del enchufe SCR - voltaje por encima de lo normal o en corte a la fuente alta,Motor,MEDIA,Heredado_Manual,X12
+SPN,4363,4,Circuito sensor de temperatura del enchufe SCR de postratamiento 1 - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,4363,15,Temperatura de salida SCR de 1 posttratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,4363,16,Temperatura de salida SCR posterior al tratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,4363,20,Sensor de temperatura de salida SCR de postratamiento 1 - datos no racionales - Derivados alto,Motor,MEDIA,FMI,X12
+SPN,4363,20,Sensor de temperatura de salida SCR de postratamiento 1 - datos no racionales - Derivados alto,Motor,MEDIA,FMI,X12
+SPN,4363,21,Sensor de temperatura de salida SCR de postratamiento 1 - datos no racionales - Bajo derivado,Motor,MEDIA,FMI,X12
+SPN,4364,31,Postratamiento 1 Eficiencia de conversión SCR - Condición existente,Motor,BAJA,FMI,X12
+SPN,4375,2,"Postratamiento 1 Porcentaje de accionamiento de la bomba de escape diésel - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,4375,3,Postratamiento 1 Circuito de comando de la bomba de fluido de escape diésel - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,4375,4,Postratamiento 1 Circuito de comando de la bomba de líquido de escape diésel - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,4752,18,Eficiencia del refrigerador de recirculación de gases de escape del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,4765,2,"Temperatura de admisión del catalizador de oxidación diésel de postratamiento - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,4765,3, Circuito sensor de temperatura de admisión del catalizador de oxidación diésel de posttratamiento - voltaje superior a lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,4765,4,Circuito sensor de temperatura de admisión del catalizador de oxidación diésel de posttratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,4765,16,Temperatura de admisión del catalizador de oxidación diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,4765,20,Sensor de temperatura de admisión del catalizador de oxidación diésel 1 - datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,4765,21,Sensor de temperatura de admisión del catalizador de oxidación diésel 1 - datos no racionales - Derivados bajos,Motor,MEDIA,FMI,X12
+SPN,4766,20,Sensor de temperatura de gas de salida en la salida del catalizador de oxidación diésel 1 - datos no racionales - derivados alto,Motor,MEDIA,FMI,X12
+SPN,4766,21,Sensor de temperatura de gas en la salida del catalizador de oxidación diésel 1 - datos no racionales - Derivados bajos,Motor,MEDIA,FMI,X12
+SPN,4792,14,Sistema Catalyst SCR de Aftertreatment 1 - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,4794,31,Sistema Catalyst SCR posterior al tratamiento faltante: condición existente,Motor,ALTA,Heredado_Manual,X12
+SPN,4795,31, Filtro de partículas diésel de postratamiento faltante: condición,Motor,BAJA,FMI,X12
+SPN,4796,31,Catalisador de oxidación diésel de postratamiento faltante: condición existente,Motor,BAJA,FMI,X12
+SPN,5024,10,Calentador sensor de NOx de admisión posterior al tratamiento - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,5031,10,Calentador sensor NOx de 1 toma de postratamiento - Tasa de cambio anormal,Motor,MEDIA,Heredado_Manual,X12
+SPN,5097,3,Lámpara activa del freno del motor - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,5097,4,Lámpara activa del freno del motor - voltaje por debajo de lo normal o cortocircuitado a la fuente baja,Motor,MEDIA,FMI,X12
+SPN,5246,0,Inducción del operador SCR de posttratamiento - datos válidos pero por encima del rango normal de operación - nivel más severo,Motor,ALTA,Texto,X12
+SPN,5246,16,Severidad de inducción del operador SCR después del tratamiento - datos válidos pero por encima del rango normal de operación - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5285,18,Eficiencia del enfriador de aire de carga del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5298,17,Eficiencia de conversión del catalizador de oxidación diésel de postratamiento - datos válidos pero por debajo del rango normal de funcionamiento - nivel menos severo,Motor,BAJA,Texto,X12
+SPN,5298,18,Eficiencia de conversión del catalizador de oxidación diésel para postratamiento - Elección,Motor,MEDIA,FMI,X12
+SPN,5319,31, Regeneración incompleta del filtro de partículas diésel de postratamiento - Condición existente,Motor,BAJA,FMI,X12
+SPN,5321,31,Monitor de presión del sistema de presión del colector de admisión del motor - Estado existente,Motor,BAJA,FMI,X12
+SPN,5394,3,Tratamiento posterior 1 Válvula dosificadora de líquido de escape diésel 1 Circuito - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,5394,5,Válvula dosificadora de líquido de escape diésel de postratamiento - corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,FMI,X12
+SPN,5394,7,Tratamiento posterior 1 Válvula dosificadora de líquido de escape diésel 1 - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,5395,18,Cantidad de combustible en ralentí del motor - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5397,31, Regeneración del filtro de partículas diésel con posttratamiento demasiado frecuente - Existe la condición,Motor,BAJA,FMI,X12
+SPN,5400,31,Gestión térmica de SCR - Existe la condición,Motor,BAJA,FMI,X12
+SPN,5491,3,Relé de calentamiento de línea de fluido de escape diésel de postratamiento - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,5491,4,Relé de calentamiento de línea de fluido de escape diésel de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,5491,7,Relé de calentamiento de la línea de escape del diésel con postratamiento - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,5569,2,"Postratamiento 1 Filtro de partículas diésel 1 Sensor de hollín Temperatura interna de la ECU - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,5569,3,Tratamiento posterior 1 Filtro de partículas diésel 1 Sensor de hollín Temperatura interna de la ECU 1 Circuito - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,5569,3,Tratamiento posterior 1 Filtro de partículas diésel 1 Sensor de hollín Temperatura interna de la ECU 2 Circuito - voltaje por encima de lo normal o en corto a fuente alta,Motor,MEDIA,FMI,X12
+SPN,5569,4,Tratamiento posterior 1 Filtro de partículas diésel 1 Sensor de hollín Temperatura interna de la ECU 1 Circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,5569,4,Tratamiento posterior 1 Filtro de partículas diésel 1 Sensor de hollín Temperatura interna de la ECU 2 Circuito - voltaje por debajo de lo normal o cortocircuitado a fuente baja,Motor,MEDIA,FMI,X12
+SPN,5569,16,Tratamiento posterior 1 Filtro de partículas diésel 1 sensor de hollín Temperatura interna de la ECU - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5569,16,Tratamiento posterior 1 Filtro de partículas diésel 1 sensor de hollín Temperatura interna de la ECU - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5571,0,Válvula de alivio de presión de combustible Common Rail de alta presión - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,5571,7,Válvula de alivio de presión de combustible Common Rail de alta presión - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,5585,18,Riel de medición del inyector del motor 1 Presión de arranque - datos válidos pero por debajo del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5603,9,Comando de desactivación del control de crucero - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,5603,19,Comando de desactivación del control de crucero - Datos de red recibidos por error,Motor,MEDIA,FMI,X12
+SPN,5603,31,Comando de desactivación del control de crucero - Condición existente,Motor,BAJA,FMI,X12
+SPN,5605,31,Comando de pausa del control de crucero - Condición existente,Motor,BAJA,FMI,X12
+SPN,5709,11,Desencadenante de autodiagnóstico del sensor NOx de 1 salida posterior - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,5717,10,Autodiagnóstico del sensor NOx de 1 salida posterior al tratamiento - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,5742,3,Módulo sensor de temperatura del filtro de partículas diésel de postratamiento - voltaje por encima de lo normal o en cortocircuito a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,5742,4,Módulo sensor de temperatura del filtro de partículas diésel de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,5742,9,Módulo sensor de temperatura del filtro de partículas diésel de postratamiento - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,5742,11,Módulo sensor de temperatura del filtro de partículas diésel para el posttratamiento - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,5742,12,Módulo sensor de temperatura del filtro de partículas diésel de postratamiento - dispositivo o componente inteligente defectuoso,Motor,ALTA,FMI,X12
+SPN,5742,16,Módulo sensor de temperatura del filtro de partículas diésel de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5743,3,Módulo sensor de temperatura de reducción catalítica selectiva de posttratamiento - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,5743,4,Módulo sensor de temperatura de reducción catalítica selectiva de postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,5743,9,Módulo sensor de temperatura de reducción catalítica selectiva de postratamiento - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,5743,11,Módulo sensor de temperatura de reducción catalítica selectiva de postratamiento - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,5743,12,Módulo sensor de temperatura de reducción catalítica selectiva de postratamiento - Dispositivo o componente inteligente defectuoso,Motor,ALTA,FMI,X12
+SPN,5743,16,Módulo sensor de temperatura de reducción catalítica selectiva de postratamiento - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,5835,3,Circuito sensor de partículas 1 Postratamiento - voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,5835,4,Circuito sensor de partículas 1 Postratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,5835,9,Sensor de partículas de postratamiento 1 - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,5835,21,Sensor de partículas de postratamiento 1 - Datos no racionales - Bajos derivados,Motor,MEDIA,FMI,X12
+SPN,5862,0,Postratamiento 1 SCR Temperatura intermedia del gas - datos válidos pero por encima del rango normal de funcionamiento - nivel más severo,Motor,ALTA,Texto,X12
+SPN,5862,2,"Postratamiento 1 Sensor intermedio de temperatura de gas SCR - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,5862,3,Postratamiento 1 Circuito SCR Intermedio de Sensor de Temperatura de Gas - Voltaje por encima de lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,5862,4,Postratamiento 1 Circuito SCR Intermedio de Sensor de Temperatura de Gas - Voltaje por debajo de lo normal o en cortocircuito a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,5862,14,Postratamiento 1 SCR Temperatura intermedia de gas - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,5862,16,Postratamiento 1 SCR Temperatura intermedia del gas - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,6304,31,Posición del interruptor de freno y del pedal del acelerador incompatible - Existe la condición,Motor,BAJA,FMI,X12
+SPN,6653,16,Inyector del motor Radial dosificador 1 Presión de arranque en frío - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,6655,3,Mantener el circuito de la lámpara de alimentación de la ECU - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,6655,4,Mantener el circuito de la lámpara de alimentación de la ECU - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,6713,9,Software de actuador de turbocompresor de geometría variable - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,6713,13,Software de actuador del turbocompresor de geometría variable - Fuera de calibración,Motor,MEDIA,FMI,X12
+SPN,6713,31,Software de actuador de turbocompresor de geometría variable - condición existente,Motor,BAJA,FMI,X12
+SPN,6773,7,Estado de regeneración del sensor de partículas de Aftertreatment 1 - Sistema mecánico que no responde o está fuera de ajuste,Motor,ALTA,FMI,X12
+SPN,6773,16,Estado de regeneración del sensor de partículas de postratamiento 1 - datos válidos pero por encima del rango normal de funcionamiento - nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,6777,10,Estado de detección del sensor de partículas en Postratamiento 1 - Tasa de cambio anormal,Motor,MEDIA,FMI,X12
+SPN,6778,3,Postratamiento 1 Fuente de alimentación del sensor de partículas - voltaje superior a lo normal o cortocircuitado a una fuente alta,Motor,MEDIA,FMI,X12
+SPN,6778,4,Alimentación del sensor de partículas 1 Postratamiento - voltaje por debajo de lo normal o cortocircuitado a la fuente baja,Motor,MEDIA,FMI,X12
+SPN,6778,16,Fuente de alimentación del sensor de partículas 1 Aftertreatment - datos válidos pero por encima del rango normal de funcionamiento - Nivel moderadamente severo,Motor,MEDIA,Texto,X12
+SPN,6780,2,"Sensor de temperatura de hollín del filtro de partículas diésel 1 - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,6780,3,Postratamiento 1 Sensor de temperatura de hollín del filtro de partículas diésel - voltaje superior a lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,6780,4,Postratamiento 1 Filtro de partículas diésel Sensor de temperatura de hollín - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,6802,31,Postratamiento 1 Sistema de dosificación de líquido de escape diésel congelado - condición existente,Motor,BAJA,FMI,X12
+SPN,7317,9,Estado predictivo del control de crucero - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,7321,3,Postratamiento 1 Sensor de partículas Calentador de parte alta Circuito del driver - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,7321,4,Tratamiento posterior 1 Sensor de partículas Calentador del lado alto del driver - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,7323,3,Postratamiento 1 Sensor de partículas Calentador Circuito de control lateral bajo - voltaje por encima de lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,7323,4,Posttratamiento 1 Sensor de partículas Calentador Circuito del driver del lado bajo - voltaje por debajo de lo normal o cortocircuitado a la fuente baja,Motor,MEDIA,FMI,X12
+SPN,7329,2,"Postratamiento 1 Fuente de alimentación del calentador del sensor de partículas - datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,7820,5,Módulo Gestor de Parámetros de Ruta Antena GPS - Corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,FMI,X12
+SPN,7820,6,Módulo Gestor de Parámetros de Ruta Antena GPS - Corriente por encima de lo normal o circuito conectado a tierra,Motor,MEDIA,FMI,X12
+SPN,7820,9,Módulo de Gestor de Parámetros de Ruta Antena GPS - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,7820,11,Señal de entrada de la antena GPS del Módulo Route Parameter Manager - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,7854,2,"Postratamiento 1 Módulo de Partículas Suministro de voltaje de batería - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,X12
+SPN,7854,3,Postratamiento 1 Módulo sensor de hollín del filtro de partículas diésel - voltaje superior a lo normal o cortocircuitado a fuente alta,Motor,MEDIA,FMI,X12
+SPN,7854,4,Módulo sensor de hollín del filtro de partículas diésel 1 - voltaje por debajo de lo normal o cortocircuitado a fuente baja,Motor,MEDIA,FMI,X12
+SPN,7854,6,Postratamiento 1 Módulo sensor de hollín del filtro de partículas diésel - corriente por encima de lo normal o circuito conectado a tierra,Motor,MEDIA,FMI,X12
+SPN,7854,12,Postratamiento 1 Filtro de partículas diésel Módulo de hollín Convertidor de voltaje - Dispositivo o componente inteligente defectuoso,Motor,ALTA,FMI,X12
+SPN,7854,20,Módulo sensor de partículas 1 Aftertreatment - Datos no racionales - Derivado alto,Motor,MEDIA,FMI,X12
+SPN,7854,21,Módulo sensor de partículas 1 Aftertreatment - datos no racionales - Derivados bajos,Motor,MEDIA,FMI,X12
+SPN,7936,9,Módulo de Control de Navegación - Tasa de actualización anormal,Motor,MEDIA,FMI,X12
+SPN,520953,3,Realimentación del relé de la unidad de dosificación del líquido de escape diésel de postratamiento - voltaje superior a lo normal o cortocircuitado a la fuente alta,Motor,MEDIA,FMI,X12
+SPN,520953,4,Realimentación del relé de la unidad de dosificación del líquido de escape diésel posterior al tratamiento - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,MEDIA,FMI,X12
+SPN,521022,31,Módulo de Gestor de Parámetros de Ruta Corriente de la antena GPS - Estado existente,Motor,BAJA,FMI,X12
+SPN,521023,11,Fallo del módulo USB del Gestor de Parámetros de Ruta - causa raíz desconocida,Motor,BAJA,FMI,X12
+SPN,521024,12,Fallo en la carga del módulo del Gestor de Parámetros de Ruta - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,X12
+SPN,521024,31,Fallo en la carga del módulo Route Parameter Manager - Existe la condición,Motor,BAJA,FMI,X12
+SPN,521026,12,Fallo en el software del módulo de gestor de parámetros de ruta - Dispositivo inteligente o componente defectuoso,Motor,ALTA,FMI,X12
+SPN,521027,14,Fallo del módulo CAN 1 del Gestor de Parámetros de Ruta - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,521028,14,Fallo del módulo CAN 2 del Gestor de Parámetros de Ruta - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,521029,31,Fallo de hardware del módulo Route Parameter Manager - Existe la condición,Motor,BAJA,FMI,X12
+SPN,521030,31,Fallo en la prueba Flash del módulo Route Parameter Manager - Existe la condición,Motor,BAJA,FMI,X12
+SPN,521031,3,"Módulo de Gestor de Parámetros de Ruta - Voltaje por encima de lo normal, o cortocircuitado a fuente alta",Motor,MEDIA,FMI,X12
+SPN,521031,4,"Módulo gestor de parámetros de ruta - voltaje por debajo de lo normal, o cortocircuitado a una fuente baja",Motor,MEDIA,FMI,X12
+SPN,521031,13,Módulo de Gestor de Parámetros de Ruta - Fuera de Calibración,Motor,MEDIA,FMI,X12
+SPN,521032,14,Ensamblaje del sistema de postratamiento - Instrucciones especiales,Motor,MEDIA,FMI,X12
+SPN,524286,31,Conductor del actuador de freno del motor 3 circuito - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,BAJA,FMI,X12
+SPN,524286,31,Conductor del actuador de freno del motor 3 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,BAJA,FMI,X12
