@@ -15,6 +15,9 @@ st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 
+if 'incidentes' not in st.session_state:
+    st.session_state.incidentes = {}  # Guardará los incidentes activos/cerrados
+
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
 
@@ -58,6 +61,38 @@ dias_activa_umbral = 3
 duracion_min_minutos = 15
 
 COSTO_MINUTO_RALENTI_COP = 300
+
+# --- PROTOCOLOS DE ATENCIÓN ---
+PROTOCOLOS = {
+    'ALTA': {
+        'nombre': 'Protocolo de Emergencia',
+        'acciones': [
+            {'orden': 1, 'texto': 'Notificar al supervisor de turno (WhatsApp / llamada).', 'responsable': 'Supervisor'},
+            {'orden': 2, 'texto': 'Contactar al conductor para verificar estado y seguridad.', 'responsable': 'Coordinador'},
+            {'orden': 3, 'texto': 'Enviar grúa o mecánico a la ubicación GPS.', 'responsable': 'Jefe de Flota'},
+            {'orden': 4, 'texto': 'Registrar incidente en sistema de ticketing.', 'responsable': 'Operador'},
+            {'orden': 5, 'texto': 'Seguimiento hasta cierre del evento.', 'responsable': 'Supervisor'}
+        ],
+        'tiempo_max_respuesta_min': 5
+    },
+    'MEDIA': {
+        'nombre': 'Protocolo de Atención Programada',
+        'acciones': [
+            {'orden': 1, 'texto': 'Evaluar necesidad de detener la ruta (consulta con supervisor).', 'responsable': 'Coordinador'},
+            {'orden': 2, 'texto': 'Agendar cita en taller más cercano para próximas 24 h.', 'responsable': 'Operador'},
+            {'orden': 3, 'texto': 'Notificar al conductor sobre la cita.', 'responsable': 'Operador'}
+        ],
+        'tiempo_max_respuesta_min': 30
+    },
+    'BAJA': {
+        'nombre': 'Registro y Mantenimiento Preventivo',
+        'acciones': [
+            {'orden': 1, 'texto': 'Registrar la falla en el historial del vehículo.', 'responsable': 'Sistema'},
+            {'orden': 2, 'texto': 'Programar revisión en el próximo mantenimiento preventivo.', 'responsable': 'Sistema'}
+        ],
+        'tiempo_max_respuesta_min': 1440  # 24 h
+    }
+}
 
 # Tabla fija: referencia de motor por marca (según tu Apps Script)
 REFERENCIA_MOTOR_POR_MARCA = {
