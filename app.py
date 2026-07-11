@@ -4,11 +4,16 @@ import plotly.express as px
 import mygeotab
 from datetime import datetime, timedelta, timezone, time as dt_time
 from zoneinfo import ZoneInfo
+import streamlit.components.v1 as components
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="🚚", layout="wide")
+
+# --- INICIALIZAR MEMORIA DE ALERTAS ---
+if 'alertas_altas_previas' not in st.session_state:
+    st.session_state.alertas_altas_previas = 0
 
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
@@ -33,18 +38,24 @@ client = iniciar_conexion_geotab()
 
 # --- 1. FILTROS LATERALES ---
 st.sidebar.header("⚙️ Parámetros de Búsqueda")
+st.sidebar.subheader("📅 Periodo Operativo")
 
-st.sidebar.subheader("📅 Periodo")
-fecha_inicio = st.sidebar.date_input("Fecha Inicio", datetime.now() - timedelta(days=30))
-fecha_fin = st.sidebar.date_input("Fecha Fin", datetime.now())
+ahora = datetime.now(ZONA_BOGOTA)
+inicio_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
 
-st.sidebar.subheader("🩺 Fallas")
-dias_activa_umbral = st.sidebar.slider(
-    "Considerar falla activa si ocurrió en los últimos N días", 1, 15, 3
-)
-duracion_min_minutos = st.sidebar.slider(
-    "Duración mínima de falla activa para el mapa (minutos)", 0, 60, 15
-)
+col_f1, col_f2 = st.sidebar.columns(2)
+with col_f1:
+    d_inicio = st.date_input("Día Inicio", inicio_dia.date())
+    t_inicio = st.time_input("Hora Inicio", inicio_dia.time())
+with col_f2:
+    d_fin = st.date_input("Día Fin", ahora.date())
+    t_fin = st.time_input("Hora Fin", ahora.time())
+
+fecha_inicio = datetime.combine(d_inicio, t_inicio).replace(tzinfo=ZONA_BOGOTA)
+fecha_fin = datetime.combine(d_fin, t_fin).replace(tzinfo=ZONA_BOGOTA)
+
+dias_activa_umbral = 3
+duracion_min_minutos = 15
 
 COSTO_MINUTO_RALENTI_COP = 300
 
@@ -118,7 +129,7 @@ def convertir_a_minutos(valor):
     except (ValueError, TypeError):
         return 0
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=180)
 def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     """Trae los eventos de sobre-revolución que Geotab ya detectó (usando
     sus propias reglas), y para cada uno busca el RPM pico real consultando
@@ -127,8 +138,8 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     if _client is None or _df_vehiculos.empty:
         return pd.DataFrame(), pd.DataFrame()
 
-    f_inicio_utc = datetime.combine(f_inicio, datetime.min.time()).replace(tzinfo=ZONA_BOGOTA).astimezone(timezone.utc)
-    f_fin_utc = datetime.combine(f_fin, datetime.max.time()).replace(tzinfo=ZONA_BOGOTA).astimezone(timezone.utc)
+    f_inicio_utc = f_inicio.astimezone(timezone.utc)
+    f_fin_utc = f_fin.astimezone(timezone.utc)
 
     vehiculos_con_regla = _df_vehiculos[_df_vehiculos['Referencia_Motor'].isin(NOMBRE_REGLA_RPM_POR_MOTOR.keys())]
 
@@ -204,7 +215,7 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
 
     return df_eventos, df_rpm_diario
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=180)
 def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
     """Detecta episodios de exceso de velocidad desde el GPS crudo (LogRecord),
     comparando contra el límite fijo definido por ciudad. Agrupa lecturas
@@ -212,8 +223,8 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
     if _client is None or _df_vehiculos.empty:
         return pd.DataFrame()
 
-    f_inicio_utc = datetime.combine(f_inicio, datetime.min.time()).replace(tzinfo=ZONA_BOGOTA).astimezone(timezone.utc)
-    f_fin_utc = datetime.combine(f_fin, datetime.max.time()).replace(tzinfo=ZONA_BOGOTA).astimezone(timezone.utc)
+    f_inicio_utc = f_inicio.astimezone(timezone.utc)
+    f_fin_utc = f_fin.astimezone(timezone.utc)
 
     zonas = obtener_zonas(_client)
     eventos = []
@@ -277,7 +288,7 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
 
     return df_eventos_vel
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=180)
 def obtener_zonas(_client):
     """Trae las Zonas configuradas en Geotab (localidades de Bogotá)
     con su polígono, centro, y área aproximada (para desempatar zonas traslapadas)."""
@@ -501,15 +512,33 @@ def clasificar_falla(spn, fmi, referencia_motor, df_diccionario):
     fila = generico.iloc[0] if not generico.empty else candidatos.iloc[0]
     return fila['Descripcion'], fila['Criticidad']
 
+def reproducir_alarma():
+    """Inyecta un reproductor de audio en un iframe invisible para evitar artefactos visuales."""
+    # Usamos el sonido de alerta
+    sonido_url = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
+    
+    html_audio = f"""
+        <audio autoplay>
+            <source src="{sonido_url}" type="audio/mpeg">
+        </audio>
+    """
+    
+    # REEMPLAZO CLAVE: Usamos components.html en lugar de st.markdown
+    components.html(html_audio, width=0, height=0)
+    
+    # Mantenemos la notificación visual
+    st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
+
+
 
 # --- 2. EXTRACCIÓN DE DATOS ---
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=180)
 def extraer_datos_completos(_client, f_inicio, f_fin):
     if _client is None:
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     try:
-        f_inicio_utc = datetime.combine(f_inicio, datetime.min.time()).replace(tzinfo=ZONA_BOGOTA).astimezone(timezone.utc)
-        f_fin_utc = datetime.combine(f_fin, datetime.max.time()).replace(tzinfo=ZONA_BOGOTA).astimezone(timezone.utc)
+        f_inicio_utc = f_inicio.astimezone(timezone.utc)
+        f_fin_utc = f_fin.astimezone(timezone.utc)
 
         # --- Vehículos base, con Ciudad, Marca, Referencia Motor y N° Motor ---
         vehiculos_raw = _client.get('Device')
@@ -741,6 +770,14 @@ with tab_fallas:
             col_k2.metric("Eventos activos totales", total_eventos_activos)
             col_k3.metric("Vehículos en criticidad ALTA", vehiculos_en_alta)
             col_k4.metric("Ciudad con más impacto", ciudad_mas_impacto)
+
+            # --- LÓGICA DE LA ALARMA SONORA ---
+            # Comparamos si los vehículos críticos actuales son MÁS que los que teníamos anotados en memoria
+            if vehiculos_en_alta > st.session_state.alertas_altas_previas:
+                reproducir_alarma()
+            
+            # Actualizamos nuestra memoria con el número actual, para la próxima recarga
+            st.session_state.alertas_altas_previas = vehiculos_en_alta
 
             st.markdown("**Comparativo por ciudad**")
             comparativo_ciudad = df_vehiculos_activos.groupby('Ciudad').agg(
