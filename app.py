@@ -15,6 +15,15 @@ st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 
+# --- INICIALIZAR MEMORIA DE ALERTAS ---
+if 'alertas_altas_previas' not in st.session_state:
+    st.session_state.alertas_altas_previas = 0
+
+if 'incidentes' not in st.session_state:
+    st.session_state.incidentes = {}
+
+st.title("🔧 Tablero Operativo de Mantenimiento")
+
 if 'incidentes' not in st.session_state:
     st.session_state.incidentes = {}  # Guardará los incidentes activos/cerrados
 
@@ -832,6 +841,10 @@ with tab_fallas:
             st.plotly_chart(fig_ciudad, use_container_width=True)
             st.markdown("---")
 
+            
+
+            
+
             col_top5, col_dona = st.columns(2)
 
             with col_top5:
@@ -928,8 +941,98 @@ with tab_fallas:
     else:
         st.success("✅ ¡Excelente! No se registran códigos de falla activos en la flota en este rango de fechas.")
 
+
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
+
+    
+
+            # --- PROTOCOLO DE ATENCIÓN (NUEVO) ---
+    print("🔧 DEBUG: Entrando a sección de protocolo")
+    st.markdown("---")
+    st.subheader("📋 Protocolo de Atención para Fallas Críticas")
+    
+
+        # Filtrar solo los vehículos con criticidad ALTA
+    print("Valores únicos de Criticidad_Vehiculo:", df_activas['Criticidad_Vehiculo'].unique())  
+    fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'].isin(['ALTA', 'MEDIA', 'BAJA'])]
+    print(f"🔧 DEBUG: fallas_criticas tiene {len(fallas_criticas)} filas")
+
+    if not fallas_criticas.empty:
+            for idx, fila in fallas_criticas.iterrows():
+                # Crear un ID único para este incidente
+                id_inc = f"{fila['id_camion']}_{fila['Codigo']}_{fila['Fecha_Alerta'].strftime('%Y%m%d%H%M%S')}"
+                
+                # Si es nuevo, lo inicializamos
+                if id_inc not in st.session_state.incidentes:
+                    st.session_state.incidentes[id_inc] = {
+                        'estado': 'Abierto',
+                        'acciones_realizadas': [],
+                        'detalle': {
+                            'Movil': fila['Movil'],
+                            'Placa': fila['Placa'],
+                            'Referencia_Motor': fila['Referencia_Motor'],
+                            'Descripcion_Falla': fila['Descripcion_Falla'],
+                            'Localidad': fila.get('Localidad', 'Desconocida'),
+                            'lat': fila.get('latitude'),
+                            'lon': fila.get('longitude'),
+                            'fecha_hora': fila['Fecha_Alerta']
+                        }
+                    }
+
+                inc = st.session_state.incidentes[id_inc]
+                protocolo = PROTOCOLOS[fila['Criticidad']]
+
+                # Expander colapsable para cada incidente
+                with st.expander(
+                    f"🚨 {fila['Movil']} - {fila['Placa']} - {fila['Descripcion_Falla']} "
+                    f"({fila.get('Localidad', 'Desconocida')})",
+                    expanded=(inc['estado'] == 'Abierto')
+                ):
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.markdown(f"**Estado:** {inc['estado']}")
+                        st.markdown(f"**Ubicación:** {fila.get('Localidad', 'No disponible')}")
+                        st.markdown(f"**Hora de detección:** {fila['Fecha_Alerta'].strftime('%d/%m/%Y %H:%M:%S')}")
+                    with col2:
+                        if inc['estado'] == 'Abierto':
+                            if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
+                                inc['estado'] = 'Cerrado'
+                                st.success("Incidente cerrado correctamente.")
+                    
+                    st.markdown("---")
+                    st.markdown(f"#### {protocolo['nombre']}")
+                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+                    
+                    # Checklist de acciones
+                    for accion in protocolo['acciones']:
+                        orden = accion['orden']
+                        descripcion = accion['texto']
+                        responsable = accion['responsable']
+                        clave = f"accion_{id_inc}_{orden}"
+                        
+                        realizada = clave in inc['acciones_realizadas']
+                        check = st.checkbox(
+                            f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
+                            value=realizada,
+                            key=clave
+                        )
+                        # Actualizar lista de acciones realizadas
+                        if check and clave not in inc['acciones_realizadas']:
+                            inc['acciones_realizadas'].append(clave)
+                        elif not check and clave in inc['acciones_realizadas']:
+                            inc['acciones_realizadas'].remove(clave)
+                    
+                    # Barra de progreso
+                    completadas = len(inc['acciones_realizadas'])
+                    total = len(protocolo['acciones'])
+                    if total > 0:
+                        st.progress(completadas / total)
+                        st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
+    else:
+            st.info("No hay vehículos en criticidad ALTA en este momento.")
+
+    
 
     if not df_fallas.empty and 'Localidad' in df_fallas.columns:
         df_fallas_geo = df_fallas[
