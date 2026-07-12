@@ -22,7 +22,7 @@ if 'alertas_altas_previas' not in st.session_state:
 if 'incidentes' not in st.session_state:
     st.session_state.incidentes = {}
 
-st.title("🔧 Tablero Operativo de Mantenimiento")
+st.title()
 
 if 'incidentes' not in st.session_state:
     st.session_state.incidentes = {}  # Guardará los incidentes activos/cerrados
@@ -948,19 +948,18 @@ with tab_fallas:
     
 
             # --- PROTOCOLO DE ATENCIÓN (NUEVO) ---
-    print("🔧 DEBUG: Entrando a sección de protocolo")
+    st.write("🔧 DEBUG: Entrando a sección de protocolo")
     st.markdown("---")
     st.subheader("📋 Protocolo de Atención para Fallas Críticas")
-    
 
         # Filtrar solo los vehículos con criticidad ALTA
-    print("Valores únicos de Criticidad_Vehiculo:", df_activas['Criticidad_Vehiculo'].unique())  
+    st.write("Valores únicos de Criticidad_Vehiculo:", df_activas['Criticidad_Vehiculo'].unique())
     fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'].isin(['ALTA', 'MEDIA', 'BAJA'])]
-    print(f"🔧 DEBUG: fallas_criticas tiene {len(fallas_criticas)} filas")
+    st.write(f"🔧 DEBUG: fallas_criticas tiene {len(fallas_criticas)} filas")
 
     if not fallas_criticas.empty:
             for idx, fila in fallas_criticas.iterrows():
-                # Crear un ID único para este incidente
+                # ... el resto de tu código del protocolo
                 id_inc = f"{fila['id_camion']}_{fila['Codigo']}_{fila['Fecha_Alerta'].strftime('%Y%m%d%H%M%S')}"
                 
                 # Si es nuevo, lo inicializamos
