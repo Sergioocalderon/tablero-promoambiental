@@ -15,15 +15,6 @@ st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 
-# --- INICIALIZAR MEMORIA DE ALERTAS ---
-if 'alertas_altas_previas' not in st.session_state:
-    st.session_state.alertas_altas_previas = 0
-
-if 'incidentes' not in st.session_state:
-    st.session_state.incidentes = {}
-
-st.title()
-
 if 'incidentes' not in st.session_state:
     st.session_state.incidentes = {}  # Guardará los incidentes activos/cerrados
 
@@ -226,10 +217,6 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_eventos['Duracion_Segundos'] = (df_eventos['activeTo'] - df_eventos['activeFrom']).dt.total_seconds()
     df_eventos['Umbral_RPM'] = df_eventos['Motor'].map({'L9': 2100, 'X12': 2100})
     df_eventos = pd.merge(df_eventos, _df_vehiculos, on='id_camion', how='left')
-
-
-
-
 
     # --- 2. RPM pico real, consultando solo la ventana exacta de cada evento ---
     ID_DIAGNOSTICO_RPM = 'aW3Nmy-ktfEuvrdkya4z0yg'
@@ -560,17 +547,17 @@ def reproducir_alarma():
     """Inyecta un reproductor de audio en un iframe invisible para evitar artefactos visuales."""
     # Usamos el sonido de alerta
     sonido_url = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
-    
+
     html_audio = f"""
         <audio autoplay>
             <source src="{sonido_url}" type="audio/mpeg">
         </audio>
     """
-    
-    # REEMPLAZO CLAVE: Usamos components.html en lugar de st.markdown
+
+    # Usamos components.html en lugar de st.markdown para que el <audio> se ejecute de verdad
     components.html(html_audio, width=0, height=0)
-    
-    # Mantenemos la notificación visual
+
+    # Mantenemos la notificación visual (esta sí es fiable, el audio puede fallar por autoplay)
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 
@@ -819,7 +806,7 @@ with tab_fallas:
             # Comparamos si los vehículos críticos actuales son MÁS que los que teníamos anotados en memoria
             if vehiculos_en_alta > st.session_state.alertas_altas_previas:
                 reproducir_alarma()
-            
+
             # Actualizamos nuestra memoria con el número actual, para la próxima recarga
             st.session_state.alertas_altas_previas = vehiculos_en_alta
 
@@ -840,10 +827,6 @@ with tab_fallas:
             fig_ciudad.update_layout(height=200, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
             st.plotly_chart(fig_ciudad, use_container_width=True)
             st.markdown("---")
-
-            
-
-            
 
             col_top5, col_dona = st.columns(2)
 
@@ -941,27 +924,19 @@ with tab_fallas:
     else:
         st.success("✅ ¡Excelente! No se registran códigos de falla activos en la flota en este rango de fechas.")
 
-
     st.markdown("---")
-    st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
 
-    
-
-            # --- PROTOCOLO DE ATENCIÓN (NUEVO) ---
-    st.write("🔧 DEBUG: Entrando a sección de protocolo")
+    # --- PROTOCOLO DE ATENCIÓN ---
     st.markdown("---")
     st.subheader("📋 Protocolo de Atención para Fallas Críticas")
 
-        # Filtrar solo los vehículos con criticidad ALTA
-    st.write("Valores únicos de Criticidad_Vehiculo:", df_activas['Criticidad_Vehiculo'].unique())
-    fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'].isin(['ALTA', 'MEDIA', 'BAJA'])]
-    st.write(f"🔧 DEBUG: fallas_criticas tiene {len(fallas_criticas)} filas")
+    # Filtrar solo los vehículos con criticidad ALTA
+    fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'] == 'ALTA'] if not df_activas.empty else df_activas
 
     if not fallas_criticas.empty:
             for idx, fila in fallas_criticas.iterrows():
-                # ... el resto de tu código del protocolo
                 id_inc = f"{fila['id_camion']}_{fila['Codigo']}_{fila['Fecha_Alerta'].strftime('%Y%m%d%H%M%S')}"
-                
+
                 # Si es nuevo, lo inicializamos
                 if id_inc not in st.session_state.incidentes:
                     st.session_state.incidentes[id_inc] = {
@@ -998,18 +973,18 @@ with tab_fallas:
                             if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
                                 inc['estado'] = 'Cerrado'
                                 st.success("Incidente cerrado correctamente.")
-                    
+
                     st.markdown("---")
                     st.markdown(f"#### {protocolo['nombre']}")
                     st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
-                    
+
                     # Checklist de acciones
                     for accion in protocolo['acciones']:
                         orden = accion['orden']
                         descripcion = accion['texto']
                         responsable = accion['responsable']
                         clave = f"accion_{id_inc}_{orden}"
-                        
+
                         realizada = clave in inc['acciones_realizadas']
                         check = st.checkbox(
                             f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
@@ -1021,7 +996,7 @@ with tab_fallas:
                             inc['acciones_realizadas'].append(clave)
                         elif not check and clave in inc['acciones_realizadas']:
                             inc['acciones_realizadas'].remove(clave)
-                    
+
                     # Barra de progreso
                     completadas = len(inc['acciones_realizadas'])
                     total = len(protocolo['acciones'])
@@ -1031,7 +1006,8 @@ with tab_fallas:
     else:
             st.info("No hay vehículos en criticidad ALTA en este momento.")
 
-    
+    st.markdown("---")
+    st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
 
     if not df_fallas.empty and 'Localidad' in df_fallas.columns:
         df_fallas_geo = df_fallas[
@@ -1118,10 +1094,6 @@ with tab_manejo:
 
     df_eventos_rpm, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
 
-  
-
-
-
     if not df_eventos_rpm.empty:
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Eventos de sobre-revolución", len(df_eventos_rpm))
@@ -1129,7 +1101,7 @@ with tab_manejo:
         col_m3.metric("Tiempo total en sobre-revolución", f"{df_eventos_rpm['Duracion_Segundos'].sum() / 60:,.1f} min")
 
         st.markdown("---")
-        
+
         # --- FILA 1: COMPARATIVOS GENERALES ---
         col_top, col_dona = st.columns(2)
 
@@ -1165,22 +1137,22 @@ with tab_manejo:
         # --- FILA 2: NUEVA GRÁFICA DE TENDENCIA EN EL TIEMPO ---
         st.markdown("**📈 Tendencia Diaria de Sobre-Revoluciones por Turno**")
         st.caption("Evolución del número de infracciones detectadas por jornada operativa a lo largo del periodo seleccionado")
-        
+
         # Procesamiento de datos para la línea de tiempo
         df_tendencia = df_eventos_rpm.groupby(['Fecha', 'Turno']).size().reset_index(name='Cantidad_Eventos')
         df_tendencia = df_tendencia.sort_values('Fecha') # Garantiza el orden cronológico en el eje X
 
         # Construcción de la gráfica de líneas
         fig_linea = px.line(
-            df_tendencia, 
-            x='Fecha', 
-            y='Cantidad_Eventos', 
+            df_tendencia,
+            x='Fecha',
+            y='Cantidad_Eventos',
             color='Turno',
             color_discrete_map={'R1': '#2a78d6', 'R2': '#EF9F27', 'R3': '#2C3E50'},
             markers=True # Agrega puntos en cada día para identificar picos fácilmente
         )
         fig_linea.update_layout(
-            height=320, 
+            height=320,
             margin=dict(l=0, r=0, t=10, b=0),
             xaxis_title="Fecha Operativa",
             yaxis_title="Número de Eventos",
@@ -1235,7 +1207,6 @@ with tab_manejo:
 """, unsafe_allow_html=True)
 
         st.markdown("---")
-
 
         st.markdown("**🔎 Detalle de eventos por vehículo**")
         vehiculo_seleccionado = st.selectbox(
