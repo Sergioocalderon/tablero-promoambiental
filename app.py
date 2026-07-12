@@ -39,7 +39,10 @@ def iniciar_conexion_geotab():
 client = iniciar_conexion_geotab()
 
 # --- CONEXIÓN A GOOGLE SHEETS (PERSISTENCIA DE INCIDENTES) ---
-NOMBRE_HOJA_INCIDENTES = "Incidentes_Fallas_Promoambiental"
+# Se conecta por ID (no por nombre) porque buscar por nombre depende de que
+# la API de Drive haya terminado de indexar el archivo tras compartirlo,
+# lo cual a veces tarda unos minutos. Por ID es inmediato y más confiable.
+ID_HOJA_INCIDENTES = "1QdPCp8Vgwc9mJLLAMNK2f1uKFggTrDaj2KI__bWC0LQ"
 ALCANCES_SHEETS = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -58,7 +61,7 @@ def conectar_hoja_incidentes():
         credenciales_info = dict(st.secrets["gcp_service_account"])
         credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
         cliente_sheets = gspread.authorize(credenciales)
-        hoja = cliente_sheets.open(NOMBRE_HOJA_INCIDENTES).sheet1
+        hoja = cliente_sheets.open_by_key(ID_HOJA_INCIDENTES).sheet1
         return hoja
     except Exception as e:
         st.warning(f"No se pudo conectar con Google Sheets para el seguimiento de incidentes: {e}")
