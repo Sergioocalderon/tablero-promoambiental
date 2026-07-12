@@ -5,6 +5,8 @@ import mygeotab
 from datetime import datetime, timedelta, timezone, time as dt_time
 from zoneinfo import ZoneInfo
 import streamlit.components.v1 as components
+import gspread
+from google.oauth2.service_account import Credentials
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -14,9 +16,6 @@ st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="
 # --- INICIALIZAR MEMORIA DE ALERTAS ---
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
-
-if 'incidentes' not in st.session_state:
-    st.session_state.incidentes = {}  # Guardará los incidentes activos/cerrados
 
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
@@ -38,6 +37,97 @@ def iniciar_conexion_geotab():
         return None
 
 client = iniciar_conexion_geotab()
+
+# --- CONEXIÓN A GOOGLE SHEETS (PERSISTENCIA DE INCIDENTES) ---
+NOMBRE_HOJA_INCIDENTES = "Incidentes_Fallas_Promoambiental"
+ALCANCES_SHEETS = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
+COLUMNAS_INCIDENTES = [
+    'id_incidente', 'movil', 'placa', 'descripcion_falla', 'criticidad',
+    'estado', 'acciones_completadas', 'fecha_apertura', 'fecha_cierre'
+]
+
+@st.cache_resource
+def conectar_hoja_incidentes():
+    """Autentica con la cuenta de servicio de Google y devuelve la primera
+    hoja del spreadsheet de incidentes, o None si algo falla (para que el
+    tablero siga funcionando sin protocolo persistente en vez de romperse)."""
+    try:
+        credenciales_info = dict(st.secrets["gcp_service_account"])
+        credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
+        cliente_sheets = gspread.authorize(credenciales)
+        hoja = cliente_sheets.open(NOMBRE_HOJA_INCIDENTES).sheet1
+        return hoja
+    except Exception as e:
+        st.warning(f"No se pudo conectar con Google Sheets para el seguimiento de incidentes: {e}")
+        return None
+
+hoja_incidentes = conectar_hoja_incidentes()
+
+@st.cache_data(ttl=20)
+def cargar_incidentes(_hoja):
+    """Lee todos los incidentes guardados en la hoja y los arma en la misma
+    forma que antes tenía st.session_state.incidentes, para no tener que
+    tocar el resto del código que ya sabe leer ese formato."""
+    if _hoja is None:
+        return {}
+    try:
+        registros = _hoja.get_all_records()
+    except Exception as e:
+        st.warning(f"No se pudieron leer los incidentes guardados: {e}")
+        return {}
+
+    incidentes = {}
+    for r in registros:
+        id_inc = str(r.get('id_incidente', '')).strip()
+        if not id_inc:
+            continue
+        acciones_texto = str(r.get('acciones_completadas', '') or '')
+        acciones_lista = [a for a in acciones_texto.split('|') if a]
+        incidentes[id_inc] = {
+            'estado': r.get('estado') or 'Abierto',
+            'acciones_realizadas': acciones_lista,
+            'detalle': {
+                'Movil': r.get('movil'),
+                'Placa': r.get('placa'),
+                'Descripcion_Falla': r.get('descripcion_falla'),
+                'Criticidad': r.get('criticidad'),
+            }
+        }
+    return incidentes
+
+def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla, criticidad, fecha_hora):
+    """Agrega una fila nueva a la hoja para un incidente recién detectado."""
+    if hoja is None:
+        return
+    try:
+        hoja.append_row([
+            id_incidente, movil, placa, descripcion_falla, criticidad,
+            'Abierto', '', str(fecha_hora), ''
+        ])
+        cargar_incidentes.clear()
+    except Exception as e:
+        st.warning(f"No se pudo guardar el incidente nuevo en Sheets: {e}")
+
+def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_realizadas):
+    """Actualiza el estado y el checklist de un incidente existente,
+    localizándolo por su id_incidente (columna A)."""
+    if hoja is None:
+        return
+    try:
+        celda = hoja.find(id_incidente, in_column=1)
+        if not celda:
+            return
+        fila = celda.row
+        hoja.update_cell(fila, 6, nuevo_estado)  # columna F = estado
+        hoja.update_cell(fila, 7, '|'.join(acciones_realizadas))  # columna G = acciones_completadas
+        if nuevo_estado == 'Cerrado':
+            hoja.update_cell(fila, 9, str(datetime.now(ZONA_BOGOTA)))  # columna I = fecha_cierre
+        cargar_incidentes.clear()
+    except Exception as e:
+        st.warning(f"No se pudo actualizar el incidente en Sheets: {e}")
 
 # --- 1. FILTROS LATERALES ---
 st.sidebar.header("⚙️ Parámetros de Búsqueda")
@@ -930,6 +1020,12 @@ with tab_fallas:
     st.markdown("---")
     st.subheader("📋 Protocolo de Atención para Fallas Críticas")
 
+    if hoja_incidentes is None:
+        st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes. El protocolo se muestra pero los cambios no se guardarán hasta que se restablezca la conexión.")
+
+    # Cargamos el estado real de los incidentes desde Google Sheets (compartido entre todos los usuarios)
+    incidentes_guardados = cargar_incidentes(hoja_incidentes)
+
     # Filtrar solo los vehículos con criticidad ALTA
     fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'] == 'ALTA'] if not df_activas.empty else df_activas
 
@@ -937,24 +1033,18 @@ with tab_fallas:
             for idx, fila in fallas_criticas.iterrows():
                 id_inc = f"{fila['id_camion']}_{fila['Codigo']}_{fila['Fecha_Alerta'].strftime('%Y%m%d%H%M%S')}"
 
-                # Si es nuevo, lo inicializamos
-                if id_inc not in st.session_state.incidentes:
-                    st.session_state.incidentes[id_inc] = {
-                        'estado': 'Abierto',
-                        'acciones_realizadas': [],
-                        'detalle': {
-                            'Movil': fila['Movil'],
-                            'Placa': fila['Placa'],
-                            'Referencia_Motor': fila['Referencia_Motor'],
-                            'Descripcion_Falla': fila['Descripcion_Falla'],
-                            'Localidad': fila.get('Localidad', 'Desconocida'),
-                            'lat': fila.get('latitude'),
-                            'lon': fila.get('longitude'),
-                            'fecha_hora': fila['Fecha_Alerta']
-                        }
-                    }
+                # Si es nuevo, lo creamos en la hoja
+                if id_inc not in incidentes_guardados:
+                    crear_incidente_en_hoja(
+                        hoja_incidentes, id_inc,
+                        fila['Movil'], fila['Placa'], fila['Descripcion_Falla'],
+                        fila['Criticidad'], fila['Fecha_Alerta']
+                    )
+                    incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
-                inc = st.session_state.incidentes[id_inc]
+                inc = incidentes_guardados.get(id_inc, {
+                    'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
+                })
                 protocolo = PROTOCOLOS[fila['Criticidad']]
 
                 # Expander colapsable para cada incidente
@@ -971,34 +1061,45 @@ with tab_fallas:
                     with col2:
                         if inc['estado'] == 'Abierto':
                             if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
-                                inc['estado'] = 'Cerrado'
+                                actualizar_incidente_en_hoja(
+                                    hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
+                                )
                                 st.success("Incidente cerrado correctamente.")
+                                st.rerun()
 
                     st.markdown("---")
                     st.markdown(f"#### {protocolo['nombre']}")
                     st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
 
                     # Checklist de acciones
+                    acciones_realizadas = list(inc['acciones_realizadas'])
+                    hubo_cambio = False
                     for accion in protocolo['acciones']:
                         orden = accion['orden']
                         descripcion = accion['texto']
                         responsable = accion['responsable']
                         clave = f"accion_{id_inc}_{orden}"
 
-                        realizada = clave in inc['acciones_realizadas']
+                        realizada = clave in acciones_realizadas
                         check = st.checkbox(
                             f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
                             value=realizada,
                             key=clave
                         )
-                        # Actualizar lista de acciones realizadas
-                        if check and clave not in inc['acciones_realizadas']:
-                            inc['acciones_realizadas'].append(clave)
-                        elif not check and clave in inc['acciones_realizadas']:
-                            inc['acciones_realizadas'].remove(clave)
+                        # Detectar si el usuario cambió el checkbox respecto a lo guardado
+                        if check and clave not in acciones_realizadas:
+                            acciones_realizadas.append(clave)
+                            hubo_cambio = True
+                        elif not check and clave in acciones_realizadas:
+                            acciones_realizadas.remove(clave)
+                            hubo_cambio = True
+
+                    # Si hubo un cambio en el checklist, lo guardamos en la hoja
+                    if hubo_cambio:
+                        actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
 
                     # Barra de progreso
-                    completadas = len(inc['acciones_realizadas'])
+                    completadas = len(acciones_realizadas)
                     total = len(protocolo['acciones'])
                     if total > 0:
                         st.progress(completadas / total)
