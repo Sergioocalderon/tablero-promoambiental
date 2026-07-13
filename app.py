@@ -49,7 +49,7 @@ ALCANCES_SHEETS = [
 ]
 COLUMNAS_INCIDENTES = [
     'id_incidente', 'movil', 'placa', 'descripcion_falla', 'criticidad',
-    'estado', 'acciones_completadas', 'fecha_apertura', 'fecha_cierre'
+    'estado', 'acciones_completadas', 'fecha_apertura', 'fecha_cierre', 'ciudad'
 ]
 
 @st.cache_resource
@@ -97,18 +97,21 @@ def cargar_incidentes(_hoja):
                 'Placa': r.get('placa'),
                 'Descripcion_Falla': r.get('descripcion_falla'),
                 'Criticidad': r.get('criticidad'),
+                'Ciudad': r.get('ciudad') or 'Sin ciudad asignada',
             }
         }
     return incidentes
 
-def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla, criticidad, fecha_hora):
-    """Agrega una fila nueva a la hoja para un incidente recién detectado."""
+def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla, criticidad, fecha_hora, ciudad):
+    """Agrega una fila nueva a la hoja para un incidente recién detectado.
+    'ciudad' se escribe en la última columna (J) para no correr los índices
+    fijos que usa actualizar_incidente_en_hoja para estado/acciones/cierre."""
     if hoja is None:
         return
     try:
         hoja.append_row([
             id_incidente, movil, placa, descripcion_falla, criticidad,
-            'Abierto', '', str(fecha_hora), ''
+            'Abierto', '', str(fecha_hora), '', ciudad
         ])
         cargar_incidentes.clear()
     except Exception as e:
@@ -1041,7 +1044,7 @@ with tab_fallas:
                     crear_incidente_en_hoja(
                         hoja_incidentes, id_inc,
                         fila['Movil'], fila['Placa'], fila['Descripcion_Falla'],
-                        fila['Criticidad'], fila['Fecha_Alerta']
+                        fila['Criticidad'], fila['Fecha_Alerta'], fila.get('Ciudad', 'Sin ciudad asignada')
                     )
                     incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
