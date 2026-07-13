@@ -1532,7 +1532,7 @@ with tab_manejo:
             lat='latitude', lon='longitude',
             color=color_mapa,
             hover_name='Movil',
-            hover_data=['Velocidad_Maxima', 'Placa', 'Turno', 'Localidad'],
+            hover_data=['Velocidad Maxima', 'Placa', 'Turno', 'Localidad'],
             zoom=10, height=450
         )
         fig_mapa_vel.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
