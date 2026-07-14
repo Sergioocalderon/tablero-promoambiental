@@ -39,9 +39,6 @@ def iniciar_conexion_geotab():
 client = iniciar_conexion_geotab()
 
 # --- CONEXIÓN A GOOGLE SHEETS (PERSISTENCIA DE INCIDENTES) ---
-# Se conecta por ID (no por nombre) porque buscar por nombre depende de que
-# la API de Drive haya terminado de indexar el archivo tras compartirlo,
-# lo cual a veces tarda unos minutos. Por ID es inmediato y más confiable.
 ID_HOJA_INCIDENTES = "1QdPCp8Vgwc9mJLLAMNK2f1uKFggTrDaj2KI__bWC0LQ"
 ALCANCES_SHEETS = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -54,9 +51,6 @@ COLUMNAS_INCIDENTES = [
 
 @st.cache_resource
 def conectar_hoja_incidentes():
-    """Autentica con la cuenta de servicio de Google y devuelve la primera
-    hoja del spreadsheet de incidentes, o None si algo falla (para que el
-    tablero siga funcionando sin protocolo persistente en vez de romperse)."""
     try:
         credenciales_info = dict(st.secrets["gcp_service_account"])
         credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
@@ -71,9 +65,6 @@ hoja_incidentes = conectar_hoja_incidentes()
 
 @st.cache_data(ttl=20)
 def cargar_incidentes(_hoja):
-    """Lee todos los incidentes guardados en la hoja y los arma en la misma
-    forma que antes tenía st.session_state.incidentes, para no tener que
-    tocar el resto del código que ya sabe leer ese formato."""
     if _hoja is None:
         return {}
     try:
@@ -103,9 +94,6 @@ def cargar_incidentes(_hoja):
     return incidentes
 
 def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla, criticidad, fecha_hora, ciudad):
-    """Agrega una fila nueva a la hoja para un incidente recién detectado.
-    'ciudad' se escribe en la última columna (J) para no correr los índices
-    fijos que usa actualizar_incidente_en_hoja para estado/acciones/cierre."""
     if hoja is None:
         return
     try:
@@ -118,8 +106,6 @@ def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla,
         st.warning(f"No se pudo guardar el incidente nuevo en Sheets: {e}")
 
 def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_realizadas):
-    """Actualiza el estado y el checklist de un incidente existente,
-    localizándolo por su id_incidente (columna A)."""
     if hoja is None:
         return
     try:
@@ -127,10 +113,10 @@ def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_real
         if not celda:
             return
         fila = celda.row
-        hoja.update_cell(fila, 6, nuevo_estado)  # columna F = estado
-        hoja.update_cell(fila, 7, '|'.join(acciones_realizadas))  # columna G = acciones_completadas
+        hoja.update_cell(fila, 6, nuevo_estado)
+        hoja.update_cell(fila, 7, '|'.join(acciones_realizadas))
         if nuevo_estado == 'Cerrado':
-            hoja.update_cell(fila, 9, str(datetime.now(ZONA_BOGOTA)))  # columna I = fecha_cierre
+            hoja.update_cell(fila, 9, str(datetime.now(ZONA_BOGOTA)))
         cargar_incidentes.clear()
     except Exception as e:
         st.warning(f"No se pudo actualizar el incidente en Sheets: {e}")
@@ -186,23 +172,20 @@ PROTOCOLOS = {
             {'orden': 1, 'texto': 'Registrar la falla en el historial del vehículo.', 'responsable': 'Sistema'},
             {'orden': 2, 'texto': 'Programar revisión en el próximo mantenimiento preventivo.', 'responsable': 'Sistema'}
         ],
-        'tiempo_max_respuesta_min': 1440  # 24 h
+        'tiempo_max_respuesta_min': 1440
     }
 }
 
-# Tabla fija: referencia de motor por marca (según tu Apps Script)
+# Tabla fija: referencia de motor por marca
 REFERENCIA_MOTOR_POR_MARCA = {
     "volkswagen": "ISF 3.8",
-    "volskwagen": "ISF 3.8",  # tal como está escrito en Geotab (con la l y s invertidas)
+    "volskwagen": "ISF 3.8",
     "mercedes": "OM926",
     "international": "L9",
     "foton": "X12",
     "kenworth": "ISM 11",
 }
 
-# Umbral de RPM por motor, tomado de las reglas ya configuradas en Geotab.
-# Solo existen reglas para L9 y X12 por ahora — los demás motores quedan
-# "sin regla configurada" hasta que se creen en Geotab.
 NOMBRE_REGLA_RPM_POR_MOTOR = {
     'L9': 'SOBRE REVOLUCION (L9)',
     'X12': 'SOBRE REVOLUCION (X12)',
@@ -210,12 +193,9 @@ NOMBRE_REGLA_RPM_POR_MOTOR = {
 
 LIMITE_VELOCIDAD_POR_CIUDAD = {
     'Bogotá': 50,
-    # Cali y Valle se agregan cuando definamos su límite específico
 }
 
 def clasificar_turno(momento):
-    """Clasifica un datetime (ya en hora de Bogotá) en R1, R2 o R3,
-    según los horarios: R1 05:00-13:00, R2 13:00-21:00, R3 21:00-05:00."""
     hora = momento.hour
     if 5 <= hora < 13:
         return 'R1'
@@ -226,9 +206,6 @@ def clasificar_turno(momento):
 
 # ===== FUNCIÓN NORMALIZAR NOMBRE LOCALIDAD (global) =====
 def normalizar_nombre_localidad(texto):
-    """Convierte un nombre de localidad a formato 'Título' consistente
-    (ej. 'PARQUE DE INNOVACION' -> 'Parque de Innovación'), manteniendo
-    en minúscula los conectores comunes en español."""
     conectores = {'de', 'del', 'la', 'las', 'el', 'los', 'y', 'en'}
     palabras = texto.strip().lower().split()
     resultado = [
@@ -241,9 +218,6 @@ def normalizar_nombre_localidad(texto):
 
 @st.cache_data(ttl=3600)
 def obtener_reglas_rpm(_client):
-    """Busca, entre todas las reglas de Geotab, las reglas de sobre-revolución
-    por motor. Usa comparación flexible (sin distinguir mayúsculas/espacios)
-    para evitar fallos por diferencias sutiles de formato."""
     if _client is None:
         return {}
     try:
@@ -263,9 +237,6 @@ def obtener_reglas_rpm(_client):
         return {}
 
 def convertir_a_minutos(valor):
-    """Convierte una duración de Geotab a minutos, sin importar si viene
-    como texto, timedelta, o datetime.time (caso especial de mygeotab
-    cuando la duración es menor a 24 horas)."""
     if valor is None:
         return 0
     if isinstance(valor, dt_time):
@@ -277,10 +248,6 @@ def convertir_a_minutos(valor):
 
 @st.cache_data(ttl=180)
 def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
-    """Trae los eventos de sobre-revolución que Geotab ya detectó (usando
-    sus propias reglas), y para cada uno busca el RPM pico real consultando
-    solo la ventana de tiempo exacta del evento (no el historial completo,
-    que con 1 lectura/segundo excede el límite de resultados de Geotab)."""
     if _client is None or _df_vehiculos.empty:
         return pd.DataFrame(), pd.DataFrame()
 
@@ -289,7 +256,6 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
 
     vehiculos_con_regla = _df_vehiculos[_df_vehiculos['Referencia_Motor'].isin(NOMBRE_REGLA_RPM_POR_MOTOR.keys())]
 
-    # --- 1. Eventos de sobre-revolución ya detectados por las reglas de Geotab ---
     mapa_reglas = obtener_reglas_rpm(_client)
     eventos_todos = []
 
@@ -329,7 +295,6 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_eventos['Umbral_RPM'] = df_eventos['Motor'].map({'L9': 2100, 'X12': 2100})
     df_eventos = pd.merge(df_eventos, _df_vehiculos, on='id_camion', how='left')
 
-    # --- 2. RPM pico real, consultando solo la ventana exacta de cada evento ---
     ID_DIAGNOSTICO_RPM = 'aW3Nmy-ktfEuvrdkya4z0yg'
 
     def obtener_pico_evento(row):
@@ -351,7 +316,6 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
 
     df_eventos['RPM_Pico'] = df_eventos.apply(obtener_pico_evento, axis=1)
 
-    # --- 3. RPM máximo por vehículo/día, derivado de los picos de eventos ---
     df_rpm_diario = df_eventos.groupby(['id_camion', 'Fecha'])['RPM_Pico'].max().reset_index()
     df_rpm_diario = df_rpm_diario.rename(columns={'RPM_Pico': 'RPM_Maximo'})
 
@@ -359,9 +323,6 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
 
 @st.cache_data(ttl=180)
 def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
-    """Detecta episodios de exceso de velocidad desde el GPS crudo (LogRecord),
-    comparando contra el límite fijo definido por ciudad. Agrupa lecturas
-    consecutivas por encima del límite en un solo episodio."""
     if _client is None or _df_vehiculos.empty:
         return pd.DataFrame()
 
@@ -432,8 +393,6 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
 
 @st.cache_data(ttl=180)
 def obtener_zonas(_client):
-    """Trae las Zonas configuradas en Geotab (localidades de Bogotá)
-    con su polígono, centro, y área aproximada (para desempatar zonas traslapadas)."""
     if _client is None:
         return []
     try:
@@ -465,18 +424,12 @@ def obtener_zonas(_client):
         st.warning(f"No se pudieron cargar las zonas: {e}")
         return []
 
-
 @st.cache_data(ttl=3600)
 def es_grupo_marca(nombre):
-    """Detecta si un grupo es de marca (no de ciudad), comparando contra
-    el diccionario de marcas conocidas."""
     nombre_l = nombre.strip().lower()
     return any(marca in nombre_l for marca in REFERENCIA_MOTOR_POR_MARCA)
 
-
 def normalizar_ciudad(nombre):
-    """Limpia el nombre del grupo de ciudad (ej. 'PROMO AMBIENTAL DISTRITO
-    BOGOTA' -> 'Bogotá') para que se vea bien en el tablero."""
     n = nombre.upper()
     if 'BOGOTA' in n or 'BOGOTÁ' in n:
         return 'Bogotá'
@@ -486,14 +439,8 @@ def normalizar_ciudad(nombre):
         return 'Valle'
     return nombre.strip()
 
-
 @st.cache_data(ttl=3600)
 def obtener_mapa_grupos(_client):
-    """Recorre la jerarquía de grupos de Geotab. Como client.get('Group')
-    devuelve todos los grupos en una lista plana (algunos con su lista de
-    'children' incompleta), primero armamos un diccionario id->grupo con
-    la versión completa de cada uno, y siempre recurrimos usando esa
-    versión completa en vez de confiar en el objeto 'hijo' embebido."""
     if _client is None:
         return {}
     try:
@@ -534,9 +481,6 @@ def obtener_mapa_grupos(_client):
         return {}
 
 def resolver_ciudad_marca(vehiculo, mapa_grupos):
-    """Recorre los grupos de un vehículo para identificar su ciudad
-    (grupo raíz de ciudad) y su marca (si el nombre de algún grupo
-    coincide con una marca conocida)."""
     ciudad = 'Sin ciudad asignada'
     marca = 'Sin marca identificada'
 
@@ -557,10 +501,7 @@ def resolver_ciudad_marca(vehiculo, mapa_grupos):
 
     return ciudad, marca
 
-
 def punto_en_poligono(lon, lat, poligono):
-    """Algoritmo 'ray casting': determina si un punto (lon, lat) cae
-    dentro de un polígono, sin depender de librerías externas."""
     n = len(poligono)
     dentro = False
     x1, y1 = poligono[0]
@@ -574,7 +515,6 @@ def punto_en_poligono(lon, lat, poligono):
         x1, y1 = x2, y2
     return dentro
 
-
 def determinar_localidad(lon, lat, zonas):
     if pd.isna(lon) or pd.isna(lat):
         return 'Sin ubicación'
@@ -587,12 +527,8 @@ def determinar_localidad(lon, lat, zonas):
     zona_mas_especifica = min(candidatas, key=lambda z: z['area'])
     return zona_mas_especifica['nombre']
 
-
 @st.cache_data(ttl=86400)
 def obtener_catalogos_diagnosticos(_client):
-    """Trae el catálogo completo de diagnósticos y modos de falla de Geotab,
-    para poder 'traducir' los IDs que vienen en FaultData a nombres legibles
-    y a sus códigos SPN/FMI numéricos."""
     if _client is None:
         return {}, {}
     try:
@@ -621,25 +557,18 @@ def obtener_catalogos_diagnosticos(_client):
         st.warning(f"No se pudieron cargar los catálogos de diagnóstico: {e}")
         return {}, {}
 
-
 @st.cache_data(ttl=86400)
 def cargar_diccionario_fallas():
-    """Carga el diccionario SPN-FMI combinado (manual genérico + X12) con
-    su nivel de criticidad, desde el CSV ubicado junto a app.py."""
     try:
         df = pd.read_csv('diccionario_fallas.csv')
         df['SPN'] = df['SPN'].astype(int)
         df['FMI'] = df['FMI'].astype(int)
         return df
     except FileNotFoundError:
-        st.warning("No se encontró 'diccionario_fallas.csv' en la carpeta del proyecto. Las fallas no tendrán criticidad clasificada.")
+        st.warning("No se encontró 'diccionario_fallas.csv' en la carpeta del proyecto.")
         return pd.DataFrame(columns=['SPN', 'FMI', 'Descripcion', 'Grupo', 'Criticidad', 'Origen_Criticidad', 'Motor_Aplica'])
 
-
 def clasificar_falla(spn, fmi, referencia_motor, df_diccionario):
-    """Busca el SPN+FMI en el diccionario. Si el motor del vehículo es X12
-    y existe una entrada específica para X12, la prioriza; si no, usa la
-    entrada genérica."""
     candidatos = df_diccionario[(df_diccionario['SPN'] == spn) & (df_diccionario['FMI'] == fmi)]
     if candidatos.empty:
         return None, 'BAJA'
@@ -655,23 +584,14 @@ def clasificar_falla(spn, fmi, referencia_motor, df_diccionario):
     return fila['Descripcion'], fila['Criticidad']
 
 def reproducir_alarma():
-    """Inyecta un reproductor de audio en un iframe invisible para evitar artefactos visuales."""
-    # Usamos el sonido de alerta
     sonido_url = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
-
     html_audio = f"""
         <audio autoplay>
             <source src="{sonido_url}" type="audio/mpeg">
         </audio>
     """
-
-    # Usamos components.html en lugar de st.markdown para que el <audio> se ejecute de verdad
     components.html(html_audio, width=0, height=0)
-
-    # Mantenemos la notificación visual (esta sí es fiable, el audio puede fallar por autoplay)
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
-
-
 
 # --- 2. EXTRACCIÓN DE DATOS ---
 @st.cache_data(ttl=180)
@@ -682,7 +602,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
         f_inicio_utc = f_inicio.astimezone(timezone.utc)
         f_fin_utc = f_fin.astimezone(timezone.utc)
 
-        # --- Vehículos base, con Ciudad, Marca, Referencia Motor y N° Motor ---
         vehiculos_raw = _client.get('Device')
         mapa_grupos = obtener_mapa_grupos(_client)
 
@@ -693,8 +612,8 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
         })
 
         ciudades_marcas = df_vehiculos['groups'].apply(
-    lambda g: resolver_ciudad_marca({'groups': g}, mapa_grupos)
-)
+            lambda g: resolver_ciudad_marca({'groups': g}, mapa_grupos)
+        )
         df_vehiculos['Ciudad'] = [cm[0] for cm in ciudades_marcas]
         df_vehiculos['Marca'] = [cm[1] for cm in ciudades_marcas]
         df_vehiculos['Referencia_Motor'] = df_vehiculos['Marca'].apply(
@@ -702,7 +621,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
         )
         df_vehiculos = df_vehiculos.drop(columns=['groups'])
 
-        # --- Viajes (Módulo Operativo) ---
         viajes_raw = _client.get('Trip', search={
             'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -724,7 +642,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 ).reset_index()
                 df_resumen_viajes = pd.merge(resumen, df_vehiculos, on='id_camion', how='left')
 
-        # --- Datos de Temperatura ---
         temp_raw = _client.get('StatusData', search={
             'diagnosticSearch': {'id': 'DiagnosticEngineCoolantTemperatureId'},
             'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
@@ -744,7 +661,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                     df_temp = df_temp.groupby(['id_camion', 'Fecha'])['Temperatura'].max().reset_index()
                     df_temp = pd.merge(df_temp, df_vehiculos, on='id_camion', how='left')
 
-        # --- Códigos de Falla Activos ---
         fallas_raw = _client.get('FaultData', search={
             'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -788,7 +704,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 df_fallas['Duracion_Activa_Min'] = df_fallas.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'] \
                     .transform(lambda s: (s.max() - s.min()).total_seconds() / 60)
 
-                # --- Georreferenciación: posición GPS de cada falla ---
                 zonas = obtener_zonas(_client)
                 vehiculos_con_falla = df_fallas['id_camion'].unique().tolist()
 
@@ -829,10 +744,8 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                     lambda r: determinar_localidad(r.get('longitude'), r.get('latitude'), zonas), axis=1
                 )
 
-                # --- Cruce con vehículos (trae Ciudad, Marca, Referencia_Motor, N_Motor) ---
                 df_fallas_resumen = pd.merge(df_fallas, df_vehiculos, on='id_camion', how='left')
 
-                # --- Clasificación por diccionario SPN-FMI (Descripción real + Criticidad) ---
                 df_diccionario = cargar_diccionario_fallas()
 
                 def _clasificar(row):
@@ -854,7 +767,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
         st.error(f"Error procesando datos de Geotab: {e}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-
 # --- 3. EJECUCIÓN ---
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 
@@ -869,7 +781,6 @@ tab_fallas, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
 ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
 COLOR_CRITICIDAD = {'ALTA': '#B91C1C', 'MEDIA': '#B45309', 'BAJA': '#6B7280'}
 
-
 with tab_fallas:
     st.subheader("🩺 Fallas y Diagnóstico")
     st.caption(f"Reporte generado el: {datetime.now().strftime('%d/%m/%Y')} - Hora: {datetime.now().strftime('%I:%M %p')}")
@@ -882,7 +793,7 @@ with tab_fallas:
 
         ultima_fecha = df_activas.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
         df_activas = df_activas[df_activas['Fecha_Alerta'] == ultima_fecha]
-        # df_activas = df_activas[df_activas['Dias_Activa'] <= dias_activa_umbral]  # COMENTADO PARA MOSTRAR TODAS LAS FALLAS
+        # df_activas = df_activas[df_activas['Dias_Activa'] <= dias_activa_umbral]  # COMENTADO
 
         if not df_activas.empty:
             rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
@@ -913,12 +824,9 @@ with tab_fallas:
             col_k3.metric("Vehículos en criticidad ALTA", vehiculos_en_alta)
             col_k4.metric("Ciudad con más impacto", ciudad_mas_impacto)
 
-            # --- LÓGICA DE LA ALARMA SONORA ---
-            # Comparamos si los vehículos críticos actuales son MÁS que los que teníamos anotados en memoria
             if vehiculos_en_alta > st.session_state.alertas_altas_previas:
                 reproducir_alarma()
 
-            # Actualizamos nuestra memoria con el número actual, para la próxima recarga
             st.session_state.alertas_altas_previas = vehiculos_en_alta
 
             st.markdown("**Comparativo por ciudad**")
@@ -967,33 +875,93 @@ with tab_fallas:
 
             st.markdown("---")
 
-                                                            # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
+            # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
             st.markdown("---")
             st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
-            st.caption("Evolución semanal del número de fallas activas por ciudad. Permite identificar qué ciudad presenta tendencia al alza o a la baja en el mediano plazo.")
+            st.caption("Evolución semanal del número de fallas activas por ciudad. Usa los controles para ajustar el periodo sin recargar datos.")
 
             if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns and 'Ciudad' in df_activas.columns:
                 import numpy as np
                 
-                # Agrupar por semana (inicio de semana = lunes)
+                # 1. Crear columna de semana (inicio de semana = lunes)
                 df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time
-                df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
                 
-                # Ordenar por semana para que la línea sea cronológica
+                # 2. Agrupar por semana y ciudad
+                df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
                 df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Semana')
                 
-                # Obtener lista de ciudades con datos
-                ciudades_con_datos = df_tendencia_ciudad['Ciudad'].unique()
+                # 3. Obtener rango completo de semanas (para no tener saltos en el eje X)
+                fecha_min_global = df_tendencia_ciudad['Semana'].min()
+                fecha_max_global = df_tendencia_ciudad['Semana'].max()
+                
+                # Crear un calendario de todas las semanas entre min y max
+                todas_semanas = pd.date_range(
+                    start=fecha_min_global,
+                    end=fecha_max_global,
+                    freq='W-MON'
+                )
+                df_calendario = pd.DataFrame({'Semana': todas_semanas})
+                
+                # Obtener todas las ciudades únicas
+                todas_ciudades = df_tendencia_ciudad['Ciudad'].unique()
+                
+                # Crear un DataFrame con todas las combinaciones (semana, ciudad)
+                df_completo = df_calendario.assign(key=1).merge(
+                    pd.DataFrame({'Ciudad': todas_ciudades, 'key': 1}),
+                    on='key'
+                ).drop('key', axis=1)
+                
+                # Unir con los datos reales (rellenar con 0 donde no hay datos)
+                df_tendencia_completa = df_completo.merge(
+                    df_tendencia_ciudad,
+                    on=['Semana', 'Ciudad'],
+                    how='left'
+                ).fillna({'Cantidad_Fallas': 0})
+                
+                # 4. Ordenar por semana
+                df_tendencia_completa = df_tendencia_completa.sort_values('Semana')
+                
+                # --- CONTROLES DE RANGO DE FECHAS (sin recargar datos) ---
+                col_filtro1, col_filtro2 = st.columns(2)
+                with col_filtro1:
+                    fecha_inicio_filtro = st.date_input(
+                        "Fecha inicio (semana)",
+                        value=fecha_min_global,
+                        min_value=fecha_min_global,
+                        max_value=fecha_max_global,
+                        key="tendencia_inicio"
+                    )
+                with col_filtro2:
+                    fecha_fin_filtro = st.date_input(
+                        "Fecha fin (semana)",
+                        value=fecha_max_global,
+                        min_value=fecha_min_global,
+                        max_value=fecha_max_global,
+                        key="tendencia_fin"
+                    )
+                
+                # Convertir a datetime para filtrar
+                fecha_inicio_filtro = pd.to_datetime(fecha_inicio_filtro)
+                fecha_fin_filtro = pd.to_datetime(fecha_fin_filtro)
+                
+                # Filtrar el DataFrame completo (con todas las semanas)
+                df_filtrado = df_tendencia_completa[
+                    (df_tendencia_completa['Semana'] >= fecha_inicio_filtro) &
+                    (df_tendencia_completa['Semana'] <= fecha_fin_filtro)
+                ]
+                
+                # Obtener ciudades con datos reales en el filtro
+                ciudades_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]['Ciudad'].unique()
                 
                 if len(ciudades_con_datos) > 0:
-                    # Crear gráfico de líneas
+                    # --- GRÁFICO DE LÍNEAS CON TODAS LAS SEMANAS (CONTINUO) ---
                     fig_tendencia = px.line(
-                        df_tendencia_ciudad,
+                        df_filtrado[df_filtrado['Ciudad'].isin(ciudades_con_datos)],
                         x='Semana',
                         y='Cantidad_Fallas',
                         color='Ciudad',
                         markers=True,
-                        title="Evolución semanal de fallas activas por ciudad"
+                        title=f"Evolución semanal (desde {fecha_inicio_filtro.strftime('%d/%m/%Y')} hasta {fecha_fin_filtro.strftime('%d/%m/%Y')})"
                     )
                     fig_tendencia.update_layout(
                         height=350,
@@ -1004,21 +972,21 @@ with tab_fallas:
                     )
                     st.plotly_chart(fig_tendencia, use_container_width=True)
                     
-                    # --- COMPARATIVA SEMANA ACTUAL VS SEMANA ANTERIOR ---
+                    # --- COMPARATIVA SEMANA ACTUAL VS ANTERIOR (dentro del filtro) ---
                     st.markdown("---")
                     st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
                     
-                    semanas_unicas = sorted(df_tendencia_ciudad['Semana'].unique())
+                    # Filtrar solo semanas con datos reales
+                    df_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]
+                    semanas_con_datos = sorted(df_con_datos['Semana'].unique())
                     
-                    if len(semanas_unicas) >= 2:
-                        semana_actual = semanas_unicas[-1]
-                        semana_anterior = semanas_unicas[-2]
+                    if len(semanas_con_datos) >= 2:
+                        semana_actual = semanas_con_datos[-1]
+                        semana_anterior = semanas_con_datos[-2]
                         
-                        # Filtrar datos por semana
-                        df_actual = df_tendencia_ciudad[df_tendencia_ciudad['Semana'] == semana_actual]
-                        df_anterior = df_tendencia_ciudad[df_tendencia_ciudad['Semana'] == semana_anterior]
+                        df_actual = df_con_datos[df_con_datos['Semana'] == semana_actual]
+                        df_anterior = df_con_datos[df_con_datos['Semana'] == semana_anterior]
                         
-                        # Unir para comparar
                         df_comparativa = df_actual.merge(
                             df_anterior,
                             on='Ciudad',
@@ -1030,7 +998,6 @@ with tab_fallas:
                         df_comparativa['Cambio_%'] = ((df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']) / 
                                                        df_comparativa['Cantidad_Fallas_anterior'].replace(0, 1) * 100).round(1)
                         
-                        # Mostrar tabla comparativa
                         st.dataframe(
                             df_comparativa[['Ciudad', 'Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior', 'Diferencia', 'Cambio_%']],
                             use_container_width=True,
@@ -1044,7 +1011,6 @@ with tab_fallas:
                             }
                         )
                         
-                        # Gráfico de barras comparativo
                         fig_comparativa = px.bar(
                             df_comparativa,
                             x='Ciudad',
@@ -1056,22 +1022,21 @@ with tab_fallas:
                         fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
                         st.plotly_chart(fig_comparativa, use_container_width=True)
                     else:
-                        st.info(f"📅 Solo hay {len(semanas_unicas)} semana(s) de datos en el período seleccionado. Amplía el rango de fechas para ver la comparativa semana a semana.")
+                        st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango en los filtros laterales para tener más semanas.")
                     
-                    # --- Análisis rápido de tendencia (con numpy, sin sklearn) ---
+                    # --- ANÁLISIS DE TENDENCIA (con datos filtrados) ---
                     st.markdown("---")
                     st.markdown("**📊 Resumen de tendencia por ciudad**")
+                    
                     resumen_tendencias = []
                     for ciudad in ciudades_con_datos:
-                        df_ciudad = df_tendencia_ciudad[df_tendencia_ciudad['Ciudad'] == ciudad]
-                        if len(df_ciudad) >= 3:  # mínimo 3 semanas para regresión
-                            # Calcular pendiente con fórmula de mínimos cuadrados
+                        df_ciudad = df_con_datos[df_con_datos['Ciudad'] == ciudad]
+                        if len(df_ciudad) >= 3:
                             x = np.arange(len(df_ciudad))
                             y = df_ciudad['Cantidad_Fallas'].values
                             n = len(x)
                             pendiente = (n * np.sum(x*y) - np.sum(x)*np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
                             
-                            # Umbrales ajustados para escala semanal (más tolerantes)
                             if pendiente > 0.5:
                                 tendencia = "📈 Al alza"
                             elif pendiente < -0.5:
@@ -1087,14 +1052,12 @@ with tab_fallas:
                     
                     if resumen_tendencias:
                         df_resumen = pd.DataFrame(resumen_tendencias)
-                        # Mostrar tabla pequeña
                         st.dataframe(
                             df_resumen[['Ciudad', 'Tendencia', 'Pendiente']].round(2),
                             use_container_width=True,
                             hide_index=True
                         )
                         
-                        # Destacar ciudad con mayor alza y mayor baja
                         max_alza = df_resumen.loc[df_resumen['Pendiente'].idxmax()]
                         max_baja = df_resumen.loc[df_resumen['Pendiente'].idxmin()]
                         
@@ -1112,9 +1075,9 @@ with tab_fallas:
                                 delta=f"{max_baja['Pendiente']:.2f} fallas/semana"
                             )
                     else:
-                        st.info("Se necesitan al menos 3 semanas de datos para calcular la tendencia. Amplía el rango de fechas.")
+                        st.info("📊 No hay suficientes semanas con datos (mínimo 3) en el rango seleccionado para calcular la tendencia. Ajusta el rango en los filtros laterales para incluir más semanas.")
                 else:
-                    st.info("No hay datos suficientes para mostrar tendencia semanal.")
+                    st.warning("⚠️ El rango seleccionado no tiene datos con fallas. Ajusta las fechas en los controles internos o en los filtros laterales.")
             else:
                 st.info("No hay datos de fallas o ciudades para mostrar la tendencia semanal.")
 
@@ -1195,10 +1158,8 @@ with tab_fallas:
     if hoja_incidentes is None:
         st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes. El protocolo se muestra pero los cambios no se guardarán hasta que se restablezca la conexión.")
 
-    # Cargamos el estado real de los incidentes desde Google Sheets (compartido entre todos los usuarios)
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
-    # Filtrar solo los vehículos con criticidad ALTA
     fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'] == 'ALTA'] if not df_activas.empty else df_activas
 
     if not fallas_criticas.empty:
@@ -1216,7 +1177,6 @@ with tab_fallas:
             fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
             cantidad_fallas = len(grupo_vehiculo)
 
-            # Si es nuevo, lo creamos en la hoja (uno por vehículo/día, no uno por falla)
             if id_inc not in incidentes_guardados:
                 crear_incidente_en_hoja(
                     hoja_incidentes, id_inc,
@@ -1357,7 +1317,6 @@ with tab_fallas:
     else:
         st.info("No hay fallas registradas en el período seleccionado.")
 
-
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
 
@@ -1371,7 +1330,6 @@ with tab_manejo:
 
         st.markdown("---")
 
-        # --- FILA 1: COMPARATIVOS GENERALES ---
         col_top, col_dona = st.columns(2)
 
         with col_top:
@@ -1403,22 +1361,19 @@ with tab_manejo:
 
         st.markdown("---")
 
-        # --- FILA 2: NUEVA GRÁFICA DE TENDENCIA EN EL TIEMPO ---
         st.markdown("**📈 Tendencia Diaria de Sobre-Revoluciones por Turno**")
         st.caption("Evolución del número de infracciones detectadas por jornada operativa a lo largo del periodo seleccionado")
 
-        # Procesamiento de datos para la línea de tiempo
         df_tendencia = df_eventos_rpm.groupby(['Fecha', 'Turno']).size().reset_index(name='Cantidad_Eventos')
-        df_tendencia = df_tendencia.sort_values('Fecha') # Garantiza el orden cronológico en el eje X
+        df_tendencia = df_tendencia.sort_values('Fecha')
 
-        # Construcción de la gráfica de líneas
         fig_linea = px.line(
             df_tendencia,
             x='Fecha',
             y='Cantidad_Eventos',
             color='Turno',
             color_discrete_map={'R1': '#2a78d6', 'R2': '#EF9F27', 'R3': '#2C3E50'},
-            markers=True # Agrega puntos en cada día para identificar picos fácilmente
+            markers=True
         )
         fig_linea.update_layout(
             height=320,
@@ -1431,7 +1386,6 @@ with tab_manejo:
 
         st.markdown("---")
 
-        # --- FILA 3: TABLA DE RESUMEN TABULAR ---
         st.markdown("**Detalle consolidado por vehículo/día**")
         ranking = df_eventos_rpm.groupby(['Movil', 'Placa', 'Motor', 'Fecha']).agg(
             Umbral_RPM=('Umbral_RPM', 'first'),
