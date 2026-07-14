@@ -1032,86 +1032,96 @@ with tab_fallas:
     # Cargamos el estado real de los incidentes desde Google Sheets (compartido entre todos los usuarios)
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
-    # Filtrar solo los vehículos con criticidad ALTA
-    fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'] == 'ALTA'] if not df_activas.empty else df_activas
+# Filtrar solo los vehículos con criticidad ALTA
+fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'] == 'ALTA'] if not df_activas.empty else df_activas
 
-    if not fallas_criticas.empty:
-            for idx, fila in fallas_criticas.iterrows():
-                id_inc = f"{fila['id_camion']}_{fila['Codigo']}_{fila['Fecha_Alerta'].strftime('%Y%m%d%H%M%S')}"
+if not fallas_criticas.empty:
+    fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
 
-                # Si es nuevo, lo creamos en la hoja
-                if id_inc not in incidentes_guardados:
-                    crear_incidente_en_hoja(
-                        hoja_incidentes, id_inc,
-                        fila['Movil'], fila['Placa'], fila['Descripcion_Falla'],
-                        fila['Criticidad'], fila['Fecha_Alerta'], fila.get('Ciudad', 'Sin ciudad asignada')
-                    )
-                    incidentes_guardados = cargar_incidentes(hoja_incidentes)
+    for id_camion, grupo_vehiculo in fallas_criticas.groupby('id_camion'):
+        fila0 = grupo_vehiculo.iloc[0]
+        id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
 
-                inc = incidentes_guardados.get(id_inc, {
-                    'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
-                })
-                protocolo = PROTOCOLOS[fila['Criticidad']]
+        grupo_ordenado = grupo_vehiculo.sort_values('Fecha_Alerta', ascending=False)
+        descripcion_consolidada = "\n".join(
+            f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')})"
+            for i, (_, r) in enumerate(grupo_ordenado.iterrows())
+        )
+        fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
+        cantidad_fallas = len(grupo_vehiculo)
 
-                # Expander colapsable para cada incidente
-                with st.expander(
-                    f"🚨 {fila['Movil']} - {fila['Placa']} - {fila['Descripcion_Falla']} "
-                    f"({fila.get('Localidad', 'Desconocida')})",
-                    expanded=(inc['estado'] == 'Abierto')
-                ):
-                    col1, col2 = st.columns([2, 1])
-                    with col1:
-                        st.markdown(f"**Estado:** {inc['estado']}")
-                        st.markdown(f"**Ubicación:** {fila.get('Localidad', 'No disponible')}")
-                        st.markdown(f"**Hora de detección:** {fila['Fecha_Alerta'].strftime('%d/%m/%Y %H:%M:%S')}")
-                    with col2:
-                        if inc['estado'] == 'Abierto':
-                            if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
-                                actualizar_incidente_en_hoja(
-                                    hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
-                                )
-                                st.success("Incidente cerrado correctamente.")
-                                st.rerun()
+        # Si es nuevo, lo creamos en la hoja (uno por vehículo/día, no uno por falla)
+        if id_inc not in incidentes_guardados:
+            crear_incidente_en_hoja(
+                hoja_incidentes, id_inc,
+                fila0['Movil'], fila0['Placa'], descripcion_consolidada,
+                'ALTA', fecha_mas_reciente, fila0.get('Ciudad', 'Sin ciudad asignada')
+            )
+            incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
-                    st.markdown("---")
-                    st.markdown(f"#### {protocolo['nombre']}")
-                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+        inc = incidentes_guardados.get(id_inc, {
+            'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
+        })
+        protocolo = PROTOCOLOS['ALTA']
 
-                    # Checklist de acciones
-                    acciones_realizadas = list(inc['acciones_realizadas'])
-                    hubo_cambio = False
-                    for accion in protocolo['acciones']:
-                        orden = accion['orden']
-                        descripcion = accion['texto']
-                        responsable = accion['responsable']
-                        clave = f"accion_{id_inc}_{orden}"
-
-                        realizada = clave in acciones_realizadas
-                        check = st.checkbox(
-                            f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
-                            value=realizada,
-                            key=clave
+        with st.expander(
+            f"🚨 {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) crítica(s) activa(s) "
+            f"({fila0.get('Localidad', 'Desconocida')})",
+            expanded=(inc['estado'] == 'Abierto')
+        ):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.markdown(f"**Estado:** {inc['estado']}")
+                st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
+                st.markdown(f"**Última falla detectada:** {fecha_mas_reciente.strftime('%d/%m/%Y %H:%M:%S')}")
+            with col2:
+                if inc['estado'] == 'Abierto':
+                    if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
+                        actualizar_incidente_en_hoja(
+                            hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
                         )
-                        # Detectar si el usuario cambió el checkbox respecto a lo guardado
-                        if check and clave not in acciones_realizadas:
-                            acciones_realizadas.append(clave)
-                            hubo_cambio = True
-                        elif not check and clave in acciones_realizadas:
-                            acciones_realizadas.remove(clave)
-                            hubo_cambio = True
+                        st.success("Incidente cerrado correctamente.")
+                        st.rerun()
 
-                    # Si hubo un cambio en el checklist, lo guardamos en la hoja
-                    if hubo_cambio:
-                        actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
+            st.markdown("---")
+            st.markdown("**Fallas activas de este vehículo:**")
+            st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
-                    # Barra de progreso
-                    completadas = len(acciones_realizadas)
-                    total = len(protocolo['acciones'])
-                    if total > 0:
-                        st.progress(completadas / total)
-                        st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
-    else:
-            st.info("No hay vehículos en criticidad ALTA en este momento.")
+            st.markdown("---")
+            st.markdown(f"#### {protocolo['nombre']}")
+            st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+
+            acciones_realizadas = list(inc['acciones_realizadas'])
+            hubo_cambio = False
+            for accion in protocolo['acciones']:
+                orden = accion['orden']
+                descripcion = accion['texto']
+                responsable = accion['responsable']
+                clave = f"accion_{id_inc}_{orden}"
+
+                realizada = clave in acciones_realizadas
+                check = st.checkbox(
+                    f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
+                    value=realizada,
+                    key=clave
+                )
+                if check and clave not in acciones_realizadas:
+                    acciones_realizadas.append(clave)
+                    hubo_cambio = True
+                elif not check and clave in acciones_realizadas:
+                    acciones_realizadas.remove(clave)
+                    hubo_cambio = True
+
+            if hubo_cambio:
+                actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
+
+            completadas = len(acciones_realizadas)
+            total = len(protocolo['acciones'])
+            if total > 0:
+                st.progress(completadas / total)
+                st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
+else:
+    st.info("No hay vehículos en criticidad ALTA en este momento.")
 
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
