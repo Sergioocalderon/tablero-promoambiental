@@ -967,7 +967,7 @@ with tab_fallas:
 
             st.markdown("---")
 
-                                    # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
+                                                # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
             st.markdown("---")
             st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
             st.caption("Evolución semanal del número de fallas activas por ciudad. Permite identificar qué ciudad presenta tendencia al alza o a la baja en el mediano plazo.")
@@ -1004,7 +1004,61 @@ with tab_fallas:
                     )
                     st.plotly_chart(fig_tendencia, use_container_width=True)
                     
+                    # --- COMPARATIVA SEMANA ACTUAL VS SEMANA ANTERIOR ---
+                    st.markdown("---")
+                    st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
+                    
+                    semanas_unicas = sorted(df_tendencia_ciudad['Semana'].unique())
+                    if len(semanas_unicas) >= 2:
+                        semana_actual = semanas_unicas[-1]
+                        semana_anterior = semanas_unicas[-2]
+                        
+                        # Filtrar datos por semana
+                        df_actual = df_tendencia_ciudad[df_tendencia_ciudad['Semana'] == semana_actual]
+                        df_anterior = df_tendencia_ciudad[df_tendencia_ciudad['Semana'] == semana_anterior]
+                        
+                        # Unir para comparar
+                        df_comparativa = df_actual.merge(
+                            df_anterior,
+                            on='Ciudad',
+                            suffixes=('_actual', '_anterior'),
+                            how='outer'
+                        ).fillna(0)
+                        
+                        df_comparativa['Diferencia'] = df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']
+                        df_comparativa['Cambio_%'] = ((df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']) / 
+                                                       df_comparativa['Cantidad_Fallas_anterior'].replace(0, 1) * 100).round(1)
+                        
+                        # Mostrar tabla comparativa
+                        st.dataframe(
+                            df_comparativa[['Ciudad', 'Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior', 'Diferencia', 'Cambio_%']],
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                'Ciudad': 'Ciudad',
+                                'Cantidad_Fallas_actual': f'Semana {semana_actual.strftime("%d/%m")}',
+                                'Cantidad_Fallas_anterior': f'Semana {semana_anterior.strftime("%d/%m")}',
+                                'Diferencia': 'Diferencia',
+                                'Cambio_%': 'Cambio %'
+                            }
+                        )
+                        
+                        # Gráfico de barras comparativo
+                        fig_comparativa = px.bar(
+                            df_comparativa,
+                            x='Ciudad',
+                            y=['Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior'],
+                            barmode='group',
+                            title=f"Comparativa: Semana {semana_actual.strftime('%d/%m')} vs Semana {semana_anterior.strftime('%d/%m')}",
+                            labels={'value': 'Número de fallas', 'variable': 'Semana'}
+                        )
+                        fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
+                        st.plotly_chart(fig_comparativa, use_container_width=True)
+                    else:
+                        st.info("Se necesitan al menos 2 semanas de datos para hacer la comparativa.")
+                    
                     # --- Análisis rápido de tendencia (con numpy, sin sklearn) ---
+                    st.markdown("---")
                     st.markdown("**📊 Resumen de tendencia por ciudad**")
                     resumen_tendencias = []
                     for ciudad in ciudades_con_datos:
