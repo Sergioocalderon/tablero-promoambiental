@@ -875,26 +875,25 @@ with tab_fallas:
 
             st.markdown("---")
 
-            # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
+                        # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
             st.markdown("---")
             st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
-            st.caption("Evolución semanal del número de fallas activas por ciudad. Usa los controles para ajustar el periodo sin recargar datos.")
+            st.caption("Evolución semanal del número de fallas activas por ciudad. Usa el deslizador para ajustar el rango de semanas.")
 
             if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns and 'Ciudad' in df_activas.columns:
                 import numpy as np
                 
-                # 1. Crear columna de semana (inicio de semana = lunes)
+                # 1. Crear columna de semana
                 df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time
                 
                 # 2. Agrupar por semana y ciudad
                 df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
                 df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Semana')
                 
-                # 3. Obtener rango completo de semanas (para no tener saltos en el eje X)
+                # 3. Crear calendario continuo
                 fecha_min_global = df_tendencia_ciudad['Semana'].min()
                 fecha_max_global = df_tendencia_ciudad['Semana'].max()
                 
-                # Crear un calendario de todas las semanas entre min y max
                 todas_semanas = pd.date_range(
                     start=fecha_min_global,
                     end=fecha_max_global,
@@ -902,59 +901,46 @@ with tab_fallas:
                 )
                 df_calendario = pd.DataFrame({'Semana': todas_semanas})
                 
-                # Obtener todas las ciudades únicas
                 todas_ciudades = df_tendencia_ciudad['Ciudad'].unique()
-                
-                # Crear un DataFrame con todas las combinaciones (semana, ciudad)
                 df_completo = df_calendario.assign(key=1).merge(
                     pd.DataFrame({'Ciudad': todas_ciudades, 'key': 1}),
                     on='key'
                 ).drop('key', axis=1)
                 
-                # Unir con los datos reales (rellenar con 0 donde no hay datos)
                 df_tendencia_completa = df_completo.merge(
                     df_tendencia_ciudad,
                     on=['Semana', 'Ciudad'],
                     how='left'
                 ).fillna({'Cantidad_Fallas': 0})
                 
-                # 4. Ordenar por semana
                 df_tendencia_completa = df_tendencia_completa.sort_values('Semana')
                 
-                # --- CONTROLES DE RANGO DE FECHAS (sin recargar datos) ---
-                col_filtro1, col_filtro2 = st.columns(2)
-                with col_filtro1:
-                    fecha_inicio_filtro = st.date_input(
-                        "Fecha inicio (semana)",
-                        value=fecha_min_global,
-                        min_value=fecha_min_global,
-                        max_value=fecha_max_global,
-                        key="tendencia_inicio"
-                    )
-                with col_filtro2:
-                    fecha_fin_filtro = st.date_input(
-                        "Fecha fin (semana)",
-                        value=fecha_max_global,
-                        min_value=fecha_min_global,
-                        max_value=fecha_max_global,
-                        key="tendencia_fin"
-                    )
+                # --- SLIDER DE RANGO DE SEMANAS ---
+                st.markdown("**Selecciona el rango de semanas con el deslizador:**")
                 
-                # Convertir a datetime para filtrar
-                fecha_inicio_filtro = pd.to_datetime(fecha_inicio_filtro)
-                fecha_fin_filtro = pd.to_datetime(fecha_fin_filtro)
+                rango_semanas = st.slider(
+                    "Mueve las dos asas para seleccionar el rango",
+                    min_value=fecha_min_global,
+                    max_value=fecha_max_global,
+                    value=(fecha_min_global, fecha_max_global),
+                    format="DD/MM/YYYY",
+                    key="tendencia_slider"
+                )
                 
-                # Filtrar el DataFrame completo (con todas las semanas)
+                fecha_inicio_filtro = pd.to_datetime(rango_semanas[0])
+                fecha_fin_filtro = pd.to_datetime(rango_semanas[1])
+                
+                # Filtrar DataFrame con el rango seleccionado
                 df_filtrado = df_tendencia_completa[
                     (df_tendencia_completa['Semana'] >= fecha_inicio_filtro) &
                     (df_tendencia_completa['Semana'] <= fecha_fin_filtro)
                 ]
                 
-                # Obtener ciudades con datos reales en el filtro
+                # Obtener ciudades con datos reales
                 ciudades_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]['Ciudad'].unique()
                 
                 if len(ciudades_con_datos) > 0:
-                    # --- GRÁFICO DE LÍNEAS CON TODAS LAS SEMANAS (CONTINUO) ---
+                    # --- GRÁFICO DE LÍNEAS ---
                     fig_tendencia = px.line(
                         df_filtrado[df_filtrado['Ciudad'].isin(ciudades_con_datos)],
                         x='Semana',
@@ -972,11 +958,10 @@ with tab_fallas:
                     )
                     st.plotly_chart(fig_tendencia, use_container_width=True)
                     
-                    # --- COMPARATIVA SEMANA ACTUAL VS ANTERIOR (dentro del filtro) ---
+                    # --- COMPARATIVA SEMANA ACTUAL VS ANTERIOR ---
                     st.markdown("---")
                     st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
                     
-                    # Filtrar solo semanas con datos reales
                     df_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]
                     semanas_con_datos = sorted(df_con_datos['Semana'].unique())
                     
@@ -1022,9 +1007,9 @@ with tab_fallas:
                         fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
                         st.plotly_chart(fig_comparativa, use_container_width=True)
                     else:
-                        st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango en los filtros laterales para tener más semanas.")
+                        st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango con el deslizador.")
                     
-                    # --- ANÁLISIS DE TENDENCIA (con datos filtrados) ---
+                    # --- ANÁLISIS DE TENDENCIA ---
                     st.markdown("---")
                     st.markdown("**📊 Resumen de tendencia por ciudad**")
                     
@@ -1075,9 +1060,9 @@ with tab_fallas:
                                 delta=f"{max_baja['Pendiente']:.2f} fallas/semana"
                             )
                     else:
-                        st.info("📊 No hay suficientes semanas con datos (mínimo 3) en el rango seleccionado para calcular la tendencia. Ajusta el rango en los filtros laterales para incluir más semanas.")
+                        st.info("📊 No hay suficientes semanas con datos (mínimo 3) en el rango seleccionado. Ajusta el deslizador para incluir más semanas.")
                 else:
-                    st.warning("⚠️ El rango seleccionado no tiene datos con fallas. Ajusta las fechas en los controles internos o en los filtros laterales.")
+                    st.warning("⚠️ El rango seleccionado no tiene datos con fallas. Ajusta el deslizador.")
             else:
                 st.info("No hay datos de fallas o ciudades para mostrar la tendencia semanal.")
 
