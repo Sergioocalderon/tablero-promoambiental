@@ -915,18 +915,23 @@ with tab_fallas:
                 
                 df_tendencia_completa = df_tendencia_completa.sort_values('Semana')
                 
-                # --- SLIDER DE RANGO DE SEMANAS ---
+                                # --- SLIDER DE RANGO DE SEMANAS (convertido a datetime.date) ---
                 st.markdown("**Selecciona el rango de semanas con el deslizador:**")
+                
+                # Convertir a datetime.date nativo de Python (Streamlit lo acepta mejor)
+                fecha_min_date = fecha_min_global.to_pydatetime().date()
+                fecha_max_date = fecha_max_global.to_pydatetime().date()
                 
                 rango_semanas = st.slider(
                     "Mueve las dos asas para seleccionar el rango",
-                    min_value=fecha_min_global,
-                    max_value=fecha_max_global,
-                    value=(fecha_min_global, fecha_max_global),
+                    min_value=fecha_min_date,
+                    max_value=fecha_max_date,
+                    value=(fecha_min_date, fecha_max_date),
                     format="DD/MM/YYYY",
                     key="tendencia_slider"
                 )
                 
+                # Convertir de vuelta a pandas datetime para filtrar
                 fecha_inicio_filtro = pd.to_datetime(rango_semanas[0])
                 fecha_fin_filtro = pd.to_datetime(rango_semanas[1])
                 
