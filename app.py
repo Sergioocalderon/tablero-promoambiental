@@ -967,19 +967,20 @@ with tab_fallas:
 
             st.markdown("---")
 
-                        # --- TENDENCIA DE FALLAS POR CIUDAD ---
+                                    # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
             st.markdown("---")
-            st.markdown("#### 📈 Tendencia de Fallas por Ciudad")
-            st.caption("Evolución diaria del número de fallas activas por ciudad. Permite identificar qué ciudad presenta tendencia al alza o a la baja.")
+            st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
+            st.caption("Evolución semanal del número de fallas activas por ciudad. Permite identificar qué ciudad presenta tendencia al alza o a la baja en el mediano plazo.")
 
-            # Preparar datos: agrupar por fecha y ciudad
             if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns and 'Ciudad' in df_activas.columns:
-                # Asegurar que Fecha sea tipo date
-                df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time  # inicio de semana (lunes)
-                df_tendencia_ciudad = df_activas.groupby(['Fecha', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
+                import numpy as np
                 
-                # Ordenar por fecha para que la línea sea cronológica
-                df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Fecha')
+                # Agrupar por semana (inicio de semana = lunes)
+                df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time
+                df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
+                
+                # Ordenar por semana para que la línea sea cronológica
+                df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Semana')
                 
                 # Obtener lista de ciudades con datos
                 ciudades_con_datos = df_tendencia_ciudad['Ciudad'].unique()
@@ -988,38 +989,37 @@ with tab_fallas:
                     # Crear gráfico de líneas
                     fig_tendencia = px.line(
                         df_tendencia_ciudad,
-                        x='Fecha',
+                        x='Semana',
                         y='Cantidad_Fallas',
                         color='Ciudad',
                         markers=True,
-                        title="Evolución de fallas activas por ciudad"
+                        title="Evolución semanal de fallas activas por ciudad"
                     )
                     fig_tendencia.update_layout(
                         height=350,
                         margin=dict(l=0, r=0, t=40, b=0),
-                        xaxis_title="Fecha",
+                        xaxis_title="Semana (inicio)",
                         yaxis_title="Número de fallas activas",
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                     )
                     st.plotly_chart(fig_tendencia, use_container_width=True)
                     
                     # --- Análisis rápido de tendencia (con numpy, sin sklearn) ---
-                    import numpy as np
-                    
                     st.markdown("**📊 Resumen de tendencia por ciudad**")
                     resumen_tendencias = []
                     for ciudad in ciudades_con_datos:
                         df_ciudad = df_tendencia_ciudad[df_tendencia_ciudad['Ciudad'] == ciudad]
-                        if len(df_ciudad) >= 3:  # mínimo 3 puntos para regresión
+                        if len(df_ciudad) >= 3:  # mínimo 3 semanas para regresión
                             # Calcular pendiente con fórmula de mínimos cuadrados
                             x = np.arange(len(df_ciudad))
                             y = df_ciudad['Cantidad_Fallas'].values
                             n = len(x)
                             pendiente = (n * np.sum(x*y) - np.sum(x)*np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
                             
-                            if pendiente > 0.3:
+                            # Umbrales ajustados para escala semanal (más tolerantes)
+                            if pendiente > 0.5:
                                 tendencia = "📈 Al alza"
-                            elif pendiente < -0.3:
+                            elif pendiente < -0.5:
                                 tendencia = "📉 A la baja"
                             else:
                                 tendencia = "➡️ Estable"
@@ -1048,18 +1048,18 @@ with tab_fallas:
                             st.metric(
                                 "📈 Ciudad con mayor crecimiento",
                                 max_alza['Ciudad'],
-                                delta=f"{max_alza['Pendiente']:.2f} fallas/día"
+                                delta=f"{max_alza['Pendiente']:.2f} fallas/semana"
                             )
                         with col_t2:
                             st.metric(
                                 "📉 Ciudad con mayor decrecimiento",
                                 max_baja['Ciudad'],
-                                delta=f"{max_baja['Pendiente']:.2f} fallas/día"
+                                delta=f"{max_baja['Pendiente']:.2f} fallas/semana"
                             )
                 else:
-                    st.info("No hay datos suficientes para mostrar tendencia por ciudad.")
+                    st.info("No hay datos suficientes para mostrar tendencia semanal.")
             else:
-                st.info("No hay datos de fallas o ciudades para mostrar la tendencia.")
+                st.info("No hay datos de fallas o ciudades para mostrar la tendencia semanal.")
 
             with st.expander("📋 Ver detalle completo por vehículo (código, fecha y descripción de cada falla)"):
                 for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
