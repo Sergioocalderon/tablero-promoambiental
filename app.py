@@ -967,7 +967,7 @@ with tab_fallas:
 
             st.markdown("---")
 
-                                                # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
+                                                            # --- TENDENCIA SEMANAL DE FALLAS POR CIUDAD ---
             st.markdown("---")
             st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
             st.caption("Evolución semanal del número de fallas activas por ciudad. Permite identificar qué ciudad presenta tendencia al alza o a la baja en el mediano plazo.")
@@ -1009,6 +1009,7 @@ with tab_fallas:
                     st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
                     
                     semanas_unicas = sorted(df_tendencia_ciudad['Semana'].unique())
+                    
                     if len(semanas_unicas) >= 2:
                         semana_actual = semanas_unicas[-1]
                         semana_anterior = semanas_unicas[-2]
@@ -1049,13 +1050,13 @@ with tab_fallas:
                             x='Ciudad',
                             y=['Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior'],
                             barmode='group',
-                            title=f"Comparativa: Semana {semana_actual.strftime('%d/%m')} vs Semana {semana_anterior.strftime('%d/%m')}",
+                            title=f"Comparativa: semana del {semana_actual.strftime('%d/%m')} vs semana del {semana_anterior.strftime('%d/%m')}",
                             labels={'value': 'Número de fallas', 'variable': 'Semana'}
                         )
                         fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
                         st.plotly_chart(fig_comparativa, use_container_width=True)
                     else:
-                        st.info("Se necesitan al menos 2 semanas de datos para hacer la comparativa.")
+                        st.info(f"📅 Solo hay {len(semanas_unicas)} semana(s) de datos en el período seleccionado. Amplía el rango de fechas para ver la comparativa semana a semana.")
                     
                     # --- Análisis rápido de tendencia (con numpy, sin sklearn) ---
                     st.markdown("---")
@@ -1110,6 +1111,8 @@ with tab_fallas:
                                 max_baja['Ciudad'],
                                 delta=f"{max_baja['Pendiente']:.2f} fallas/semana"
                             )
+                    else:
+                        st.info("Se necesitan al menos 3 semanas de datos para calcular la tendencia. Amplía el rango de fechas.")
                 else:
                     st.info("No hay datos suficientes para mostrar tendencia semanal.")
             else:
