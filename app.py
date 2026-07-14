@@ -867,7 +867,7 @@ with tab_fallas:
 
         ultima_fecha = df_activas.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
         df_activas = df_activas[df_activas['Fecha_Alerta'] == ultima_fecha]
-        df_activas = df_activas[df_activas['Dias_Activa'] <= dias_activa_umbral]
+        # df_activas = df_activas[df_activas['Dias_Activa'] <= dias_activa_umbral]
 
         if not df_activas.empty:
             rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
@@ -1126,11 +1126,9 @@ else:
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
 
-    if not df_fallas.empty and 'Localidad' in df_fallas.columns:
-        df_fallas_geo = df_fallas[
-            (df_fallas['Duracion_Activa_Min'] >= duracion_min_minutos) &
-            (df_fallas['latitude'].notna())
-        ]
+    # Mostrar todas las fallas con coordenadas (sin filtro de duración)
+    if not df_fallas.empty and 'latitude' in df_fallas.columns:
+        df_fallas_geo = df_fallas[df_fallas['latitude'].notna()]
 
         if not df_fallas_geo.empty:
             conteo_localidad = df_fallas_geo.groupby('Localidad').agg(
@@ -1145,22 +1143,19 @@ else:
             col_mapa, col_ranking = st.columns([2, 1])
 
             def normalizar_nombre_localidad(texto):
-                """Convierte un nombre de localidad a formato 'Título' consistente
-                (ej. 'PARQUE DE INNOVACION' -> 'Parque de Innovación'), manteniendo
-                en minúscula los conectores comunes en español."""
-                conectores = {'de', 'del', 'la', 'las', 'el', 'los', 'y', 'en'}
-                palabras = texto.strip().lower().split()
-                resultado = [
+                 conectores = {'de', 'del', 'la', 'las', 'el', 'los', 'y', 'en'}
+                 palabras = texto.strip().lower().split()
+                 resultado = [
                     palabra if palabra in conectores else palabra.capitalize()
                     for palabra in palabras
-                ]
-                if resultado:
+                 ]
+                 if resultado:
                     resultado[0] = resultado[0].capitalize()
-                return ' '.join(resultado)
+                 return ' '.join(resultado)
 
             with col_ranking:
-                st.markdown("**Localidades con más fallas sostenidas**")
-                st.caption(f"Fallas activas ≥ {duracion_min_minutos} min")
+                st.markdown("**Localidades con más fallas**")
+                st.caption("(Todas las fallas con coordenadas GPS)")
 
                 filas_localidad_html = ""
                 for _, fila in conteo_localidad.iterrows():
@@ -1195,15 +1190,15 @@ else:
                     lat='latitude', lon='longitude',
                     color='Localidad',
                     hover_name='Movil',
-                    hover_data=['Codigo', 'Placa', 'Localidad'],
+                    hover_data=['Codigo', 'Placa', 'Localidad', 'Descripcion_Falla'],
                     zoom=10, height=450
                 )
                 fig_mapa.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
                 st.plotly_chart(fig_mapa, use_container_width=True)
         else:
-            st.info(f"No hay fallas con más de {duracion_min_minutos} minutos de duración sostenida en este periodo.")
+            st.warning("⚠️ No se encontraron fallas con coordenadas GPS. Verifica que los vehículos estén enviando posición y que el rango de fechas incluya datos.")
     else:
-        st.info("No hay datos de localización disponibles todavía.")
+        st.info("No hay fallas registradas en el período seleccionado.")
 
 
 with tab_manejo:
