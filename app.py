@@ -675,7 +675,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
             df_temp = pd.DataFrame(temp_raw)
             if not df_temp.empty and 'device' in df_temp.columns and 'data' in df_temp.columns:
                 df_temp['id_camion'] = df_temp['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
-                df_temp['Fecha'] = pd.to_datetime(df_temp['dateTime']).dt.date
+                df_temp['Fecha'] = pd.to_datetime(df_temp['dateTime']).dt.tz_convert(ZONA_BOGOTA).dt.date
                 df_temp['Temperatura'] = pd.to_numeric(df_temp['data'], errors='coerce')
                 df_temp = df_temp[(df_temp['Temperatura'] > 40) & (df_temp['Temperatura'] < 130)]
 
@@ -718,7 +718,8 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 df_fallas[['Codigo', 'Diagnostico_ID', 'FailureMode_ID', 'SPN_Geotab', 'FMI_Geotab']] = \
                     df_fallas.apply(resolver_falla, axis=1)
 
-                df_fallas['Fecha_Alerta'] = pd.to_datetime(df_fallas['dateTime'])
+                # --- CORRECCIÓN DE ZONA HORARIA ---
+                df_fallas['Fecha_Alerta'] = pd.to_datetime(df_fallas['dateTime']).dt.tz_localize('UTC').dt.tz_convert(ZONA_BOGOTA)
 
                 ahora = datetime.now(timezone.utc)
                 df_fallas['Dias_Activa'] = df_fallas['Fecha_Alerta'].apply(lambda x: max((ahora - x).days, 0))
@@ -745,7 +746,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 if logs_por_camion:
                     df_logs = pd.DataFrame(logs_por_camion)
                     df_logs['id_camion'] = df_logs['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
-                    df_logs['dateTime'] = pd.to_datetime(df_logs['dateTime'])
+                    df_logs['dateTime'] = pd.to_datetime(df_logs['dateTime']).dt.tz_convert(ZONA_BOGOTA)
                     df_logs = df_logs[['id_camion', 'dateTime', 'latitude', 'longitude']].dropna()
                     df_logs = df_logs.sort_values('dateTime')
 
@@ -823,7 +824,7 @@ COLOR_CRITICIDAD = {'ALTA': '#B91C1C', 'MEDIA': '#B45309', 'BAJA': '#6B7280'}
 
 with tab_fallas:
     st.subheader("🩺 Fallas y Diagnóstico")
-    st.caption(f"Reporte generado el: {datetime.now().strftime('%d/%m/%Y')} - Hora: {datetime.now().strftime('%I:%M %p')}")
+    st.caption(f"Reporte generado el: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y')} - Hora: {datetime.now(ZONA_BOGOTA).strftime('%I:%M %p')}")
 
     if not df_fallas.empty:
         df_activas = df_fallas.copy()
@@ -1249,12 +1250,18 @@ with tab_fallas:
             fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
             cantidad_fallas = len(grupo_vehiculo)
 
+            # --- CORRECCIÓN DE ZONA HORARIA PARA GUARDADO ---
+            if fecha_mas_reciente.tzinfo is None:
+                fecha_guardar = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
+            else:
+                fecha_guardar = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
+
             # Si es nuevo, lo creamos en la hoja (uno por vehículo/día)
             if id_inc not in incidentes_guardados:
                 crear_incidente_en_hoja(
                     hoja_incidentes, id_inc,
                     fila0['Movil'], fila0['Placa'], descripcion_consolidada,
-                    criticidad_vehiculo, fecha_mas_reciente, fila0.get('Ciudad', 'Sin ciudad asignada')
+                    criticidad_vehiculo, fecha_guardar, fila0.get('Ciudad', 'Sin ciudad asignada')
                 )
                 incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
@@ -1273,7 +1280,12 @@ with tab_fallas:
                 with col1:
                     st.markdown(f"**Estado del incidente:** {inc['estado']}")
                     st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
-                    st.markdown(f"**Última falla detectada:** {fecha_mas_reciente.strftime('%d/%m/%Y %H:%M:%S')}")
+                    # --- CORRECCIÓN DE ZONA HORARIA PARA VISUALIZACIÓN ---
+                    if fecha_mas_reciente.tzinfo is None:
+                        fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
+                    else:
+                        fecha_mas_reciente_bogota = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
+                    st.markdown(f"**Última falla detectada:** {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M:%S')}")
                     st.markdown(f"**Criticidad máxima del vehículo:** {criticidad_vehiculo}")
                 with col2:
                     if inc['estado'] == 'Abierto':
