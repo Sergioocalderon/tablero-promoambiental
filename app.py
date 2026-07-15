@@ -1324,9 +1324,39 @@ with tab_fallas:
                 st.markdown("**Fallas activas de este vehículo:**")
                 st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
-                # --- BÚSQUEDA EN GOOGLE POR CÓDIGO DE FALLA ---
+                                # --- BÚSQUEDA EN GOOGLE POR CÓDIGO DE FALLA ---
                 st.markdown("---")
                 st.markdown("#### 🔍 Buscar causa de falla en internet")
+                
+                # Construir lista de opciones con SPN y FMI de cada falla
+                opciones_busqueda = []
+                for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
+                    spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
+                    fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
+                    desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
+                    opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
+                
+                if opciones_busqueda:
+                    falla_seleccionada = st.selectbox(
+                        "Selecciona la falla para buscar en Google:",
+                        options=opciones_busqueda,
+                        key=f"buscar_falla_{id_inc}"
+                    )
+                    
+                    import re
+                    spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
+                    fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
+                    spn = spn_match.group(1) if spn_match else '?'
+                    fmi = fmi_match.group(1) if fmi_match else '?'
+                    
+                    url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+                    
+                    # Un solo botón (más limpio y funcional)
+                    st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
+                    
+                    st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
+                else:
+                    st.info("No hay códigos SPN/FMI disponibles para esta falla.")
                 
                 # Construir lista de opciones con SPN y FMI de cada falla
                 opciones_busqueda = []
