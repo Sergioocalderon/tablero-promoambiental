@@ -931,14 +931,19 @@ with tab_fallas:
                 st.markdown("**Selecciona el rango de semanas con el deslizador:**")
                 indice_min = indices[0]
                 indice_max = indices[-1]
-                
-                rango_indices = st.slider(
-                    "Mueve las dos asas para seleccionar el rango",
-                    min_value=indice_min,
-                    max_value=indice_max,
-                    value=(indice_min, indice_max),
-                    key="tendencia_slider_num"
-                )
+
+                if indice_min == indice_max:
+                    st.info("📅 Solo hay datos de una semana en el rango actual — no hay suficiente variación para usar el deslizador todavía.")
+                    rango_indices = (indice_min, indice_max)
+                else:
+                    st.markdown("**Selecciona el rango de semanas con el deslizador:**")
+                    rango_indices = st.slider(
+                        "Mueve las dos asas para seleccionar el rango",
+                        min_value=indice_min,
+                        max_value=indice_max,
+                        value=(indice_min, indice_max),
+                        key="tendencia_slider_num"
+                    )
                 
                 # Convertir los índices seleccionados de vuelta a fechas
                 fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
