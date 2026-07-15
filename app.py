@@ -16,6 +16,8 @@ st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="
 # --- INICIALIZAR MEMORIA DE ALERTAS ---
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
+if 'ciudades_disponibles' not in st.session_state:
+    st.session_state.ciudades_disponibles = ['Todas']
 
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
@@ -106,20 +108,40 @@ def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla,
         st.warning(f"No se pudo guardar el incidente nuevo en Sheets: {e}")
 
 def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_realizadas):
+    """Actualiza el estado y el checklist de un incidente existente,
+    localizándolo por su id_incidente (columna A). Versión con depuración."""
     if hoja is None:
-        return
+        st.error("❌ No hay conexión con Google Sheets. No se puede actualizar el incidente.")
+        return False
     try:
+        # Buscar el ID en la columna A (índice 1)
         celda = hoja.find(id_incidente, in_column=1)
         if not celda:
-            return
+            st.error(f"❌ No se encontró el incidente con ID '{id_incidente}' en la hoja.")
+            # Mostrar algunos IDs existentes para depurar
+            try:
+                todos_ids = hoja.col_values(1)  # Leer toda la columna A
+                st.info(f"IDs disponibles en la hoja: {todos_ids[:10]} ...")  # mostrar primeros 10
+            except:
+                pass
+            return False
         fila = celda.row
+        
+        # Actualizar estado (columna F, índice 6)
         hoja.update_cell(fila, 6, nuevo_estado)
+        # Actualizar acciones (columna G, índice 7)
         hoja.update_cell(fila, 7, '|'.join(acciones_realizadas))
+        # Si se cierra, agregar fecha de cierre (columna I, índice 9)
         if nuevo_estado == 'Cerrado':
             hoja.update_cell(fila, 9, str(datetime.now(ZONA_BOGOTA)))
+        
+        # Limpiar caché para que se recarguen los incidentes
         cargar_incidentes.clear()
+        st.success(f"✅ Incidente {id_incidente} actualizado correctamente a '{nuevo_estado}'.")
+        return True
     except Exception as e:
-        st.warning(f"No se pudo actualizar el incidente en Sheets: {e}")
+        st.error(f"❌ Error al actualizar el incidente en Sheets: {e}")
+        return False
 
 # --- 1. FILTROS LATERALES ---
 st.sidebar.header("⚙️ Parámetros de Búsqueda")
@@ -770,6 +792,24 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 # --- 3. EJECUCIÓN ---
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 
+# --- ACTUALIZAR OPCIONES DE CIUDADES EN EL SIDEBAR ---
+ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
+if 'Sin ciudad asignada' in ciudades_reales:
+    ciudades_reales.remove('Sin ciudad asignada')
+if ciudades_reales:
+    st.session_state.ciudades_disponibles = ['Todas'] + ciudades_reales
+else:
+    st.session_state.ciudades_disponibles = ['Todas']
+
+# --- FILTRO POR CIUDAD EN SIDEBAR ---
+st.sidebar.subheader("📍 Filtrar por Ciudad")
+ciudad_seleccionada = st.sidebar.selectbox(
+    "Selecciona una ciudad",
+    options=st.session_state.ciudades_disponibles,
+    index=0,
+    key="filtro_ciudad"
+)
+
 # --- 4. SISTEMA DE PESTAÑAS ---
 tab_fallas, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
     "🩺 Fallas y Diagnóstico",
@@ -794,6 +834,10 @@ with tab_fallas:
         ultima_fecha = df_activas.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
         df_activas = df_activas[df_activas['Fecha_Alerta'] == ultima_fecha]
         # df_activas = df_activas[df_activas['Dias_Activa'] <= dias_activa_umbral]  # COMENTADO
+
+        # --- APLICAR FILTRO POR CIUDAD ---
+        if ciudad_seleccionada != 'Todas' and not df_activas.empty:
+            df_activas = df_activas[df_activas['Ciudad'] == ciudad_seleccionada]
 
         if not df_activas.empty:
             rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
@@ -921,25 +965,25 @@ with tab_fallas:
                 # 4. Ordenar por semana
                 df_tendencia_completa = df_tendencia_completa.sort_values('Semana')
                 
-                                # --- SLIDER NUMÉRICO PARA SELECCIONAR RANGO DE SEMANAS (SIEMPRE VISIBLE) ---
+                # --- SLIDER NUMÉRICO PARA SELECCIONAR RANGO DE SEMANAS (SIEMPRE VISIBLE) ---
                 # Convertir fechas a números (días desde la fecha mínima)
                 semanas_unicas = sorted(df_tendencia_completa['Semana'].unique())
                 fecha_base = semanas_unicas[0]  # primera semana
-                indices = [(s - fecha_base).days for s in semanas_unicas]
-
+                indices = [ (s - fecha_base).days for s in semanas_unicas ]
+                
                 indice_min = indices[0]
                 indice_max = indices[-1]
-
+                
                 # Si solo hay una semana, forzamos un rango de 1 día para que el slider sea funcional
                 if indice_min == indice_max:
                     indice_min_slider = indice_min
-                    indice_max_slider = indice_min + 7  # agregamos 1 día para que haya rango
+                    indice_max_slider = indice_min + 1  # agregamos 1 día para que haya rango
                     valor_defecto = (indice_min_slider, indice_max_slider)
                 else:
                     indice_min_slider = indice_min
                     indice_max_slider = indice_max
                     valor_defecto = (indice_min_slider, indice_max_slider)
-
+                
                 st.markdown("**Selecciona el rango de semanas con el deslizador:**")
                 rango_indices = st.slider(
                     "Mueve las dos asas para seleccionar el rango",
@@ -948,7 +992,7 @@ with tab_fallas:
                     value=valor_defecto,
                     key="tendencia_slider_num"
                 )
-
+                
                 # Convertir los índices seleccionados de vuelta a fechas
                 fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
                 fecha_fin_filtro = fecha_base + pd.Timedelta(days=rango_indices[1])
@@ -1160,63 +1204,91 @@ with tab_fallas:
 
     st.markdown("---")
 
-    # --- PROTOCOLO DE ATENCIÓN ---
+    # --- PROTOCOLO DE ATENCIÓN PARA TODOS LOS VEHÍCULOS CON FALLAS ---
     st.markdown("---")
-    st.subheader("📋 Protocolo de Atención para Fallas Críticas")
+    st.subheader("📋 Protocolo de Atención - Todas las Fallas Activas")
+    st.caption("Listado de todos los vehículos con fallas activas, consolidadas por móvil. Usa el protocolo según la criticidad más alta del vehículo.")
 
+    # Cargar incidentes desde Google Sheets
     if hoja_incidentes is None:
         st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes. El protocolo se muestra pero los cambios no se guardarán hasta que se restablezca la conexión.")
 
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
-    fallas_criticas = df_activas[df_activas['Criticidad_Vehiculo'] == 'ALTA'] if not df_activas.empty else df_activas
+    # Obtener todos los vehículos con fallas (sin filtrar por criticidad)
+    vehiculos_con_fallas = df_activas['id_camion'].unique() if not df_activas.empty else []
 
-    if not fallas_criticas.empty:
-        fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
+    if len(vehiculos_con_fallas) > 0:
+        # Mostrar resumen cuantitativo de pendientes
+        col_res1, col_res2, col_res3 = st.columns(3)
+        col_res1.metric("Vehículos con fallas pendientes", len(vehiculos_con_fallas))
+        col_res2.metric("Total de fallas activas", len(df_activas) if not df_activas.empty else 0)
+        criticidad_max_general = df_activas['Criticidad'].max() if not df_activas.empty else 'BAJA'
+        col_res3.metric("Criticidad máxima general", criticidad_max_general)
 
-        for id_camion, grupo_vehiculo in fallas_criticas.groupby('id_camion'):
+        st.markdown("---")
+        
+        # Iterar sobre cada vehículo
+        for id_camion, grupo_vehiculo in df_activas.groupby('id_camion'):
             fila0 = grupo_vehiculo.iloc[0]
+            
+            # Determinar la criticidad máxima del vehículo (para elegir protocolo)
+            criticidad_vehiculo = fila0.get('Criticidad_Vehiculo', 'BAJA')
+            protocolo = PROTOCOLOS.get(criticidad_vehiculo, PROTOCOLOS['BAJA'])
+            
+            # Generar ID de incidente (único por vehículo/día)
+            fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
             id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
 
+            # Consolidar descripción de fallas
             grupo_ordenado = grupo_vehiculo.sort_values('Fecha_Alerta', ascending=False)
             descripcion_consolidada = "\n".join(
-                f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')})"
+                f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
                 for i, (_, r) in enumerate(grupo_ordenado.iterrows())
             )
             fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
             cantidad_fallas = len(grupo_vehiculo)
 
+            # Si es nuevo, lo creamos en la hoja (uno por vehículo/día)
             if id_inc not in incidentes_guardados:
                 crear_incidente_en_hoja(
                     hoja_incidentes, id_inc,
                     fila0['Movil'], fila0['Placa'], descripcion_consolidada,
-                    'ALTA', fecha_mas_reciente, fila0.get('Ciudad', 'Sin ciudad asignada')
+                    criticidad_vehiculo, fecha_mas_reciente, fila0.get('Ciudad', 'Sin ciudad asignada')
                 )
                 incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
             inc = incidentes_guardados.get(id_inc, {
                 'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
             })
-            protocolo = PROTOCOLOS['ALTA']
 
+            # Mostrar expander para cada vehículo
+            emoji = "🚨" if criticidad_vehiculo == 'ALTA' else "⚠️" if criticidad_vehiculo == 'MEDIA' else "📋"
             with st.expander(
-                f"🚨 {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) crítica(s) activa(s) "
-                f"({fila0.get('Localidad', 'Desconocida')})",
-                expanded=(inc['estado'] == 'Abierto')
+                f"{emoji} {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) activa(s) "
+                f"(Criticidad: {criticidad_vehiculo}) - {fila0.get('Ciudad', 'Desconocida')}",
+                expanded=(inc['estado'] == 'Abierto' and criticidad_vehiculo == 'ALTA')  # Solo ALTA se abre por defecto
             ):
                 col1, col2 = st.columns([2, 1])
                 with col1:
-                    st.markdown(f"**Estado:** {inc['estado']}")
+                    st.markdown(f"**Estado del incidente:** {inc['estado']}")
                     st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
                     st.markdown(f"**Última falla detectada:** {fecha_mas_reciente.strftime('%d/%m/%Y %H:%M:%S')}")
+                    st.markdown(f"**Criticidad máxima del vehículo:** {criticidad_vehiculo}")
                 with col2:
                     if inc['estado'] == 'Abierto':
                         if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
-                            actualizar_incidente_en_hoja(
-                                hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
-                            )
-                            st.success("Incidente cerrado correctamente.")
-                            st.rerun()
+                            with st.spinner("Cerrando incidente..."):
+                                exito = actualizar_incidente_en_hoja(
+                                    hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
+                                )
+                                if exito:
+                                    st.success("✅ Incidente cerrado correctamente.")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ No se pudo cerrar el incidente. Revisa la conexión con Google Sheets.")
+                    else:
+                        st.success("✅ Este incidente ya está cerrado.")
 
                 st.markdown("---")
                 st.markdown("**Fallas activas de este vehículo:**")
@@ -1256,7 +1328,7 @@ with tab_fallas:
                     st.progress(completadas / total)
                     st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
     else:
-        st.info("No hay vehículos en criticidad ALTA en este momento.")
+        st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
     # =====================================================================
     # MAPA DE FALLAS (siempre visible si hay datos, independientemente de críticas)
