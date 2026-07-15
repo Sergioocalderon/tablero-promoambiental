@@ -98,6 +98,37 @@ st.markdown("""
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
     }
+
+    /* 6. Diseño Corporativo para Tablas HTML */
+    .tabla-corporativa {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: sans-serif;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+    }
+    .tabla-corporativa thead tr {
+        background-color: #1E293B; /* Encabezado oscuro y elegante */
+        color: #ffffff;
+        text-align: left;
+    }
+    .tabla-corporativa th, .tabla-corporativa td {
+        padding: 12px 15px;
+    }
+    .tabla-corporativa tbody tr {
+        border-bottom: 1px solid #E2E8F0; /* Solo líneas horizontales */
+        background-color: #FFFFFF;
+    }
+    .tabla-corporativa tbody tr:nth-of-type(even) {
+        background-color: #F8FAFC; /* Fila cebra muy sutil */
+    }
+    .tabla-corporativa tbody tr:hover {
+        background-color: #E2E8F0; /* Efecto hover al pasar el ratón */
+        transition: 0.2s ease-in-out;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1673,28 +1704,28 @@ with tab_manejo:
             rpm_max = int(round(fila['RPM_Maximo'])) if pd.notna(fila['RPM_Maximo']) else '-'
             filas_ranking_html += f"""
 <tr>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Movil']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Placa']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Motor']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Fecha']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Umbral_RPM'])}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{rpm_max}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Veces'])}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Tiempo_Min']:.1f}</td>
+  <td style="text-align:center; font-weight: 600;">{fila['Movil']}</td>
+  <td style="text-align:center;">{fila['Placa']}</td>
+  <td style="text-align:center;">{fila['Motor']}</td>
+  <td style="text-align:center;">{fila['Fecha']}</td>
+  <td style="text-align:center; color: #64748B;">{int(fila['Umbral_RPM'])}</td>
+  <td style="text-align:center; font-weight: 600; color: #E24B4A;">{rpm_max}</td>
+  <td style="text-align:center;">{int(fila['Veces'])}</td>
+  <td style="text-align:center; font-weight: 600;">{fila['Tiempo_Min']:.1f}</td>
 </tr>"""
 
         st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;">
+<table class="tabla-corporativa">
 <thead>
-<tr style="background:#f3f4f6;">
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Móvil</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Placa</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Motor</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Fecha</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Umbral RPM</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">RPM Máx.</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Veces</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Tiempo (min)</th>
+<tr>
+  <th style="text-align:center;">Móvil</th>
+  <th style="text-align:center;">Placa</th>
+  <th style="text-align:center;">Motor</th>
+  <th style="text-align:center;">Fecha</th>
+  <th style="text-align:center;">Umbral RPM</th>
+  <th style="text-align:center;">RPM Máx.</th>
+  <th style="text-align:center;">Veces</th>
+  <th style="text-align:center;">Tiempo (min)</th>
 </tr>
 </thead>
 <tbody>
