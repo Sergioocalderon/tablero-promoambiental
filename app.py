@@ -794,11 +794,15 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 
 # --- ACTUALIZAR OPCIONES DE CIUDADES EN EL SIDEBAR ---
-ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
-if 'Sin ciudad asignada' in ciudades_reales:
-    ciudades_reales.remove('Sin ciudad asignada')
-if ciudades_reales:
-    st.session_state.ciudades_disponibles = ['Todas'] + ciudades_reales
+# --- ACTUALIZAR OPCIONES DE CIUDADES EN EL SIDEBAR (con validación) ---
+if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
+    ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
+    if 'Sin ciudad asignada' in ciudades_reales:
+        ciudades_reales.remove('Sin ciudad asignada')
+    if ciudades_reales:
+        st.session_state.ciudades_disponibles = ['Todas'] + ciudades_reales
+    else:
+        st.session_state.ciudades_disponibles = ['Todas']
 else:
     st.session_state.ciudades_disponibles = ['Todas']
 
