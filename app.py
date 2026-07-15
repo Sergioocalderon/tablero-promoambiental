@@ -1308,24 +1308,24 @@ with tab_fallas:
 
                             filas_html += f"""
 <tr>
-  <td style="padding:8px;border:1px solid #ddd;vertical-align:top;white-space:nowrap;">{fila0['Movil']}</td>
-  <td style="padding:8px;border:1px solid #ddd;vertical-align:top;white-space:nowrap;">{fila0['Marca']}</td>
-  <td style="padding:8px;border:1px solid #ddd;vertical-align:top;white-space:nowrap;">{fila0['Referencia_Motor']}</td>
-  <td style="padding:8px;border:1px solid #ddd;vertical-align:top;white-space:nowrap;">{fila0['N_Motor']}</td>
-  <td style="padding:8px;border:1px solid #ddd;vertical-align:top;font-size:12px;">{codigos_html}</td>
-  <td style="padding:8px;border:1px solid #ddd;vertical-align:top;font-size:12px;">{descripciones_html}</td>
+  <td style="vertical-align:top; white-space:nowrap; font-weight: 600;">{fila0['Movil']}</td>
+  <td style="vertical-align:top; white-space:nowrap; color: #64748B;">{fila0['Marca']}</td>
+  <td style="vertical-align:top; white-space:nowrap;">{fila0['Referencia_Motor']}</td>
+  <td style="vertical-align:top; white-space:nowrap; color: #64748B;">{fila0['N_Motor']}</td>
+  <td style="vertical-align:top; font-size:12px; line-height: 1.6;">{codigos_html}</td>
+  <td style="vertical-align:top; font-size:12px; line-height: 1.6;">{descripciones_html}</td>
 </tr>"""
 
                         st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+<table class="tabla-corporativa">
 <thead>
-<tr style="background:#f3f4f6;">
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">Móvil</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">Marca</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">Referencia Motor</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">N° Motor</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">Código(s) de Falla</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">Descripción</th>
+<tr>
+  <th style="text-align:left;">Móvil</th>
+  <th style="text-align:left;">Marca</th>
+  <th style="text-align:left;">Referencia Motor</th>
+  <th style="text-align:left;">N° Motor</th>
+  <th style="text-align:left;">Código(s) de Falla</th>
+  <th style="text-align:left;">Descripción</th>
 </tr>
 </thead>
 <tbody>
@@ -1575,20 +1575,20 @@ with tab_fallas:
                     nombre_formateado = normalizar_nombre_localidad(fila['Localidad'])
                     filas_localidad_html += f"""
 <tr>
-  <td style="padding:8px;border:1px solid #ddd;text-align:left;">{nombre_formateado}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Total_Fallas'])}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Porcentaje_Impacto']:.1f}%</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Vehiculos_Unicos'])}</td>
+  <td style="text-align:left; font-weight: 500;">{nombre_formateado}</td>
+  <td style="text-align:center; color: #E24B4A; font-weight: 600;">{int(fila['Total_Fallas'])}</td>
+  <td style="text-align:center; color: #64748B;">{fila['Porcentaje_Impacto']:.1f}%</td>
+  <td style="text-align:center;">{int(fila['Vehiculos_Unicos'])}</td>
 </tr>"""
 
                 st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;">
+<table class="tabla-corporativa">
 <thead>
-<tr style="background:#f3f4f6;">
-  <th style="padding:8px;border:1px solid #ddd;text-align:left;">Localidad</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Total Fallas</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">% Impacto</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Vehículos Únicos</th>
+<tr>
+  <th style="text-align:left;">Localidad</th>
+  <th style="text-align:center;">Total Fallas</th>
+  <th style="text-align:center;">% Impacto</th>
+  <th style="text-align:center;">Vehículos Únicos</th>
 </tr>
 </thead>
 <tbody>
@@ -1914,28 +1914,28 @@ with tab_manejo:
         for _, fila in ranking_vel.iterrows():
             filas_ranking_vel_html += f"""
 <tr>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Movil']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Placa']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Ciudad']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Fecha']}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Limite'])} km/h</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Velocidad_Max']:.0f} km/h</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Veces'])}</td>
-  <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Tiempo_Min']:.1f}</td>
+  <td style="text-align:center; font-weight: 600;">{fila['Movil']}</td>
+  <td style="text-align:center;">{fila['Placa']}</td>
+  <td style="text-align:center;">{fila['Ciudad']}</td>
+  <td style="text-align:center;">{fila['Fecha']}</td>
+  <td style="text-align:center; color: #64748B;">{int(fila['Limite'])} km/h</td>
+  <td style="text-align:center; font-weight: 600; color: #1EA0D7;">{fila['Velocidad_Max']:.0f} km/h</td>
+  <td style="text-align:center;">{int(fila['Veces'])}</td>
+  <td style="text-align:center; font-weight: 600;">{fila['Tiempo_Min']:.1f}</td>
 </tr>"""
 
         st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;">
+<table class="tabla-corporativa">
 <thead>
-<tr style="background:#f3f4f6;">
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Móvil</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Placa</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Ciudad</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Fecha</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Límite</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Vel. Máx.</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Veces</th>
-  <th style="padding:8px;border:1px solid #ddd;text-align:center;">Tiempo (min)</th>
+<tr>
+  <th style="text-align:center;">Móvil</th>
+  <th style="text-align:center;">Placa</th>
+  <th style="text-align:center;">Ciudad</th>
+  <th style="text-align:center;">Fecha</th>
+  <th style="text-align:center;">Límite</th>
+  <th style="text-align:center;">Vel. Máx.</th>
+  <th style="text-align:center;">Veces</th>
+  <th style="text-align:center;">Tiempo (min)</th>
 </tr>
 </thead>
 <tbody>
