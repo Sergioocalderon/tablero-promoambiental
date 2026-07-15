@@ -921,30 +921,34 @@ with tab_fallas:
                 # 4. Ordenar por semana
                 df_tendencia_completa = df_tendencia_completa.sort_values('Semana')
                 
-                # --- SLIDER NUMÉRICO PARA SELECCIONAR RANGO DE SEMANAS ---
+                                # --- SLIDER NUMÉRICO PARA SELECCIONAR RANGO DE SEMANAS (SIEMPRE VISIBLE) ---
                 # Convertir fechas a números (días desde la fecha mínima)
                 semanas_unicas = sorted(df_tendencia_completa['Semana'].unique())
                 fecha_base = semanas_unicas[0]  # primera semana
-                indices = [ (s - fecha_base).days for s in semanas_unicas ]
-                
-                # Crear slider con valores numéricos
-                st.markdown("**Selecciona el rango de semanas con el deslizador:**")
+                indices = [(s - fecha_base).days for s in semanas_unicas]
+
                 indice_min = indices[0]
                 indice_max = indices[-1]
 
+                # Si solo hay una semana, forzamos un rango de 1 día para que el slider sea funcional
                 if indice_min == indice_max:
-                    st.info("📅 Solo hay datos de una semana en el rango actual — no hay suficiente variación para usar el deslizador todavía.")
-                    rango_indices = (indice_min, indice_max)
+                    indice_min_slider = indice_min
+                    indice_max_slider = indice_min + 1  # agregamos 1 día para que haya rango
+                    valor_defecto = (indice_min_slider, indice_max_slider)
                 else:
-                    st.markdown("**Selecciona el rango de semanas con el deslizador:**")
-                    rango_indices = st.slider(
-                        "Mueve las dos asas para seleccionar el rango",
-                        min_value=indice_min,
-                        max_value=indice_max,
-                        value=(indice_min, indice_max),
-                        key="tendencia_slider_num"
-                    )
-                
+                    indice_min_slider = indice_min
+                    indice_max_slider = indice_max
+                    valor_defecto = (indice_min_slider, indice_max_slider)
+
+                st.markdown("**Selecciona el rango de semanas con el deslizador:**")
+                rango_indices = st.slider(
+                    "Mueve las dos asas para seleccionar el rango",
+                    min_value=indice_min_slider,
+                    max_value=indice_max_slider,
+                    value=valor_defecto,
+                    key="tendencia_slider_num"
+                )
+
                 # Convertir los índices seleccionados de vuelta a fechas
                 fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
                 fecha_fin_filtro = fecha_base + pd.Timedelta(days=rango_indices[1])
