@@ -25,6 +25,64 @@ def convertir_a_bogota(serie_fechas):
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="🚚", layout="wide")
 
+# --- 🎨 ESTILOS CORPORATIVOS (UI PREMIUM) ---
+st.markdown("""
+<style>
+    /* 1. Fondo de la aplicación gris súper claro para dar contraste a las tarjetas */
+    .stApp {
+        background-color: #F4F6F8;
+    }
+    
+    /* 2. Diseño de "Tarjetas" para las métricas (KPIs) */
+    [data-testid="stMetric"] {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+        border-left: 6px solid #0F6E56; /* Verde Corporativo */
+        margin-bottom: 10px;
+    }
+    
+    /* 3. Ajuste de color para la etiqueta y el número de las métricas */
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: #64748B !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+        color: #0F172A !important;
+    }
+    
+    /* 4. Estilizar las Pestañas (Tabs) para que parezcan botones de un menú */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: #FFFFFF;
+        padding: 10px 10px 0px 10px;
+        border-radius: 10px;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        border-radius: 6px 6px 0px 0px;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #0F6E56 !important;
+        color: #FFFFFF !important;
+    }
+    
+    /* 5. Reducir el enorme espacio en blanco superior por defecto de Streamlit */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- INICIALIZAR MEMORIA DE ALERTAS ---
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
