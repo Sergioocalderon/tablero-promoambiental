@@ -933,7 +933,7 @@ with tab_fallas:
                 # Si solo hay una semana, forzamos un rango de 1 día para que el slider sea funcional
                 if indice_min == indice_max:
                     indice_min_slider = indice_min
-                    indice_max_slider = indice_min + 1  # agregamos 1 día para que haya rango
+                    indice_max_slider = indice_min + 7  # agregamos 1 día para que haya rango
                     valor_defecto = (indice_min_slider, indice_max_slider)
                 else:
                     indice_min_slider = indice_min
