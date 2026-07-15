@@ -1359,7 +1359,8 @@ with tab_fallas:
         col_res1, col_res2, col_res3 = st.columns(3)
         col_res1.metric("Vehículos con fallas pendientes", len(vehiculos_con_fallas))
         col_res2.metric("Total de fallas activas", len(df_activas) if not df_activas.empty else 0)
-        criticidad_max_general = df_activas['Criticidad'].max() if not df_activas.empty else 'BAJA'
+        orden_crit = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
+        criticidad_max_general = max(df_activas['Criticidad'], key=lambda c: orden_crit.get(c, 0)) if not df_activas.empty else 'BAJA'
         col_res3.metric("Criticidad máxima general", criticidad_max_general)
 
         st.markdown("---")
@@ -1475,7 +1476,9 @@ with tab_fallas:
                 else:
                     st.info("No hay códigos SPN/FMI disponibles para esta falla.")
                 
-                # Construir lista de opciones con SPN y FMI de cada falla
+                st.markdown("---")
+                st.markdown("#### 🔍 Buscar causa de falla en internet")
+
                 opciones_busqueda = []
                 for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
                     spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
@@ -1487,7 +1490,7 @@ with tab_fallas:
                     falla_seleccionada = st.selectbox(
                         "Selecciona la falla para buscar en Google:",
                         options=opciones_busqueda,
-                        key=f"buscar_falla_{id_camion}_{fecha_hoy_str}"  # ya es único
+                        key=f"buscar_falla_{id_camion}_{fecha_hoy_str}"
                     )
                     
                     import re
