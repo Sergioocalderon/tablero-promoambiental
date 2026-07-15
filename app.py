@@ -1549,13 +1549,18 @@ with tab_fallas:
     # MAPA DE FALLAS (siempre visible si hay datos, independientemente de críticas)
     # =====================================================================
     st.markdown("---")
-    st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
+    st.markdown("#### 📍 Distribución Geográfica de Fallas")
 
     if not df_fallas.empty and 'latitude' in df_fallas.columns:
-        df_fallas_geo = df_fallas[df_fallas['latitude'].notna()]
+        df_fallas_geo = df_fallas[df_fallas['latitude'].notna()].copy()
+        
+        # 1. Aplicar el filtro de la barra lateral al mapa
+        if ciudad_seleccionada != 'Todas':
+            df_fallas_geo = df_fallas_geo[df_fallas_geo['Ciudad'] == ciudad_seleccionada]
 
         if not df_fallas_geo.empty:
-            conteo_localidad = df_fallas_geo.groupby('Localidad').agg(
+            # 2. Agrupar teniendo en cuenta la Ciudad para no mezclar peras con manzanas
+            conteo_localidad = df_fallas_geo.groupby(['Ciudad', 'Localidad']).agg(
                 Total_Fallas=('id_camion', 'count'),
                 Vehiculos_Unicos=('id_camion', 'nunique')
             ).reset_index().sort_values('Total_Fallas', ascending=False)
@@ -1567,28 +1572,36 @@ with tab_fallas:
             col_mapa, col_ranking = st.columns([2, 1])
 
             with col_ranking:
-                st.markdown("**Localidades con más fallas**")
-                st.caption("(Todas las fallas con coordenadas GPS)")
+                st.markdown("**Zonas con mayor recurrencia**")
+                st.caption("(Fallas reportadas con ubicación GPS)")
 
                 filas_localidad_html = ""
                 for _, fila in conteo_localidad.iterrows():
-                    nombre_formateado = normalizar_nombre_localidad(fila['Localidad'])
+                    ciudad_str = fila['Ciudad']
+                    zona_str = normalizar_nombre_localidad(fila['Localidad'])
+                    
+                    # Adaptación semántica para el cuadro:
+                    if ciudad_str == 'Bogotá':
+                        ubicacion_mostrar = f"<b>Bogotá</b> - {zona_str}"
+                    else:
+                        ubicacion_mostrar = f"<b>{ciudad_str}</b> - {zona_str}"
+
                     filas_localidad_html += f"""
 <tr>
-  <td style="text-align:left; font-weight: 500;">{nombre_formateado}</td>
-  <td style="text-align:center; color: #E24B4A; font-weight: 600;">{int(fila['Total_Fallas'])}</td>
+  <td style="text-align:left; font-size: 0.85rem; color: #475569;">{ubicacion_mostrar}</td>
+  <td style="text-align:center; color: #E24B4A; font-weight: 800;">{int(fila['Total_Fallas'])}</td>
   <td style="text-align:center; color: #64748B;">{fila['Porcentaje_Impacto']:.1f}%</td>
-  <td style="text-align:center;">{int(fila['Vehiculos_Unicos'])}</td>
+  <td style="text-align:center; font-weight: 600;">{int(fila['Vehiculos_Unicos'])}</td>
 </tr>"""
 
                 st.markdown(f"""
 <table class="tabla-corporativa">
 <thead>
 <tr>
-  <th style="text-align:left;">Localidad</th>
-  <th style="text-align:center;">Total Fallas</th>
-  <th style="text-align:center;">% Impacto</th>
-  <th style="text-align:center;">Vehículos Únicos</th>
+  <th style="text-align:left;">Ubicación (Ciudad - Zona)</th>
+  <th style="text-align:center;">Fallas</th>
+  <th style="text-align:center;">Impacto</th>
+  <th style="text-align:center;">Móviles</th>
 </tr>
 </thead>
 <tbody>
@@ -1598,20 +1611,28 @@ with tab_fallas:
 """, unsafe_allow_html=True)
 
             with col_mapa:
+                # 3. Dinamismo visual: Si seleccionamos "Todas", agrupamos por color de ciudad. Sino, por zona.
+                color_mapa = 'Ciudad' if ciudad_seleccionada == 'Todas' else 'Localidad'
+                zoom_mapa = 5.5 if ciudad_seleccionada == 'Todas' else 10.5
+                
                 fig_mapa = px.scatter_map(
                     df_fallas_geo,
                     lat='latitude', lon='longitude',
-                    color='Localidad',
+                    color=color_mapa,
+                    color_discrete_sequence=['#1EA0D7', '#F7A700', '#62A830', '#8E44AD', '#E24B4A'],
                     hover_name='Movil',
-                    hover_data=['Codigo', 'Placa', 'Localidad', 'Descripcion_Falla'],
-                    zoom=10, height=450
+                    hover_data={'Ciudad': True, 'Localidad': True, 'Codigo': True, 'Placa': True, 'Descripcion_Falla': True, 'latitude': False, 'longitude': False},
+                    zoom=zoom_mapa, height=450
                 )
-                fig_mapa.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+                fig_mapa.update_layout(
+                    margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
+                )
                 st.plotly_chart(fig_mapa, use_container_width=True)
         else:
-            st.warning("⚠️ No se encontraron fallas con coordenadas GPS. Verifica que los vehículos estén enviando posición y que el rango de fechas incluya datos.")
+            st.warning(f"⚠️ No se encontraron fallas con coordenadas GPS para la ciudad: {ciudad_seleccionada}.")
     else:
-        st.info("No hay fallas registradas en el período seleccionado.")
+        st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
