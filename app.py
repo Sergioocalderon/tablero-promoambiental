@@ -25,57 +25,60 @@ def convertir_a_bogota(serie_fechas):
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="🚚", layout="wide")
 
-# --- 🎨 ESTILOS CORPORATIVOS (UI PREMIUM) ---
+# --- 🎨 ESTILOS CORPORATIVOS PROMOAMBIENTAL ---
 st.markdown("""
 <style>
-    /* 1. Fondo de la aplicación gris súper claro para dar contraste a las tarjetas */
+    /* 1. Fondo general de la aplicación: un gris súper claro para que resalte el blanco */
     .stApp {
-        background-color: #F4F6F8;
+        background-color: #F8FAFC; 
     }
     
-    /* 2. Diseño de "Tarjetas" para las métricas (KPIs) */
+    /* 2. Tarjetas de Métricas (KPIs) con el Verde del Tucán */
     [data-testid="stMetric"] {
         background-color: #FFFFFF;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
-        border-left: 6px solid #0F6E56; /* Verde Corporativo */
+        border-radius: 8px;
+        padding: 15px 20px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05); /* Sombra sutil */
+        border-left: 6px solid #62A830; /* Verde Promoambiental */
         margin-bottom: 10px;
     }
     
-    /* 3. Ajuste de color para la etiqueta y el número de las métricas */
+    /* 3. Textos de las métricas más legibles y corporativos */
     [data-testid="stMetricLabel"] {
-        font-size: 1rem !important;
+        font-size: 1.05rem !important;
         font-weight: 600 !important;
-        color: #64748B !important;
+        color: #475569 !important; /* Gris texto */
     }
     [data-testid="stMetricValue"] {
-        font-size: 2rem !important;
+        font-size: 2.2rem !important;
         font-weight: 800 !important;
-        color: #0F172A !important;
+        color: #1E293B !important; /* Casi negro */
     }
     
-    /* 4. Estilizar las Pestañas (Tabs) para que parezcan botones de un menú */
+    /* 4. Pestañas (Tabs) estilo software moderno */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
+        gap: 8px;
         background-color: #FFFFFF;
-        padding: 10px 10px 0px 10px;
-        border-radius: 10px;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+        padding: 8px 8px 0px 8px;
+        border-radius: 8px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.05);
     }
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
+        height: 45px;
         white-space: pre-wrap;
         border-radius: 6px 6px 0px 0px;
         padding: 10px 20px;
         font-weight: 600;
+        color: #64748B;
     }
+    
+    /* Pestaña activa pintada con el Verde Promoambiental */
     .stTabs [aria-selected="true"] {
-        background-color: #0F6E56 !important;
+        background-color: #62A830 !important; 
         color: #FFFFFF !important;
     }
     
-    /* 5. Reducir el enorme espacio en blanco superior por defecto de Streamlit */
+    /* 5. Optimización del espacio en pantalla */
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
