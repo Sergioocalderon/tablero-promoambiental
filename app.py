@@ -10,6 +10,18 @@ from google.oauth2.service_account import Credentials
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
+# --- FUNCIÓN AUXILIAR PARA CONVERSIÓN DE ZONA HORARIA ---
+def convertir_a_bogota(serie_fechas):
+    """Convierte una serie de fechas a la zona horaria de Bogotá,
+    manejando tanto fechas naive (sin zona) como timezone-aware."""
+    fechas = pd.to_datetime(serie_fechas)
+    if fechas.dt.tz is None:
+        # Si no tiene zona horaria, asumimos UTC y convertimos a Bogotá
+        return fechas.dt.tz_localize('UTC').dt.tz_convert(ZONA_BOGOTA)
+    else:
+        # Si ya tiene zona horaria, simplemente convertimos a Bogotá
+        return fechas.dt.tz_convert(ZONA_BOGOTA)
+
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="🚚", layout="wide")
 
@@ -308,10 +320,10 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
         return pd.DataFrame(), pd.DataFrame()
 
     df_eventos = pd.DataFrame(eventos_todos)
-    df_eventos['activeFrom'] = pd.to_datetime(df_eventos['activeFrom'])
-    df_eventos['activeTo'] = pd.to_datetime(df_eventos['activeTo'])
-    df_eventos['Fecha'] = df_eventos['activeFrom'].dt.tz_convert(ZONA_BOGOTA).dt.date
-    df_eventos['Hora_Bogota'] = df_eventos['activeFrom'].dt.tz_convert(ZONA_BOGOTA)
+    df_eventos['activeFrom'] = convertir_a_bogota(df_eventos['activeFrom'])
+    df_eventos['activeTo'] = convertir_a_bogota(df_eventos['activeTo'])
+    df_eventos['Fecha'] = df_eventos['activeFrom'].dt.date
+    df_eventos['Hora_Bogota'] = df_eventos['activeFrom']
     df_eventos['Turno'] = df_eventos['Hora_Bogota'].apply(clasificar_turno)
     df_eventos['Duracion_Segundos'] = (df_eventos['activeTo'] - df_eventos['activeFrom']).dt.total_seconds()
     df_eventos['Umbral_RPM'] = df_eventos['Motor'].map({'L9': 2100, 'X12': 2100})
@@ -375,7 +387,7 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
             if df_log.empty or 'speed' not in df_log.columns:
                 continue
 
-            df_log['dateTime'] = pd.to_datetime(df_log['dateTime'])
+            df_log['dateTime'] = convertir_a_bogota(df_log['dateTime'])
             df_log = df_log.sort_values('dateTime').reset_index(drop=True)
             df_log['excede'] = df_log['speed'] > limite
             df_log['grupo'] = (df_log['excede'] != df_log['excede'].shift()).cumsum()
@@ -407,8 +419,8 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
         return pd.DataFrame()
 
     df_eventos_vel = pd.DataFrame(eventos)
-    df_eventos_vel['Fecha'] = df_eventos_vel['activeFrom'].dt.tz_convert(ZONA_BOGOTA).dt.date
-    df_eventos_vel['Turno'] = df_eventos_vel['activeFrom'].dt.tz_convert(ZONA_BOGOTA).apply(clasificar_turno)
+    df_eventos_vel['Fecha'] = df_eventos_vel['activeFrom'].dt.date
+    df_eventos_vel['Turno'] = df_eventos_vel['activeFrom'].apply(clasificar_turno)
     df_eventos_vel = pd.merge(df_eventos_vel, _df_vehiculos, on='id_camion', how='left')
 
     return df_eventos_vel
@@ -675,7 +687,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
             df_temp = pd.DataFrame(temp_raw)
             if not df_temp.empty and 'device' in df_temp.columns and 'data' in df_temp.columns:
                 df_temp['id_camion'] = df_temp['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
-                df_temp['Fecha'] = pd.to_datetime(df_temp['dateTime']).dt.tz_convert(ZONA_BOGOTA).dt.date
+                df_temp['Fecha'] = convertir_a_bogota(df_temp['dateTime']).dt.date
                 df_temp['Temperatura'] = pd.to_numeric(df_temp['data'], errors='coerce')
                 df_temp = df_temp[(df_temp['Temperatura'] > 40) & (df_temp['Temperatura'] < 130)]
 
@@ -719,7 +731,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                     df_fallas.apply(resolver_falla, axis=1)
 
                 # --- CORRECCIÓN DE ZONA HORARIA ---
-                df_fallas['Fecha_Alerta'] = pd.to_datetime(df_fallas['dateTime']).dt.tz_localize('UTC').dt.tz_convert(ZONA_BOGOTA)
+                df_fallas['Fecha_Alerta'] = convertir_a_bogota(df_fallas['dateTime'])
 
                 ahora = datetime.now(timezone.utc)
                 df_fallas['Dias_Activa'] = df_fallas['Fecha_Alerta'].apply(lambda x: max((ahora - x).days, 0))
@@ -746,7 +758,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 if logs_por_camion:
                     df_logs = pd.DataFrame(logs_por_camion)
                     df_logs['id_camion'] = df_logs['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
-                    df_logs['dateTime'] = pd.to_datetime(df_logs['dateTime']).dt.tz_convert(ZONA_BOGOTA)
+                    df_logs['dateTime'] = convertir_a_bogota(df_logs['dateTime'])
                     df_logs = df_logs[['id_camion', 'dateTime', 'latitude', 'longitude']].dropna()
                     df_logs = df_logs.sort_values('dateTime')
 
@@ -1538,8 +1550,8 @@ with tab_manejo:
 
         detalle_eventos = df_eventos_rpm[df_eventos_rpm['Movil'] == vehiculo_seleccionado].copy()
         detalle_eventos['Duracion_Min'] = (detalle_eventos['Duracion_Segundos'] / 60).round(2)
-        detalle_eventos['Hora_Inicio'] = detalle_eventos['activeFrom'].dt.tz_convert(ZONA_BOGOTA).dt.strftime('%d/%m/%Y %H:%M:%S')
-        detalle_eventos['Hora_Fin'] = detalle_eventos['activeTo'].dt.tz_convert(ZONA_BOGOTA).dt.strftime('%d/%m/%Y %H:%M:%S')
+        detalle_eventos['Hora_Inicio'] = detalle_eventos['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
+        detalle_eventos['Hora_Fin'] = detalle_eventos['activeTo'].dt.strftime('%d/%m/%Y %H:%M:%S')
         detalle_eventos = detalle_eventos.sort_values('activeFrom', ascending=False)
 
         def formatear_duracion(segundos):
