@@ -114,22 +114,28 @@ def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_real
         st.error("❌ No hay conexión con Google Sheets. No se puede actualizar el incidente.")
         return False
     try:
+        # Buscar el ID en la columna A (índice 1)
         celda = hoja.find(id_incidente, in_column=1)
         if not celda:
             st.error(f"❌ No se encontró el incidente con ID '{id_incidente}' en la hoja.")
+            # Mostrar algunos IDs existentes para depurar
             try:
-                todos_ids = hoja.col_values(1)
-                st.info(f"IDs disponibles en la hoja: {todos_ids[:10]} ...")
+                todos_ids = hoja.col_values(1)  # Leer toda la columna A
+                st.info(f"IDs disponibles en la hoja: {todos_ids[:10]} ...")  # mostrar primeros 10
             except:
                 pass
             return False
         fila = celda.row
         
+        # Actualizar estado (columna F, índice 6)
         hoja.update_cell(fila, 6, nuevo_estado)
+        # Actualizar acciones (columna G, índice 7)
         hoja.update_cell(fila, 7, '|'.join(acciones_realizadas))
+        # Si se cierra, agregar fecha de cierre (columna I, índice 9)
         if nuevo_estado == 'Cerrado':
             hoja.update_cell(fila, 9, str(datetime.now(ZONA_BOGOTA)))
         
+        # Limpiar caché para que se recarguen los incidentes
         cargar_incidentes.clear()
         st.success(f"✅ Incidente {id_incidente} actualizado correctamente a '{nuevo_estado}'.")
         return True
@@ -157,6 +163,7 @@ fecha_fin = datetime.combine(d_fin, t_fin).replace(tzinfo=ZONA_BOGOTA)
 
 dias_activa_umbral = 3
 duracion_min_minutos = 15
+
 COSTO_MINUTO_RALENTI_COP = 300
 
 # --- PROTOCOLOS DE ATENCIÓN ---
@@ -191,6 +198,7 @@ PROTOCOLOS = {
     }
 }
 
+# Tabla fija: referencia de motor por marca
 REFERENCIA_MOTOR_POR_MARCA = {
     "volkswagen": "ISF 3.8",
     "volskwagen": "ISF 3.8",
@@ -218,6 +226,7 @@ def clasificar_turno(momento):
     else:
         return 'R3'
 
+# ===== FUNCIÓN NORMALIZAR NOMBRE LOCALIDAD (global) =====
 def normalizar_nombre_localidad(texto):
     conectores = {'de', 'del', 'la', 'las', 'el', 'los', 'y', 'en'}
     palabras = texto.strip().lower().split()
@@ -831,6 +840,7 @@ with tab_fallas:
 
         ultima_fecha = df_activas.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
         df_activas = df_activas[df_activas['Fecha_Alerta'] == ultima_fecha]
+        # df_activas = df_activas[df_activas['Dias_Activa'] <= dias_activa_umbral]  # COMENTADO
 
         # --- APLICAR FILTRO POR CIUDAD ---
         if ciudad_seleccionada != 'Todas' and not df_activas.empty:
@@ -924,41 +934,57 @@ with tab_fallas:
             if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns and 'Ciudad' in df_activas.columns:
                 import numpy as np
                 
+                # 1. Crear columna de semana (inicio de semana = lunes)
                 df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time
+                
+                # 2. Agrupar por semana y ciudad
                 df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
                 df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Semana')
                 
+                # 3. Obtener rango completo de semanas (para no tener saltos en el eje X)
                 fecha_min_global = df_tendencia_ciudad['Semana'].min()
                 fecha_max_global = df_tendencia_ciudad['Semana'].max()
                 
+                # Crear un calendario de todas las semanas entre min y max
                 todas_semanas = pd.date_range(
                     start=fecha_min_global,
                     end=fecha_max_global,
-                    freq='W-MON'
+                    freq='W-MON'  # Lunes de cada semana
                 )
                 df_calendario = pd.DataFrame({'Semana': todas_semanas})
+                
+                # Obtener todas las ciudades únicas
                 todas_ciudades = df_tendencia_ciudad['Ciudad'].unique()
+                
+                # Crear un DataFrame con todas las combinaciones (semana, ciudad)
                 df_completo = df_calendario.assign(key=1).merge(
                     pd.DataFrame({'Ciudad': todas_ciudades, 'key': 1}),
                     on='key'
                 ).drop('key', axis=1)
+                
+                # Unir con los datos reales (rellenar con 0 donde no hay datos)
                 df_tendencia_completa = df_completo.merge(
                     df_tendencia_ciudad,
                     on=['Semana', 'Ciudad'],
                     how='left'
                 ).fillna({'Cantidad_Fallas': 0})
+                
+                # 4. Ordenar por semana
                 df_tendencia_completa = df_tendencia_completa.sort_values('Semana')
                 
-                # --- SLIDER NUMÉRICO ---
+                # --- SLIDER NUMÉRICO PARA SELECCIONAR RANGO DE SEMANAS (SIEMPRE VISIBLE) ---
+                # Convertir fechas a números (días desde la fecha mínima)
                 semanas_unicas = sorted(df_tendencia_completa['Semana'].unique())
-                fecha_base = semanas_unicas[0]
+                fecha_base = semanas_unicas[0]  # primera semana
                 indices = [ (s - fecha_base).days for s in semanas_unicas ]
+                
                 indice_min = indices[0]
                 indice_max = indices[-1]
                 
+                # Si solo hay una semana, forzamos un rango de 1 día para que el slider sea funcional
                 if indice_min == indice_max:
                     indice_min_slider = indice_min
-                    indice_max_slider = indice_min + 1
+                    indice_max_slider = indice_min + 1  # agregamos 1 día para que haya rango
                     valor_defecto = (indice_min_slider, indice_max_slider)
                 else:
                     indice_min_slider = indice_min
@@ -974,15 +1000,21 @@ with tab_fallas:
                     key="tendencia_slider_num"
                 )
                 
+                # Convertir los índices seleccionados de vuelta a fechas
                 fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
                 fecha_fin_filtro = fecha_base + pd.Timedelta(days=rango_indices[1])
+                
+                # Filtrar el DataFrame completo (con todas las semanas)
                 df_filtrado = df_tendencia_completa[
                     (df_tendencia_completa['Semana'] >= fecha_inicio_filtro) &
                     (df_tendencia_completa['Semana'] <= fecha_fin_filtro)
                 ]
+                
+                # Obtener ciudades con datos reales en el filtro
                 ciudades_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]['Ciudad'].unique()
                 
                 if len(ciudades_con_datos) > 0:
+                    # --- GRÁFICO DE LÍNEAS CON TODAS LAS SEMANAS (CONTINUO) ---
                     fig_tendencia = px.line(
                         df_filtrado[df_filtrado['Ciudad'].isin(ciudades_con_datos)],
                         x='Semana',
@@ -1000,26 +1032,32 @@ with tab_fallas:
                     )
                     st.plotly_chart(fig_tendencia, use_container_width=True)
                     
-                    # --- COMPARATIVA SEMANA ACTUAL VS ANTERIOR ---
+                    # --- COMPARATIVA SEMANA ACTUAL VS ANTERIOR (dentro del filtro) ---
                     st.markdown("---")
                     st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
+                    
+                    # Filtrar solo semanas con datos reales
                     df_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]
                     semanas_con_datos = sorted(df_con_datos['Semana'].unique())
                     
                     if len(semanas_con_datos) >= 2:
                         semana_actual = semanas_con_datos[-1]
                         semana_anterior = semanas_con_datos[-2]
+                        
                         df_actual = df_con_datos[df_con_datos['Semana'] == semana_actual]
                         df_anterior = df_con_datos[df_con_datos['Semana'] == semana_anterior]
+                        
                         df_comparativa = df_actual.merge(
                             df_anterior,
                             on='Ciudad',
                             suffixes=('_actual', '_anterior'),
                             how='outer'
                         ).fillna(0)
+                        
                         df_comparativa['Diferencia'] = df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']
                         df_comparativa['Cambio_%'] = ((df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']) / 
                                                        df_comparativa['Cantidad_Fallas_anterior'].replace(0, 1) * 100).round(1)
+                        
                         st.dataframe(
                             df_comparativa[['Ciudad', 'Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior', 'Diferencia', 'Cambio_%']],
                             use_container_width=True,
@@ -1032,6 +1070,7 @@ with tab_fallas:
                                 'Cambio_%': 'Cambio %'
                             }
                         )
+                        
                         fig_comparativa = px.bar(
                             df_comparativa,
                             x='Ciudad',
@@ -1043,11 +1082,12 @@ with tab_fallas:
                         fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
                         st.plotly_chart(fig_comparativa, use_container_width=True)
                     else:
-                        st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango con el deslizador.")
+                        st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango con el deslizador para tener más semanas.")
                     
-                    # --- ANÁLISIS DE TENDENCIA ---
+                    # --- ANÁLISIS DE TENDENCIA (con datos filtrados) ---
                     st.markdown("---")
                     st.markdown("**📊 Resumen de tendencia por ciudad**")
+                    
                     resumen_tendencias = []
                     for ciudad in ciudades_con_datos:
                         df_ciudad = df_con_datos[df_con_datos['Ciudad'] == ciudad]
@@ -1056,12 +1096,14 @@ with tab_fallas:
                             y = df_ciudad['Cantidad_Fallas'].values
                             n = len(x)
                             pendiente = (n * np.sum(x*y) - np.sum(x)*np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
+                            
                             if pendiente > 0.5:
                                 tendencia = "📈 Al alza"
                             elif pendiente < -0.5:
                                 tendencia = "📉 A la baja"
                             else:
                                 tendencia = "➡️ Estable"
+                            
                             resumen_tendencias.append({
                                 'Ciudad': ciudad,
                                 'Pendiente': pendiente,
@@ -1075,17 +1117,27 @@ with tab_fallas:
                             use_container_width=True,
                             hide_index=True
                         )
+                        
                         max_alza = df_resumen.loc[df_resumen['Pendiente'].idxmax()]
                         max_baja = df_resumen.loc[df_resumen['Pendiente'].idxmin()]
+                        
                         col_t1, col_t2 = st.columns(2)
                         with col_t1:
-                            st.metric("📈 Ciudad con mayor crecimiento", max_alza['Ciudad'], delta=f"{max_alza['Pendiente']:.2f} fallas/semana")
+                            st.metric(
+                                "📈 Ciudad con mayor crecimiento",
+                                max_alza['Ciudad'],
+                                delta=f"{max_alza['Pendiente']:.2f} fallas/semana"
+                            )
                         with col_t2:
-                            st.metric("📉 Ciudad con mayor decrecimiento", max_baja['Ciudad'], delta=f"{max_baja['Pendiente']:.2f} fallas/semana")
+                            st.metric(
+                                "📉 Ciudad con mayor decrecimiento",
+                                max_baja['Ciudad'],
+                                delta=f"{max_baja['Pendiente']:.2f} fallas/semana"
+                            )
                     else:
-                        st.info("📊 No hay suficientes semanas con datos (mínimo 3) para calcular la tendencia.")
+                        st.info("📊 No hay suficientes semanas con datos (mínimo 3) en el rango seleccionado para calcular la tendencia. Ajusta el deslizador para incluir más semanas.")
                 else:
-                    st.warning("⚠️ El rango seleccionado no tiene datos con fallas.")
+                    st.warning("⚠️ El rango seleccionado no tiene datos con fallas. Ajusta el deslizador.")
             else:
                 st.info("No hay datos de fallas o ciudades para mostrar la tendencia semanal.")
 
@@ -1164,13 +1216,17 @@ with tab_fallas:
     st.subheader("📋 Protocolo de Atención - Todas las Fallas Activas")
     st.caption("Listado de todos los vehículos con fallas activas, consolidadas por móvil. Usa el protocolo según la criticidad más alta del vehículo.")
 
+    # Cargar incidentes desde Google Sheets
     if hoja_incidentes is None:
         st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes. El protocolo se muestra pero los cambios no se guardarán hasta que se restablezca la conexión.")
 
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
+
+    # Obtener todos los vehículos con fallas (sin filtrar por criticidad)
     vehiculos_con_fallas = df_activas['id_camion'].unique() if not df_activas.empty else []
 
     if len(vehiculos_con_fallas) > 0:
+        # Mostrar resumen cuantitativo de pendientes
         col_res1, col_res2, col_res3 = st.columns(3)
         col_res1.metric("Vehículos con fallas pendientes", len(vehiculos_con_fallas))
         col_res2.metric("Total de fallas activas", len(df_activas) if not df_activas.empty else 0)
@@ -1179,14 +1235,19 @@ with tab_fallas:
 
         st.markdown("---")
         
+        # Iterar sobre cada vehículo
         for id_camion, grupo_vehiculo in df_activas.groupby('id_camion'):
             fila0 = grupo_vehiculo.iloc[0]
+            
+            # Determinar la criticidad máxima del vehículo (para elegir protocolo)
             criticidad_vehiculo = fila0.get('Criticidad_Vehiculo', 'BAJA')
             protocolo = PROTOCOLOS.get(criticidad_vehiculo, PROTOCOLOS['BAJA'])
             
+            # Generar ID de incidente (único por vehículo/día)
             fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
             id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
 
+            # Consolidar descripción de fallas
             grupo_ordenado = grupo_vehiculo.sort_values('Fecha_Alerta', ascending=False)
             descripcion_consolidada = "\n".join(
                 f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
@@ -1195,12 +1256,13 @@ with tab_fallas:
             fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
             cantidad_fallas = len(grupo_vehiculo)
 
-            # --- CORRECCIÓN ZONA HORARIA PARA GUARDADO ---
+            # --- CORRECCIÓN DE ZONA HORARIA PARA GUARDADO ---
             if fecha_mas_reciente.tzinfo is None:
                 fecha_guardar = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
             else:
                 fecha_guardar = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
 
+            # Si es nuevo, lo creamos en la hoja (uno por vehículo/día)
             if id_inc not in incidentes_guardados:
                 crear_incidente_en_hoja(
                     hoja_incidentes, id_inc,
@@ -1213,17 +1275,18 @@ with tab_fallas:
                 'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
             })
 
+            # Mostrar expander para cada vehículo
             emoji = "🚨" if criticidad_vehiculo == 'ALTA' else "⚠️" if criticidad_vehiculo == 'MEDIA' else "📋"
             with st.expander(
                 f"{emoji} {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) activa(s) "
                 f"(Criticidad: {criticidad_vehiculo}) - {fila0.get('Ciudad', 'Desconocida')}",
-                expanded=(inc['estado'] == 'Abierto' and criticidad_vehiculo == 'ALTA')
+                expanded=(inc['estado'] == 'Abierto' and criticidad_vehiculo == 'ALTA')  # Solo ALTA se abre por defecto
             ):
                 col1, col2 = st.columns([2, 1])
                 with col1:
                     st.markdown(f"**Estado del incidente:** {inc['estado']}")
                     st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
-                    # --- CORRECCIÓN ZONA HORARIA PARA VISUALIZACIÓN ---
+                    # --- CORRECCIÓN DE ZONA HORARIA PARA VISUALIZACIÓN ---
                     if fecha_mas_reciente.tzinfo is None:
                         fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
                     else:
@@ -1285,7 +1348,9 @@ with tab_fallas:
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
-    # --- MAPA DE FALLAS ---
+    # =====================================================================
+    # MAPA DE FALLAS (siempre visible si hay datos, independientemente de críticas)
+    # =====================================================================
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas por Zona")
 
@@ -1347,11 +1412,10 @@ with tab_fallas:
                 fig_mapa.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
                 st.plotly_chart(fig_mapa, use_container_width=True)
         else:
-            st.warning("⚠️ No se encontraron fallas con coordenadas GPS.")
+            st.warning("⚠️ No se encontraron fallas con coordenadas GPS. Verifica que los vehículos estén enviando posición y que el rango de fechas incluya datos.")
     else:
         st.info("No hay fallas registradas en el período seleccionado.")
 
-# --- PESTAÑA DE COMPORTAMIENTO DE MANEJO (sin cambios, se mantiene igual) ---
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
 
