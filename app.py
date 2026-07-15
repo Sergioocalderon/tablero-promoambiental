@@ -965,9 +965,14 @@ with tab_fallas:
                 comparativo_ciudad.sort_values('Vehiculos_Afectados'),
                 x='Vehiculos_Afectados', y='Ciudad', orientation='h',
                 text=comparativo_ciudad.sort_values('Vehiculos_Afectados')['Porcentaje_Impacto'].astype(str) + '%',
-                color_discrete_sequence=['#0F6E56']
+                color_discrete_sequence=['#62A830'] # Verde Tucán
             )
-            fig_ciudad.update_layout(height=200, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
+            fig_ciudad.update_layout(
+                height=200, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showgrid=False, zeroline=False)
+            )
             st.plotly_chart(fig_ciudad, use_container_width=True)
             st.markdown("---")
 
@@ -980,9 +985,14 @@ with tab_fallas:
                 fig_top5 = px.bar(
                     top5_vehiculos.sort_values('Eventos'),
                     x='Eventos', y='Movil', orientation='h',
-                    text='Eventos', color_discrete_sequence=['#2a78d6']
+                    text='Eventos', color_discrete_sequence=['#1EA0D7'] # Azul Tucán
                 )
-                fig_top5.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
+                fig_top5.update_layout(
+                    height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                    yaxis=dict(showgrid=False, zeroline=False)
+                )
                 st.plotly_chart(fig_top5, use_container_width=True)
 
             with col_dona:
@@ -1581,10 +1591,14 @@ with tab_manejo:
                 top_rpm.sort_values('Tiempo_Min'),
                 x='Tiempo_Min', y='Movil', orientation='h',
                 text=top_rpm.sort_values('Tiempo_Min')['Tiempo_Min'].round(1),
-                color_discrete_sequence=['#E24B4A']
+                color_discrete_sequence=['#F7A700'] # Naranja Tucán
             )
-            fig_rpm.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                                   xaxis_title="Minutos")
+            fig_rpm.update_layout(
+                height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showgrid=False, zeroline=False)
+            )
             st.plotly_chart(fig_rpm, use_container_width=True)
 
         with col_dona:
@@ -1593,10 +1607,12 @@ with tab_manejo:
             fig_dona = px.pie(
                 df_turno_dona, values='Eventos', names='Turno', hole=0.55,
                 color='Turno',
-                color_discrete_map={'R1': '#2a78d6', 'R2': '#EF9F27', 'R3': '#2C3E50'}
+                # Mapeamos los 3 turnos a los 3 colores del logo de Promoambiental
+                color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'} 
             )
             fig_dona.update_traces(textposition='inside', textinfo='percent+label')
-            fig_dona.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
+            fig_dona.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                                   paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_dona, use_container_width=True)
 
         st.markdown("---")
@@ -1612,7 +1628,7 @@ with tab_manejo:
             x='Fecha',
             y='Cantidad_Eventos',
             color='Turno',
-            color_discrete_map={'R1': '#2a78d6', 'R2': '#EF9F27', 'R3': '#2C3E50'},
+            color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'},
             markers=True
         )
         fig_linea.update_layout(
@@ -1620,6 +1636,9 @@ with tab_manejo:
             margin=dict(l=0, r=0, t=10, b=0),
             xaxis_title="Fecha Operativa",
             yaxis_title="Número de Eventos",
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', zeroline=False), # Dejamos sutiles líneas horizontales
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig_linea, use_container_width=True)
