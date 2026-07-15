@@ -28,34 +28,32 @@ st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="
 # --- 🎨 ESTILOS CORPORATIVOS PROMOAMBIENTAL ---
 st.markdown("""
 <style>
-    /* 1. Fondo general de la aplicación: un gris súper claro para que resalte el blanco */
+    /* 1. Fondo general */
     .stApp {
         background-color: #F8FAFC; 
     }
     
-    /* 2. Tarjetas de Métricas (KPIs) con el Verde del Tucán */
+    /* 2. Tarjetas de Métricas */
     [data-testid="stMetric"] {
         background-color: #FFFFFF;
         border-radius: 8px;
         padding: 15px 20px;
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05); /* Sombra sutil */
-        border-left: 6px solid #62A830; /* Verde Promoambiental */
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+        border-left: 6px solid #62A830; 
         margin-bottom: 10px;
     }
-    
-    /* 3. Textos de las métricas más legibles y corporativos */
     [data-testid="stMetricLabel"] {
         font-size: 1.05rem !important;
         font-weight: 600 !important;
-        color: #475569 !important; /* Gris texto */
+        color: #475569 !important; 
     }
     [data-testid="stMetricValue"] {
         font-size: 2.2rem !important;
         font-weight: 800 !important;
-        color: #1E293B !important; /* Casi negro */
+        color: #1E293B !important; 
     }
     
-    /* 4. Pestañas (Tabs) estilo software moderno */
+    /* 3. Pestañas (Tabs) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: #FFFFFF;
@@ -71,14 +69,31 @@ st.markdown("""
         font-weight: 600;
         color: #64748B;
     }
-    
-    /* Pestaña activa pintada con el Verde Promoambiental */
     .stTabs [aria-selected="true"] {
         background-color: #62A830 !important; 
         color: #FFFFFF !important;
     }
     
-    /* 5. Optimización del espacio en pantalla */
+    /* 4. Diseño Corporativo para los Expanders (Cajas desplegables) */
+    [data-testid="stExpander"] {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.02);
+        overflow: hidden;
+    }
+    [data-testid="stExpander"] summary {
+        background-color: #FFFFFF;
+        padding: 15px !important;
+        font-weight: 600;
+        color: #1E293B;
+        transition: background-color 0.2s ease;
+    }
+    [data-testid="stExpander"] summary:hover {
+        background-color: #F1F5F9; /* Gris sutil al pasar el mouse */
+    }
+    
+    /* 5. Optimización del espacio */
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
@@ -1807,10 +1822,14 @@ with tab_manejo:
                 top_vel.sort_values('Tiempo_Min'),
                 x='Tiempo_Min', y='Movil', orientation='h',
                 text=top_vel.sort_values('Tiempo_Min')['Tiempo_Min'].round(1),
-                color_discrete_sequence=['#8E44AD']
+                color_discrete_sequence=['#1EA0D7'] # Azul Tucán
             )
-            fig_top_vel.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                                       xaxis_title="Minutos")
+            fig_top_vel.update_layout(
+                height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, xaxis_title="Minutos",
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showgrid=False, zeroline=False)
+            )
             st.plotly_chart(fig_top_vel, use_container_width=True)
 
         with col_dona_vel:
@@ -1819,10 +1838,13 @@ with tab_manejo:
             fig_dona_vel = px.pie(
                 df_turno_dona_vel, values='Eventos', names='Turno', hole=0.55,
                 color='Turno',
-                color_discrete_map={'R1': '#2a78d6', 'R2': '#EF9F27', 'R3': '#2C3E50'}
+                color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'}
             )
             fig_dona_vel.update_traces(textposition='inside', textinfo='percent+label')
-            fig_dona_vel.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
+            fig_dona_vel.update_layout(
+                height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
             st.plotly_chart(fig_dona_vel, use_container_width=True)
 
         st.markdown("---")
@@ -1835,12 +1857,15 @@ with tab_manejo:
         fig_linea_vel = px.line(
             df_tendencia_vel,
             x='Fecha', y='Cantidad_Eventos', color='Turno',
-            color_discrete_map={'R1': '#2a78d6', 'R2': '#EF9F27', 'R3': '#2C3E50'},
+            color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'},
             markers=True
         )
         fig_linea_vel.update_layout(
             height=320, margin=dict(l=0, r=0, t=10, b=0),
             xaxis_title="Fecha Operativa", yaxis_title="Número de Eventos",
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', zeroline=False),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig_linea_vel, use_container_width=True)
