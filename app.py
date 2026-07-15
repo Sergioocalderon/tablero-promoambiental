@@ -1370,7 +1370,7 @@ with tab_fallas:
                     falla_seleccionada = st.selectbox(
                         "Selecciona la falla para buscar en Google:",
                         options=opciones_busqueda,
-                        key=f"buscar_falla_{id_inc}"
+                        key=f"buscar_falla_{id_camion}_{fecha_hoy_str}"  # ya es único
                     )
                     
                     import re
