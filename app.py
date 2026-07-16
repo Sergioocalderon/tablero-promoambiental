@@ -1476,77 +1476,7 @@ with tab_fallas:
                 else:
                     st.info("No hay códigos SPN/FMI disponibles para esta falla.")
                 
-                st.markdown("---")
-                st.markdown("#### 🔍 Buscar causa de falla en internet")
 
-                opciones_busqueda = []
-                for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
-                    spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
-                    fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
-                    desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
-                    opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
-                
-                if opciones_busqueda:
-                    falla_seleccionada = st.selectbox(
-                        "Selecciona la falla para buscar en Google:",
-                        options=opciones_busqueda,
-                        key=f"buscar_falla_{id_camion}_{fecha_hoy_str}"
-                    )
-                    
-                    import re
-                    spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
-                    fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
-                    spn = spn_match.group(1) if spn_match else '?'
-                    fmi = fmi_match.group(1) if fmi_match else '?'
-                    
-                    url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-                    
-                    col_boton1, col_boton2 = st.columns(2)
-                    with col_boton1:
-                        st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
-                    with col_boton2:
-                        url_truck = f"https://www.google.com/search?q=site:truckdiagnostics.com+SPN+{spn}+FMI+{fmi}"
-                        st.link_button("🚛 En TruckDiagnostics", url_truck, use_container_width=True)
-                    
-                    st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
-                else:
-                    st.info("No hay códigos SPN/FMI disponibles para esta falla.")
-
-                st.markdown("---")
-                st.markdown(f"#### {protocolo['nombre']}")
-                st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
-
-                acciones_realizadas = list(inc['acciones_realizadas'])
-                hubo_cambio = False
-                for accion in protocolo['acciones']:
-                    orden = accion['orden']
-                    descripcion = accion['texto']
-                    responsable = accion['responsable']
-                    clave = f"accion_{id_inc}_{orden}"
-
-                    realizada = clave in acciones_realizadas
-                    check = st.checkbox(
-                        f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
-                        value=realizada,
-                        key=clave
-                    )
-                    if check and clave not in acciones_realizadas:
-                        acciones_realizadas.append(clave)
-                        hubo_cambio = True
-                    elif not check and clave in acciones_realizadas:
-                        acciones_realizadas.remove(clave)
-                        hubo_cambio = True
-
-                if hubo_cambio:
-                    actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
-
-                completadas = len(acciones_realizadas)
-                total = len(protocolo['acciones'])
-                if total > 0:
-                    st.progress(completadas / total)
-                    st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
-    else:
-        st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
     # =====================================================================
     # MAPA DE FALLAS (siempre visible si hay datos, independientemente de críticas)
