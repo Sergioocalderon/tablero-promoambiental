@@ -68,6 +68,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# =============================================================================
+# SESIÓN Y CACHÉ INICIAL
+# =============================================================================
 if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 if 'ciudades_disponibles' not in st.session_state:
@@ -76,6 +79,9 @@ if 'ciudades_disponibles' not in st.session_state:
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
 
+# =============================================================================
+# CONEXIONES A GEOTAB Y GOOGLE SHEETS (CACHEADAS)
+# =============================================================================
 @st.cache_resource
 def iniciar_conexion_geotab():
     try:
@@ -112,6 +118,9 @@ def conectar_hoja_incidentes():
 
 hoja_incidentes = conectar_hoja_incidentes()
 
+# =============================================================================
+# FUNCIONES DE CARGA Y ACTUALIZACIÓN DE INCIDENTES (PERSISTENCIA)
+# =============================================================================
 @st.cache_data(ttl=20)
 def cargar_incidentes(_hoja):
     if _hoja is None:
@@ -179,6 +188,9 @@ def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_real
         st.error(f"❌ Error al actualizar: {e}")
         return False
 
+# =============================================================================
+# SIDEBAR – FILTROS
+# =============================================================================
 st.sidebar.header("⚙️ Parámetros de Búsqueda")
 st.sidebar.subheader("📅 Periodo Operativo")
 
@@ -204,6 +216,9 @@ if st.sidebar.button("🔄 Actualizar datos", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
+# =============================================================================
+# PROTOCOLOS Y CONSTANTES
+# =============================================================================
 PROTOCOLOS = {
     'ALTA': {
         'nombre': 'Protocolo de Emergencia',
@@ -264,6 +279,9 @@ def normalizar_nombre_localidad(texto):
         resultado[0] = resultado[0].capitalize()
     return ' '.join(resultado)
 
+# =============================================================================
+# FUNCIONES DE EXTRACCIÓN DE DATOS (CACHEADAS)
+# =============================================================================
 @st.cache_data(ttl=3600)
 def obtener_reglas_rpm(_client):
     if _client is None:
@@ -586,23 +604,27 @@ def reproducir_alarma():
     components.html(html_audio, width=0, height=0)
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
-# --- FUNCIÓN CACHEADA PARA PROCESAR df_activas ---
+# =============================================================================
+# FUNCIONES CACHEADAS PARA PROCESAMIENTO
+# =============================================================================
 @st.cache_data
 def procesar_activas(df_fallas, ciudad_filtro):
     """Aplica filtros de ciudad y obtiene las fallas activas consolidadas."""
     if df_fallas.empty:
         return pd.DataFrame()
     df = df_fallas.copy()
-    if ciudad_filtro != 'Todas':
+    if ciudad_filtro != 'Todas' and 'Ciudad' in df.columns:
         df = df[df['Ciudad'] == ciudad_filtro]
     if 'dismiss' in df.columns:
         df = df[~df['dismiss'].fillna(False)]
     if df.empty:
         return df
+    # Obtener la última fecha de cada falla por vehículo y código
     ultima_fecha = df.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
     df = df[df['Fecha_Alerta'] == ultima_fecha]
     if df.empty:
         return df
+    # Calcular criticidad del vehículo
     rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
     df['Rank_Criticidad'] = df['Criticidad'].map(rank_criticidad).fillna(2)
     criticidad_max_por_vehiculo = df.groupby('id_camion')['Rank_Criticidad'].min()
@@ -610,7 +632,6 @@ def procesar_activas(df_fallas, ciudad_filtro):
     df['Criticidad_Vehiculo'] = df['id_camion'].map(criticidad_max_por_vehiculo).map(rank_a_texto)
     return df
 
-# --- FUNCIÓN CACHEADA PARA LA TABLA DE ZONAS ---
 @st.cache_data
 def resumir_zonas(df_fallas_geo):
     if df_fallas_geo.empty:
@@ -619,20 +640,21 @@ def resumir_zonas(df_fallas_geo):
         Total_Fallas=('id_camion', 'count'),
         Vehiculos_Unicos=('id_camion', 'nunique')
     ).reset_index().sort_values('Total_Fallas', ascending=False).head(10)
-    conteo['Porcentaje_Impacto'] = (
-        conteo['Total_Fallas'] / conteo['Total_Fallas'].sum() * 100
-    ).round(1)
+    if not conteo.empty:
+        conteo['Porcentaje_Impacto'] = (
+            conteo['Total_Fallas'] / conteo['Total_Fallas'].sum() * 100
+        ).round(1)
     return conteo
 
-# --- FUNCIÓN CACHEADA PARA TENDENCIA (MODIFICADA) ---
-@st.cache_data(ttl=300)  # <--- CAMBIO: añadido ttl=300
+@st.cache_data(ttl=300)
 def preparar_tendencia(df_activas):
-    # <--- CAMBIO: eliminado df_activas = df_activas.copy()
+    """Prepara los datos de tendencia semanal."""
     if df_activas.empty or 'Fecha_Alerta' not in df_activas.columns or 'Ciudad' not in df_activas.columns:
         return None, None, None, None, None, None
-    # <--- CAMBIO: ya no se copia, se trabaja directamente sobre el DataFrame recibido
-    df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time
-    df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
+    # No usar .copy() aquí para evitar invalidar caché innecesariamente
+    df = df_activas
+    df['Semana'] = pd.to_datetime(df['Fecha_Alerta']).dt.to_period('W').dt.start_time
+    df_tendencia_ciudad = df.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
     df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Semana')
     if df_tendencia_ciudad.empty:
         return None, None, None, None, None, None
@@ -655,6 +677,9 @@ def preparar_tendencia(df_activas):
     indices = [(s - fecha_base).days for s in semanas_unicas]
     return df_tendencia_completa, fecha_min_global, fecha_max_global, fecha_base, indices, todas_ciudades
 
+# =============================================================================
+# EXTRACCIÓN DE DATOS PRINCIPAL (CACHEADA)
+# =============================================================================
 @st.cache_data(ttl=180)
 def extraer_datos_completos(_client, f_inicio, f_fin):
     if _client is None:
@@ -806,6 +831,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 # =============================================================================
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 
+# Actualizar lista de ciudades en el sidebar
 if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
     ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
     if 'Sin ciudad asignada' in ciudades_reales:
@@ -822,8 +848,15 @@ ciudad_seleccionada = st.sidebar.selectbox(
     key="filtro_ciudad"
 )
 
+# Procesar df_activas (cacheado)
 df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
 
+# Para depuración: descomentar para ver el tamaño de df_activas
+# st.write(f"df_activas shape: {df_activas.shape}")
+
+# =============================================================================
+# TABS
+# =============================================================================
 tab_fallas, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
     "🩺 Fallas y Diagnóstico",
     "🚦 Comportamiento de Manejo",
@@ -834,11 +867,15 @@ tab_fallas, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
 ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
 COLOR_CRITICIDAD = {'ALTA': '#B91C1C', 'MEDIA': '#B45309', 'BAJA': '#6B7280'}
 
+# =============================================================================
+# TAB FALLAS
+# =============================================================================
 with tab_fallas:
     st.subheader("🩺 Fallas y Diagnóstico")
     st.caption(f"Reporte generado el: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y')} - Hora: {datetime.now(ZONA_BOGOTA).strftime('%I:%M %p')}")
 
     if not df_activas.empty:
+        # ---- Resumen Cuantitativo ----
         df_vehiculos_activos = df_activas.drop_duplicates('id_camion')
         vehiculos_activos = df_vehiculos_activos['id_camion'].nunique()
         total_eventos_activos = len(df_activas)
@@ -863,6 +900,7 @@ with tab_fallas:
             reproducir_alarma()
         st.session_state.alertas_altas_previas = vehiculos_en_alta
 
+        # ---- Comparativo por ciudad ----
         st.markdown("**Comparativo por ciudad**")
         comparativo_ciudad = df_vehiculos_activos.groupby('Ciudad').agg(
             Vehiculos_Afectados=('id_camion', 'nunique')
@@ -886,6 +924,7 @@ with tab_fallas:
         st.plotly_chart(fig_ciudad, use_container_width=True)
         st.markdown("---")
 
+        # ---- Top 5 y distribución ----
         col_top5, col_dona = st.columns(2)
 
         with col_top5:
@@ -919,10 +958,11 @@ with tab_fallas:
 
         st.markdown("---")
 
-        # ---- Tendencia Semanal (con claves únicas) ----
+        # ---- Tendencia Semanal ----
         st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
         st.caption("Evolución semanal del número de fallas activas por ciudad. Usa el deslizador para ajustar el rango de semanas.")
 
+        # Preparar datos de tendencia (cacheado)
         result = preparar_tendencia(df_activas)
         df_tendencia_completa, fecha_min_global, fecha_max_global, fecha_base, indices, todas_ciudades = result
 
@@ -941,13 +981,12 @@ with tab_fallas:
                 valor_defecto = (indice_min_slider, indice_max_slider)
 
             st.markdown("**Selecciona el rango de semanas con el deslizador:**")
-            # <--- CAMBIO: slider con clave única por ciudad
             rango_indices = st.slider(
                 "Mueve las dos asas para seleccionar el rango",
                 min_value=indice_min_slider,
                 max_value=indice_max_slider,
                 value=valor_defecto,
-                key=f"tendencia_slider_{ciudad_seleccionada}"
+                key=f"tendencia_slider_{ciudad_seleccionada}"  # Clave única por ciudad
             )
 
             fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
@@ -976,7 +1015,6 @@ with tab_fallas:
                     yaxis_title="Número de fallas activas",
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
-                # <--- CAMBIO: clave única para el gráfico
                 st.plotly_chart(fig_tendencia, use_container_width=True, key=f"fig_tendencia_{ciudad_seleccionada}")
 
                 st.markdown("---")
@@ -1025,7 +1063,6 @@ with tab_fallas:
                         labels={'value': 'Número de fallas', 'variable': 'Semana'}
                     )
                     fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
-                    # <--- CAMBIO: clave única para el gráfico comparativo
                     st.plotly_chart(fig_comparativa, use_container_width=True, key=f"fig_comparativa_{ciudad_seleccionada}")
                 else:
                     st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango.")
@@ -1076,49 +1113,56 @@ with tab_fallas:
         else:
             st.info("No hay datos de fallas para mostrar la tendencia semanal.")
 
-        # ---- Detalle por vehículo ----
+        # ---- Detalle por vehículo (TABLA) ----
         with st.expander("📋 Ver detalle completo por vehículo (código, fecha y descripción de cada falla)"):
-            for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
-                vehiculos_ciudad = df_ciudad['id_camion'].nunique()
-                st.markdown(f"""
-                <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
-                {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
-                </div>""", unsafe_allow_html=True)
-
-                for criticidad in ORDEN_CRITICIDAD:
-                    df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
-                    if df_nivel.empty:
-                        continue
-                    vehiculos_nivel = df_nivel['id_camion'].nunique()
-                    color = COLOR_CRITICIDAD[criticidad]
+            if not df_activas.empty:
+                for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
+                    vehiculos_ciudad = df_ciudad['id_camion'].nunique()
                     st.markdown(f"""
-                    <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
-                    {criticidad}  (CANTIDAD: {vehiculos_nivel})
+                    <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
+                    {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
                     </div>""", unsafe_allow_html=True)
 
-                    for id_veh, df_veh in df_nivel.groupby('id_camion'):
-                        fila0 = df_veh.iloc[0]
-                        df_veh_ordenado = df_veh.sort_values('Fecha_Alerta', ascending=False)
+                    for criticidad in ORDEN_CRITICIDAD:
+                        df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
+                        if df_nivel.empty:
+                            continue
+                        vehiculos_nivel = df_nivel['id_camion'].nunique()
+                        color = COLOR_CRITICIDAD[criticidad]
+                        st.markdown(f"""
+                        <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
+                        {criticidad}  (CANTIDAD: {vehiculos_nivel})
+                        </div>""", unsafe_allow_html=True)
 
-                        df_show = df_veh_ordenado[['Movil', 'Marca', 'Referencia_Motor', 'N_Motor',
-                                                   'SPN_Geotab', 'FMI_Geotab', 'Fecha_Alerta',
-                                                   'Descripcion_Falla', 'Criticidad']].copy()
-                        df_show['SPN_Geotab'] = df_show['SPN_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
-                        df_show['FMI_Geotab'] = df_show['FMI_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
-                        df_show['Fecha_Alerta'] = df_show['Fecha_Alerta'].dt.strftime('%d/%m/%Y %H:%M:%S')
-                        df_show = df_show.rename(columns={
-                            'SPN_Geotab': 'SPN',
-                            'FMI_Geotab': 'FMI',
-                            'Fecha_Alerta': 'Fecha',
-                            'Descripcion_Falla': 'Descripción',
-                            'Criticidad': 'Criticidad'
-                        })
+                        for id_veh, df_veh in df_nivel.groupby('id_camion'):
+                            fila0 = df_veh.iloc[0]
+                            df_veh_ordenado = df_veh.sort_values('Fecha_Alerta', ascending=False)
 
-                        st.dataframe(df_show, use_container_width=True, hide_index=True)
+                            df_show = df_veh_ordenado[['Movil', 'Marca', 'Referencia_Motor', 'N_Motor',
+                                                       'SPN_Geotab', 'FMI_Geotab', 'Fecha_Alerta',
+                                                       'Descripcion_Falla', 'Criticidad']].copy()
+                            df_show['SPN_Geotab'] = df_show['SPN_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
+                            df_show['FMI_Geotab'] = df_show['FMI_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
+                            df_show['Fecha_Alerta'] = df_show['Fecha_Alerta'].dt.strftime('%d/%m/%Y %H:%M:%S')
+                            df_show = df_show.rename(columns={
+                                'SPN_Geotab': 'SPN',
+                                'FMI_Geotab': 'FMI',
+                                'Fecha_Alerta': 'Fecha',
+                                'Descripcion_Falla': 'Descripción',
+                                'Criticidad': 'Criticidad'
+                            })
+
+                            # Mostrar la tabla solo si no está vacía
+                            if not df_show.empty:
+                                st.dataframe(df_show, use_container_width=True, hide_index=True)
+                            else:
+                                st.info("No hay datos para mostrar para este vehículo.")
+            else:
+                st.info("No hay vehículos con fallas activas para mostrar.")
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
-    # ---- Protocolo de Atención ----
+    # ---- Protocolo de Atención (solo si hay fallas activas) ----
     if not df_activas.empty:
         st.markdown("---")
         st.markdown("---")
@@ -1278,14 +1322,16 @@ with tab_fallas:
     if not df_fallas.empty and 'latitude' in df_fallas.columns:
         df_fallas_geo = df_fallas[df_fallas['latitude'].notna()].copy()
 
-        if ciudad_seleccionada != 'Todas':
+        if ciudad_seleccionada != 'Todas' and 'Ciudad' in df_fallas_geo.columns:
             df_fallas_geo = df_fallas_geo[df_fallas_geo['Ciudad'] == ciudad_seleccionada]
 
+        # Muestreo para rendimiento
         if len(df_fallas_geo) > 200:
             df_fallas_geo = df_fallas_geo.sample(200, random_state=42)
             st.caption("🗺️ Mostrando una muestra de 200 puntos para mejorar el rendimiento.")
 
         if not df_fallas_geo.empty:
+            # Tabla de zonas (cacheada y limitada a top 10)
             conteo = resumir_zonas(df_fallas_geo)
             if not conteo.empty:
                 col_mapa, col_ranking = st.columns([2, 1])
@@ -1293,6 +1339,7 @@ with tab_fallas:
                 with col_ranking:
                     st.markdown("**Zonas con mayor recurrencia**")
                     st.caption("(Top 10, fallas con ubicación GPS)")
+                    # Mostrar como dataframe (más rápido que HTML)
                     st.dataframe(
                         conteo[['Ciudad', 'Localidad', 'Total_Fallas', 'Porcentaje_Impacto', 'Vehiculos_Unicos']],
                         use_container_width=True,
@@ -1323,8 +1370,7 @@ with tab_fallas:
                         margin={"r": 0, "t": 0, "l": 0, "b": 0},
                         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
                     )
-                    # <--- CAMBIO: clave única para el mapa
-                    st.plotly_chart(fig_mapa, use_container_width=True, key=f"fig_mapa_{ciudad_seleccionada}")
+                    st.plotly_chart(fig_mapa, use_container_width=True)
             else:
                 st.info("No hay suficientes datos de zonas para mostrar.")
         else:
@@ -1333,7 +1379,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB MANEJO (sin cambios)
+# TAB MANEJO (sin cambios relevantes, se mantiene igual)
 # =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
