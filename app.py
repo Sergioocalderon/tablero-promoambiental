@@ -9,6 +9,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import numpy as np
 import re
+import textwrap
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -170,11 +171,6 @@ def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_real
         celda = hoja.find(id_incidente, in_column=1)
         if not celda:
             st.error(f"❌ No se encontró el incidente con ID '{id_incidente}'.")
-            try:
-                todos_ids = hoja.col_values(1)
-                st.info(f"IDs disponibles: {todos_ids[:10]} ...")
-            except:
-                pass
             return False
         fila = celda.row
         hoja.update_cell(fila, 6, nuevo_estado)
@@ -609,7 +605,6 @@ def reproducir_alarma():
 # =============================================================================
 @st.cache_data
 def procesar_activas(df_fallas, ciudad_filtro):
-    """Aplica filtros de ciudad y obtiene las fallas activas consolidadas."""
     if df_fallas.empty:
         return pd.DataFrame()
     df = df_fallas.copy()
@@ -619,12 +614,10 @@ def procesar_activas(df_fallas, ciudad_filtro):
         df = df[~df['dismiss'].fillna(False)]
     if df.empty:
         return df
-    # Obtener la última fecha de cada falla por vehículo y código
     ultima_fecha = df.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
     df = df[df['Fecha_Alerta'] == ultima_fecha]
     if df.empty:
         return df
-    # Calcular criticidad del vehículo
     rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
     df['Rank_Criticidad'] = df['Criticidad'].map(rank_criticidad).fillna(2)
     criticidad_max_por_vehiculo = df.groupby('id_camion')['Rank_Criticidad'].min()
@@ -648,10 +641,8 @@ def resumir_zonas(df_fallas_geo):
 
 @st.cache_data(ttl=300)
 def preparar_tendencia(df_activas):
-    """Prepara los datos de tendencia semanal."""
     if df_activas.empty or 'Fecha_Alerta' not in df_activas.columns or 'Ciudad' not in df_activas.columns:
         return None, None, None, None, None, None
-    # No usar .copy() aquí para evitar invalidar caché innecesariamente
     df = df_activas
     df['Semana'] = pd.to_datetime(df['Fecha_Alerta']).dt.to_period('W').dt.start_time
     df_tendencia_ciudad = df.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
@@ -683,7 +674,7 @@ def preparar_tendencia(df_activas):
 @st.cache_data(ttl=180)
 def extraer_datos_completos(_client, f_inicio, f_fin):
     if _client is None:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     try:
         f_inicio_utc = f_inicio.astimezone(timezone.utc)
         f_fin_utc = f_fin.astimezone(timezone.utc)
@@ -831,7 +822,6 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 # =============================================================================
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 
-# Actualizar lista de ciudades en el sidebar
 if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
     ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
     if 'Sin ciudad asignada' in ciudades_reales:
@@ -848,11 +838,7 @@ ciudad_seleccionada = st.sidebar.selectbox(
     key="filtro_ciudad"
 )
 
-# Procesar df_activas (cacheado)
 df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
-
-# Para depuración: descomentar para ver el tamaño de df_activas
-# st.write(f"df_activas shape: {df_activas.shape}")
 
 # =============================================================================
 # TABS
@@ -962,7 +948,6 @@ with tab_fallas:
         st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
         st.caption("Evolución semanal del número de fallas activas por ciudad. Usa el deslizador para ajustar el rango de semanas.")
 
-        # Preparar datos de tendencia (cacheado)
         result = preparar_tendencia(df_activas)
         df_tendencia_completa, fecha_min_global, fecha_max_global, fecha_base, indices, todas_ciudades = result
 
@@ -986,7 +971,7 @@ with tab_fallas:
                 min_value=indice_min_slider,
                 max_value=indice_max_slider,
                 value=valor_defecto,
-                key=f"tendencia_slider_{ciudad_seleccionada}"  # Clave única por ciudad
+                key=f"tendencia_slider_{ciudad_seleccionada}" 
             )
 
             fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
@@ -1118,10 +1103,11 @@ with tab_fallas:
             if not df_activas.empty:
                 for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
                     vehiculos_ciudad = df_ciudad['id_camion'].nunique()
-                    st.markdown(f"""
-                    <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
-                    {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
-                    </div>""", unsafe_allow_html=True)
+                    st.markdown(textwrap.dedent(f"""
+                        <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
+                        {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
+                        </div>
+                    """), unsafe_allow_html=True)
 
                     for criticidad in ORDEN_CRITICIDAD:
                         df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
@@ -1129,10 +1115,11 @@ with tab_fallas:
                             continue
                         vehiculos_nivel = df_nivel['id_camion'].nunique()
                         color = COLOR_CRITICIDAD[criticidad]
-                        st.markdown(f"""
-                        <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
-                        {criticidad}  (CANTIDAD: {vehiculos_nivel})
-                        </div>""", unsafe_allow_html=True)
+                        st.markdown(textwrap.dedent(f"""
+                            <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
+                            {criticidad}  (CANTIDAD: {vehiculos_nivel})
+                            </div>
+                        """), unsafe_allow_html=True)
 
                         for id_veh, df_veh in df_nivel.groupby('id_camion'):
                             fila0 = df_veh.iloc[0]
@@ -1152,7 +1139,6 @@ with tab_fallas:
                                 'Criticidad': 'Criticidad'
                             })
 
-                            # Mostrar la tabla solo si no está vacía
                             if not df_show.empty:
                                 st.dataframe(df_show, use_container_width=True, hide_index=True)
                             else:
@@ -1162,7 +1148,7 @@ with tab_fallas:
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
-    # ---- Protocolo de Atención (solo si hay fallas activas) ----
+    # ---- Protocolo de Atención ----
     if not df_activas.empty:
         st.markdown("---")
         st.markdown("---")
@@ -1325,13 +1311,11 @@ with tab_fallas:
         if ciudad_seleccionada != 'Todas' and 'Ciudad' in df_fallas_geo.columns:
             df_fallas_geo = df_fallas_geo[df_fallas_geo['Ciudad'] == ciudad_seleccionada]
 
-        # Muestreo para rendimiento
         if len(df_fallas_geo) > 200:
             df_fallas_geo = df_fallas_geo.sample(200, random_state=42)
             st.caption("🗺️ Mostrando una muestra de 200 puntos para mejorar el rendimiento.")
 
         if not df_fallas_geo.empty:
-            # Tabla de zonas (cacheada y limitada a top 10)
             conteo = resumir_zonas(df_fallas_geo)
             if not conteo.empty:
                 col_mapa, col_ranking = st.columns([2, 1])
@@ -1339,7 +1323,6 @@ with tab_fallas:
                 with col_ranking:
                     st.markdown("**Zonas con mayor recurrencia**")
                     st.caption("(Top 10, fallas con ubicación GPS)")
-                    # Mostrar como dataframe (más rápido que HTML)
                     st.dataframe(
                         conteo[['Ciudad', 'Localidad', 'Total_Fallas', 'Porcentaje_Impacto', 'Vehiculos_Unicos']],
                         use_container_width=True,
@@ -1379,7 +1362,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB MANEJO (sin cambios relevantes, se mantiene igual)
+# TAB MANEJO
 # =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
@@ -1466,37 +1449,29 @@ with tab_manejo:
         filas_ranking_html = ""
         for _, fila in ranking.iterrows():
             rpm_max = int(round(fila['RPM_Maximo'])) if pd.notna(fila['RPM_Maximo']) else '-'
-            filas_ranking_html += f"""
-            <tr>
-                <td style="text-align:center; font-weight:600;">{fila['Movil']}</td>
-                <td style="text-align:center;">{fila['Placa']}</td>
-                <td style="text-align:center;">{fila['Motor']}</td>
-                <td style="text-align:center;">{fila['Fecha']}</td>
-                <td style="text-align:center; color:#64748B;">{int(fila['Umbral_RPM'])}</td>
-                <td style="text-align:center; font-weight:600; color:#E24B4A;">{rpm_max}</td>
-                <td style="text-align:center;">{int(fila['Veces'])}</td>
-                <td style="text-align:center; font-weight:600;">{fila['Tiempo_Min']:.1f}</td>
-            </tr>"""
+            filas_ranking_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Motor']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Umbral_RPM'])}</td><td style='text-align:center; font-weight:600; color:#E24B4A;'>{rpm_max}</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
 
-        st.markdown(f"""
-        <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
-        <thead>
-            <tr style="background-color:#1E293B;color:#ffffff;text-align:center;">
-                <th style="padding:12px 15px;text-align:center;">Móvil</th>
-                <th style="padding:12px 15px;text-align:center;">Placa</th>
-                <th style="padding:12px 15px;text-align:center;">Motor</th>
-                <th style="padding:12px 15px;text-align:center;">Fecha</th>
-                <th style="padding:12px 15px;text-align:center;">Umbral RPM</th>
-                <th style="padding:12px 15px;text-align:center;">RPM Máx.</th>
-                <th style="padding:12px 15px;text-align:center;">Veces</th>
-                <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
-            </tr>
-        </thead>
-        <tbody>
-        {filas_ranking_html}
-        </tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        tabla_rpm_html = textwrap.dedent(f"""
+            <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
+                <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
+                    <tr>
+                        <th style="padding:12px 15px;text-align:center;">Móvil</th>
+                        <th style="padding:12px 15px;text-align:center;">Placa</th>
+                        <th style="padding:12px 15px;text-align:center;">Motor</th>
+                        <th style="padding:12px 15px;text-align:center;">Fecha</th>
+                        <th style="padding:12px 15px;text-align:center;">Umbral RPM</th>
+                        <th style="padding:12px 15px;text-align:center;">RPM Máx.</th>
+                        <th style="padding:12px 15px;text-align:center;">Veces</th>
+                        <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_ranking_html}
+                </tbody>
+            </table>
+        """)
+
+        st.markdown(tabla_rpm_html, unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("**🔎 Detalle de eventos por vehículo**")
@@ -1546,39 +1521,31 @@ with tab_manejo:
         filas_detalle_html = ""
         for _, fila in detalle_eventos.iterrows():
             color_fondo = COLOR_FONDO_SEVERIDAD.get(fila['Severidad'], '#FFFFFF')
-            filas_detalle_html += f"""
-            <tr style="background:{color_fondo};">
-                <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Severidad']}</td>
-                <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Hora_Inicio']}</td>
-                <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Hora_Fin']}</td>
-                <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['Duracion_Fmt']}</td>
-                <td style="padding:8px;border:1px solid #ddd;text-align:center;">{fila['RPM_Pico_Fmt']}</td>
-                <td style="padding:8px;border:1px solid #ddd;text-align:center;">{int(fila['Umbral_RPM'])}</td>
-            </tr>"""
+            filas_detalle_html += f"<tr style='background:{color_fondo};'><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Severidad']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Inicio']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Fin']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Duracion_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['RPM_Pico_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{int(fila['Umbral_RPM'])}</td></tr>"
 
-        tabla_html_completa = f"""
-        <table style="width:100%;border-collapse:collapse;">
-        <thead>
-            <tr style="background:#f3f4f6;">
-                <th style="padding:8px;border:1px solid #ddd;text-align:center;">Severidad</th>
-                <th style="padding:8px;border:1px solid #ddd;text-align:center;">Hora Inicio</th>
-                <th style="padding:8px;border:1px solid #ddd;text-align:center;">Hora Fin</th>
-                <th style="padding:8px;border:1px solid #ddd;text-align:center;">Duración</th>
-                <th style="padding:8px;border:1px solid #ddd;text-align:center;">RPM Pico</th>
-                <th style="padding:8px;border:1px solid #ddd;text-align:center;">Umbral RPM</th>
-            </tr>
-        </thead>
-        <tbody>
-        {filas_detalle_html}
-        </tbody>
-        </table>
-        """
+        tabla_detalle_html = textwrap.dedent(f"""
+            <table style="width:100%;border-collapse:collapse;">
+                <thead style="background:#f3f4f6;">
+                    <tr>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Severidad</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Hora Inicio</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Hora Fin</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Duración</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">RPM Pico</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Umbral RPM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_detalle_html}
+                </tbody>
+            </table>
+        """)
 
         if len(detalle_eventos) > 10:
             with st.expander(f"📋 Ver los {len(detalle_eventos)} eventos individuales"):
-                st.markdown(tabla_html_completa, unsafe_allow_html=True)
+                st.markdown(tabla_detalle_html, unsafe_allow_html=True)
         else:
-            st.markdown(tabla_html_completa, unsafe_allow_html=True)
+            st.markdown(tabla_detalle_html, unsafe_allow_html=True)
     else:
         st.info("No se registraron eventos de sobre-revolución en este periodo (o ningún vehículo del rango tiene motor L9/X12).")
 
@@ -1663,37 +1630,29 @@ with tab_manejo:
 
         filas_ranking_vel_html = ""
         for _, fila in ranking_vel.iterrows():
-            filas_ranking_vel_html += f"""
-            <tr>
-                <td style="text-align:center; font-weight:600;">{fila['Movil']}</td>
-                <td style="text-align:center;">{fila['Placa']}</td>
-                <td style="text-align:center;">{fila['Ciudad']}</td>
-                <td style="text-align:center;">{fila['Fecha']}</td>
-                <td style="text-align:center; color:#64748B;">{int(fila['Limite'])} km/h</td>
-                <td style="text-align:center; font-weight:600; color:#1EA0D7;">{fila['Velocidad_Max']:.0f} km/h</td>
-                <td style="text-align:center;">{int(fila['Veces'])}</td>
-                <td style="text-align:center; font-weight:600;">{fila['Tiempo_Min']:.1f}</td>
-            </tr>"""
+            filas_ranking_vel_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Ciudad']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Limite'])} km/h</td><td style='text-align:center; font-weight:600; color:#1EA0D7;'>{fila['Velocidad_Max']:.0f} km/h</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
 
-        st.markdown(f"""
-        <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
-        <thead>
-            <tr style="background-color:#1E293B;color:#ffffff;text-align:center;">
-                <th style="padding:12px 15px;text-align:center;">Móvil</th>
-                <th style="padding:12px 15px;text-align:center;">Placa</th>
-                <th style="padding:12px 15px;text-align:center;">Ciudad</th>
-                <th style="padding:12px 15px;text-align:center;">Fecha</th>
-                <th style="padding:12px 15px;text-align:center;">Límite</th>
-                <th style="padding:12px 15px;text-align:center;">Vel. Máx.</th>
-                <th style="padding:12px 15px;text-align:center;">Veces</th>
-                <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
-            </tr>
-        </thead>
-        <tbody>
-        {filas_ranking_vel_html}
-        </tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        tabla_vel_html = textwrap.dedent(f"""
+            <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
+                <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
+                    <tr>
+                        <th style="padding:12px 15px;text-align:center;">Móvil</th>
+                        <th style="padding:12px 15px;text-align:center;">Placa</th>
+                        <th style="padding:12px 15px;text-align:center;">Ciudad</th>
+                        <th style="padding:12px 15px;text-align:center;">Fecha</th>
+                        <th style="padding:12px 15px;text-align:center;">Límite</th>
+                        <th style="padding:12px 15px;text-align:center;">Vel. Máx.</th>
+                        <th style="padding:12px 15px;text-align:center;">Veces</th>
+                        <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_ranking_vel_html}
+                </tbody>
+            </table>
+        """)
+
+        st.markdown(tabla_vel_html, unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("#### 📍 Mapa de Excesos de Velocidad")
