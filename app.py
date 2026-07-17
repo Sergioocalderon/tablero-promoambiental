@@ -1260,28 +1260,9 @@ with tab_fallas:
                         fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
                         spn = spn_match.group(1) if spn_match else '?'
                         fmi = fmi_match.group(1) if fmi_match else '?'
-                        query_busqueda = f"SPN {spn} FMI {fmi} causa falla motores diesel"
-                        st.caption(f"🔎 Criterio de búsqueda: **{query_busqueda}**")
-                        
-                        # Creamos un botón normal de Streamlit
-                        if st.button("🔍 Buscar posibles causas en la web", key=f"btn_buscar_{id_inc}", use_container_width=True):
-                            with st.spinner("Consultando foros y manuales en la web..."):
-                                try:
-                                    # Hacemos la búsqueda silenciosa usando la librería
-                                    with DDGS() as ddgs:
-                                        resultados = list(ddgs.text(query_busqueda, max_results=4))
-                                    
-                                    if resultados:
-                                        st.markdown("### 🌐 Resultados encontrados:")
-                                        # Mostramos los resultados integrados en el dashboard
-                                        for res in resultados:
-                                            st.markdown(f"#### [{res['title']}]({res['href']})")
-                                            st.markdown(f"> *{res['body']}*")
-                                            st.markdown("---")
-                                    else:
-                                        st.info("No se encontraron resultados exactos para este código.")
-                                except Exception as e:
-                                    st.error("Hubo un problema al conectar con el motor de búsqueda. Intenta de nuevo más tarde.")
+                        url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+                        st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
+                        st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
                     else:
                         st.info("No hay códigos SPN/FMI disponibles para esta falla.")
 
