@@ -65,21 +65,6 @@ st.markdown("""
     }
     [data-testid="stExpander"] summary:hover { background-color: #F1F5F9; }
     .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-    .tabla-corporativa {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: sans-serif;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-    .tabla-corporativa thead tr { background-color: #1E293B; color: #ffffff; text-align: left; }
-    .tabla-corporativa th, .tabla-corporativa td { padding: 12px 15px; }
-    .tabla-corporativa tbody tr { border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF; }
-    .tabla-corporativa tbody tr:nth-of-type(even) { background-color: #F8FAFC; }
-    .tabla-corporativa tbody tr:hover { background-color: #E2E8F0; transition: 0.2s ease-in-out; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -601,11 +586,51 @@ def reproducir_alarma():
     components.html(html_audio, width=0, height=0)
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
+# --- FUNCIÓN CACHEADA PARA PROCESAR df_activas ---
 @st.cache_data
+def procesar_activas(df_fallas, ciudad_filtro):
+    """Aplica filtros de ciudad y obtiene las fallas activas consolidadas."""
+    if df_fallas.empty:
+        return pd.DataFrame()
+    df = df_fallas.copy()
+    if ciudad_filtro != 'Todas':
+        df = df[df['Ciudad'] == ciudad_filtro]
+    if 'dismiss' in df.columns:
+        df = df[~df['dismiss'].fillna(False)]
+    if df.empty:
+        return df
+    ultima_fecha = df.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
+    df = df[df['Fecha_Alerta'] == ultima_fecha]
+    if df.empty:
+        return df
+    rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
+    df['Rank_Criticidad'] = df['Criticidad'].map(rank_criticidad).fillna(2)
+    criticidad_max_por_vehiculo = df.groupby('id_camion')['Rank_Criticidad'].min()
+    rank_a_texto = {0: 'ALTA', 1: 'MEDIA', 2: 'BAJA'}
+    df['Criticidad_Vehiculo'] = df['id_camion'].map(criticidad_max_por_vehiculo).map(rank_a_texto)
+    return df
+
+# --- FUNCIÓN CACHEADA PARA LA TABLA DE ZONAS ---
+@st.cache_data
+def resumir_zonas(df_fallas_geo):
+    if df_fallas_geo.empty:
+        return pd.DataFrame()
+    conteo = df_fallas_geo.groupby(['Ciudad', 'Localidad']).agg(
+        Total_Fallas=('id_camion', 'count'),
+        Vehiculos_Unicos=('id_camion', 'nunique')
+    ).reset_index().sort_values('Total_Fallas', ascending=False).head(10)
+    conteo['Porcentaje_Impacto'] = (
+        conteo['Total_Fallas'] / conteo['Total_Fallas'].sum() * 100
+    ).round(1)
+    return conteo
+
+# --- FUNCIÓN CACHEADA PARA TENDENCIA (MODIFICADA) ---
+@st.cache_data(ttl=300)  # <--- CAMBIO: añadido ttl=300
 def preparar_tendencia(df_activas):
+    # <--- CAMBIO: eliminado df_activas = df_activas.copy()
     if df_activas.empty or 'Fecha_Alerta' not in df_activas.columns or 'Ciudad' not in df_activas.columns:
         return None, None, None, None, None, None
-    df_activas = df_activas.copy()
+    # <--- CAMBIO: ya no se copia, se trabaja directamente sobre el DataFrame recibido
     df_activas['Semana'] = pd.to_datetime(df_activas['Fecha_Alerta']).dt.to_period('W').dt.start_time
     df_tendencia_ciudad = df_activas.groupby(['Semana', 'Ciudad']).size().reset_index(name='Cantidad_Fallas')
     df_tendencia_ciudad = df_tendencia_ciudad.sort_values('Semana')
@@ -776,6 +801,9 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
         st.error(f"Error procesando datos de Geotab: {e}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
+# =============================================================================
+# EJECUCIÓN PRINCIPAL
+# =============================================================================
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 
 if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
@@ -794,6 +822,8 @@ ciudad_seleccionada = st.sidebar.selectbox(
     key="filtro_ciudad"
 )
 
+df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
+
 tab_fallas, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
     "🩺 Fallas y Diagnóstico",
     "🚦 Comportamiento de Manejo",
@@ -808,457 +838,440 @@ with tab_fallas:
     st.subheader("🩺 Fallas y Diagnóstico")
     st.caption(f"Reporte generado el: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y')} - Hora: {datetime.now(ZONA_BOGOTA).strftime('%I:%M %p')}")
 
-    df_activas = pd.DataFrame()
+    if not df_activas.empty:
+        df_vehiculos_activos = df_activas.drop_duplicates('id_camion')
+        vehiculos_activos = df_vehiculos_activos['id_camion'].nunique()
+        total_eventos_activos = len(df_activas)
+        vehiculos_en_alta = (df_vehiculos_activos['Criticidad_Vehiculo'] == 'ALTA').sum()
 
-    if not df_fallas.empty:
-        if ciudad_seleccionada != 'Todas':
-            df_activas = df_fallas[df_fallas['Ciudad'] == ciudad_seleccionada].copy()
-        else:
-            df_activas = df_fallas.copy()
+        ciudad_mas_impacto = 'N/A'
+        if 'Ciudad' in df_vehiculos_activos.columns:
+            ciudades_validas = df_vehiculos_activos[
+                (df_vehiculos_activos['Ciudad'] != 'Sin ciudad asignada') &
+                (df_vehiculos_activos['Ciudad'].notna())
+            ]['Ciudad']
+            if not ciudades_validas.empty:
+                ciudad_mas_impacto = ciudades_validas.value_counts().idxmax()
 
-        if 'dismiss' in df_activas.columns:
-            df_activas = df_activas[~df_activas['dismiss'].fillna(False)]
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric("Vehículos con falla activa", vehiculos_activos)
+        col_k2.metric("Eventos activos totales", total_eventos_activos)
+        col_k3.metric("Vehículos en criticidad ALTA", vehiculos_en_alta)
+        col_k4.metric("Ciudad con más impacto", ciudad_mas_impacto)
 
-        if not df_activas.empty:
-            ultima_fecha = df_activas.groupby(['id_camion', 'Codigo'])['Fecha_Alerta'].transform('max')
-            df_activas = df_activas[df_activas['Fecha_Alerta'] == ultima_fecha]
+        if vehiculos_en_alta > st.session_state.alertas_altas_previas:
+            reproducir_alarma()
+        st.session_state.alertas_altas_previas = vehiculos_en_alta
 
-            if not df_activas.empty:
-                rank_criticidad = {'ALTA': 0, 'MEDIA': 1, 'BAJA': 2}
-                df_activas['Rank_Criticidad'] = df_activas['Criticidad'].map(rank_criticidad).fillna(2)
-                criticidad_max_por_vehiculo = df_activas.groupby('id_camion')['Rank_Criticidad'].min()
-                rank_a_texto = {0: 'ALTA', 1: 'MEDIA', 2: 'BAJA'}
-                df_activas['Criticidad_Vehiculo'] = df_activas['id_camion'].map(criticidad_max_por_vehiculo).map(rank_a_texto)
+        st.markdown("**Comparativo por ciudad**")
+        comparativo_ciudad = df_vehiculos_activos.groupby('Ciudad').agg(
+            Vehiculos_Afectados=('id_camion', 'nunique')
+        ).reset_index().sort_values('Vehiculos_Afectados', ascending=False)
+        comparativo_ciudad['Porcentaje_Impacto'] = (
+            comparativo_ciudad['Vehiculos_Afectados'] / comparativo_ciudad['Vehiculos_Afectados'].sum() * 100
+        ).round(1)
 
-                st.markdown("#### 📊 Resumen Cuantitativo")
+        fig_ciudad = px.bar(
+            comparativo_ciudad.sort_values('Vehiculos_Afectados'),
+            x='Vehiculos_Afectados', y='Ciudad', orientation='h',
+            text=comparativo_ciudad.sort_values('Vehiculos_Afectados')['Porcentaje_Impacto'].astype(str) + '%',
+            color_discrete_sequence=['#62A830']
+        )
+        fig_ciudad.update_layout(
+            height=200, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False, visible=False),
+            yaxis=dict(showgrid=False, zeroline=False)
+        )
+        st.plotly_chart(fig_ciudad, use_container_width=True)
+        st.markdown("---")
 
-                df_vehiculos_activos = df_activas.drop_duplicates('id_camion')
-                vehiculos_activos = df_vehiculos_activos['id_camion'].nunique()
-                total_eventos_activos = len(df_activas)
-                vehiculos_en_alta = (df_vehiculos_activos['Criticidad_Vehiculo'] == 'ALTA').sum()
+        col_top5, col_dona = st.columns(2)
 
-                ciudad_mas_impacto = 'N/A'
-                if 'Ciudad' in df_vehiculos_activos.columns:
-                    ciudades_validas = df_vehiculos_activos[
-                        (df_vehiculos_activos['Ciudad'] != 'Sin ciudad asignada') &
-                        (df_vehiculos_activos['Ciudad'].notna())
-                    ]['Ciudad']
-                    if not ciudades_validas.empty:
-                        ciudad_mas_impacto = ciudades_validas.value_counts().idxmax()
+        with col_top5:
+            st.markdown("**Top 5 vehículos con más eventos activos**")
+            top5_vehiculos = df_activas.groupby('Movil').size().reset_index(name='Eventos') \
+                .sort_values('Eventos', ascending=False).head(5)
+            fig_top5 = px.bar(
+                top5_vehiculos.sort_values('Eventos'),
+                x='Eventos', y='Movil', orientation='h',
+                text='Eventos', color_discrete_sequence=['#1EA0D7']
+            )
+            fig_top5.update_layout(
+                height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showgrid=False, zeroline=False)
+            )
+            st.plotly_chart(fig_top5, use_container_width=True)
 
-                col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-                col_k1.metric("Vehículos con falla activa", vehiculos_activos)
-                col_k2.metric("Eventos activos totales", total_eventos_activos)
-                col_k3.metric("Vehículos en criticidad ALTA", vehiculos_en_alta)
-                col_k4.metric("Ciudad con más impacto", ciudad_mas_impacto)
-
-                if vehiculos_en_alta > st.session_state.alertas_altas_previas:
-                    reproducir_alarma()
-                st.session_state.alertas_altas_previas = vehiculos_en_alta
-
-                st.markdown("**Comparativo por ciudad**")
-                comparativo_ciudad = df_vehiculos_activos.groupby('Ciudad').agg(
-                    Vehiculos_Afectados=('id_camion', 'nunique')
-                ).reset_index().sort_values('Vehiculos_Afectados', ascending=False)
-                comparativo_ciudad['Porcentaje_Impacto'] = (
-                    comparativo_ciudad['Vehiculos_Afectados'] / comparativo_ciudad['Vehiculos_Afectados'].sum() * 100
-                ).round(1)
-
-                fig_ciudad = px.bar(
-                    comparativo_ciudad.sort_values('Vehiculos_Afectados'),
-                    x='Vehiculos_Afectados', y='Ciudad', orientation='h',
-                    text=comparativo_ciudad.sort_values('Vehiculos_Afectados')['Porcentaje_Impacto'].astype(str) + '%',
-                    color_discrete_sequence=['#62A830']
-                )
-                fig_ciudad.update_layout(
-                    height=200, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                    yaxis=dict(showgrid=False, zeroline=False)
-                )
-                st.plotly_chart(fig_ciudad, use_container_width=True)
-                st.markdown("---")
-
-                col_top5, col_dona = st.columns(2)
-
-                with col_top5:
-                    st.markdown("**Top 5 vehículos con más eventos activos**")
-                    top5_vehiculos = df_activas.groupby('Movil').size().reset_index(name='Eventos') \
-                        .sort_values('Eventos', ascending=False).head(5)
-                    fig_top5 = px.bar(
-                        top5_vehiculos.sort_values('Eventos'),
-                        x='Eventos', y='Movil', orientation='h',
-                        text='Eventos', color_discrete_sequence=['#1EA0D7']
-                    )
-                    fig_top5.update_layout(
-                        height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                        xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                        yaxis=dict(showgrid=False, zeroline=False)
-                    )
-                    st.plotly_chart(fig_top5, use_container_width=True)
-
-                with col_dona:
-                    st.markdown("**Distribución de vehículos por criticidad**")
-                    dist_criticidad = df_vehiculos_activos['Criticidad_Vehiculo'].value_counts().reset_index()
-                    dist_criticidad.columns = ['Criticidad', 'Vehiculos']
-                    fig_dona = px.pie(
-                        dist_criticidad, values='Vehiculos', names='Criticidad', hole=0.55,
-                        color='Criticidad',
-                        color_discrete_map={'ALTA': '#E24B4A', 'MEDIA': '#EF9F27', 'BAJA': '#B4B2A9'}
-                    )
-                    fig_dona.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0))
-                    st.plotly_chart(fig_dona, use_container_width=True)
-
-                st.markdown("---")
-                st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
-                st.caption("Evolución semanal del número de fallas activas por ciudad. Usa el deslizador para ajustar el rango de semanas.")
-
-                if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns and 'Ciudad' in df_activas.columns:
-                    result = preparar_tendencia(df_activas)
-                    df_tendencia_completa, fecha_min_global, fecha_max_global, fecha_base, indices, todas_ciudades = result
-
-                    if df_tendencia_completa is not None and not df_tendencia_completa.empty:
-                        semanas_unicas = sorted(df_tendencia_completa['Semana'].unique())
-                        indice_min = indices[0]
-                        indice_max = indices[-1]
-
-                        if indice_min == indice_max:
-                            indice_min_slider = indice_min
-                            indice_max_slider = indice_min + 1
-                            valor_defecto = (indice_min_slider, indice_max_slider)
-                        else:
-                            indice_min_slider = indice_min
-                            indice_max_slider = indice_max
-                            valor_defecto = (indice_min_slider, indice_max_slider)
-
-                        st.markdown("**Selecciona el rango de semanas con el deslizador:**")
-                        rango_indices = st.slider(
-                            "Mueve las dos asas para seleccionar el rango",
-                            min_value=indice_min_slider,
-                            max_value=indice_max_slider,
-                            value=valor_defecto,
-                            key="tendencia_slider_num"
-                        )
-
-                        fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
-                        fecha_fin_filtro = fecha_base + pd.Timedelta(days=rango_indices[1])
-
-                        df_filtrado = df_tendencia_completa[
-                            (df_tendencia_completa['Semana'] >= fecha_inicio_filtro) &
-                            (df_tendencia_completa['Semana'] <= fecha_fin_filtro)
-                        ]
-
-                        ciudades_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]['Ciudad'].unique()
-
-                        if len(ciudades_con_datos) > 0:
-                            fig_tendencia = px.line(
-                                df_filtrado[df_filtrado['Ciudad'].isin(ciudades_con_datos)],
-                                x='Semana',
-                                y='Cantidad_Fallas',
-                                color='Ciudad',
-                                markers=True,
-                                title=f"Evolución semanal (desde {fecha_inicio_filtro.strftime('%d/%m/%Y')} hasta {fecha_fin_filtro.strftime('%d/%m/%Y')})"
-                            )
-                            fig_tendencia.update_layout(
-                                height=350,
-                                margin=dict(l=0, r=0, t=40, b=0),
-                                xaxis_title="Semana (inicio)",
-                                yaxis_title="Número de fallas activas",
-                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                            )
-                            st.plotly_chart(fig_tendencia, use_container_width=True)
-
-                            st.markdown("---")
-                            st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
-
-                            df_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]
-                            semanas_con_datos = sorted(df_con_datos['Semana'].unique())
-
-                            if len(semanas_con_datos) >= 2:
-                                semana_actual = semanas_con_datos[-1]
-                                semana_anterior = semanas_con_datos[-2]
-
-                                df_actual = df_con_datos[df_con_datos['Semana'] == semana_actual]
-                                df_anterior = df_con_datos[df_con_datos['Semana'] == semana_anterior]
-
-                                df_comparativa = df_actual.merge(
-                                    df_anterior,
-                                    on='Ciudad',
-                                    suffixes=('_actual', '_anterior'),
-                                    how='outer'
-                                ).fillna(0)
-
-                                df_comparativa['Diferencia'] = df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']
-                                df_comparativa['Cambio_%'] = ((df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']) /
-                                                               df_comparativa['Cantidad_Fallas_anterior'].replace(0, 1) * 100).round(1)
-
-                                st.dataframe(
-                                    df_comparativa[['Ciudad', 'Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior', 'Diferencia', 'Cambio_%']],
-                                    use_container_width=True,
-                                    hide_index=True,
-                                    column_config={
-                                        'Ciudad': 'Ciudad',
-                                        'Cantidad_Fallas_actual': f'Semana {semana_actual.strftime("%d/%m")}',
-                                        'Cantidad_Fallas_anterior': f'Semana {semana_anterior.strftime("%d/%m")}',
-                                        'Diferencia': 'Diferencia',
-                                        'Cambio_%': 'Cambio %'
-                                    }
-                                )
-
-                                fig_comparativa = px.bar(
-                                    df_comparativa,
-                                    x='Ciudad',
-                                    y=['Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior'],
-                                    barmode='group',
-                                    title=f"Comparativa: semana del {semana_actual.strftime('%d/%m')} vs semana del {semana_anterior.strftime('%d/%m')}",
-                                    labels={'value': 'Número de fallas', 'variable': 'Semana'}
-                                )
-                                fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
-                                st.plotly_chart(fig_comparativa, use_container_width=True)
-                            else:
-                                st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango.")
-
-                            st.markdown("---")
-                            st.markdown("**📊 Resumen de tendencia por ciudad**")
-
-                            resumen_tendencias = []
-                            for ciudad in ciudades_con_datos:
-                                df_ciudad = df_con_datos[df_con_datos['Ciudad'] == ciudad]
-                                if len(df_ciudad) >= 3:
-                                    x = np.arange(len(df_ciudad))
-                                    y = df_ciudad['Cantidad_Fallas'].values
-                                    n = len(x)
-                                    pendiente = (n * np.sum(x*y) - np.sum(x)*np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
-                                    if pendiente > 0.5:
-                                        tendencia = "📈 Al alza"
-                                    elif pendiente < -0.5:
-                                        tendencia = "📉 A la baja"
-                                    else:
-                                        tendencia = "➡️ Estable"
-                                    resumen_tendencias.append({
-                                        'Ciudad': ciudad,
-                                        'Pendiente': pendiente,
-                                        'Tendencia': tendencia
-                                    })
-
-                            if resumen_tendencias:
-                                df_resumen = pd.DataFrame(resumen_tendencias)
-                                st.dataframe(
-                                    df_resumen[['Ciudad', 'Tendencia', 'Pendiente']].round(2),
-                                    use_container_width=True,
-                                    hide_index=True
-                                )
-                                max_alza = df_resumen.loc[df_resumen['Pendiente'].idxmax()]
-                                max_baja = df_resumen.loc[df_resumen['Pendiente'].idxmin()]
-                                col_t1, col_t2 = st.columns(2)
-                                with col_t1:
-                                    st.metric("📈 Ciudad con mayor crecimiento", max_alza['Ciudad'],
-                                              delta=f"{max_alza['Pendiente']:.2f} fallas/semana")
-                                with col_t2:
-                                    st.metric("📉 Ciudad con mayor decrecimiento", max_baja['Ciudad'],
-                                              delta=f"{max_baja['Pendiente']:.2f} fallas/semana")
-                            else:
-                                st.info("📊 No hay suficientes semanas con datos (mínimo 3) para calcular la tendencia.")
-                        else:
-                            st.warning("⚠️ El rango seleccionado no tiene datos con fallas.")
-                    else:
-                        st.info("No hay datos de fallas para mostrar la tendencia semanal.")
-
-                with st.expander("📋 Ver detalle completo por vehículo (código, fecha y descripción de cada falla)"):
-                    for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
-                        vehiculos_ciudad = df_ciudad['id_camion'].nunique()
-                        st.markdown(f"""
-                        <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
-                        {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
-                        </div>""", unsafe_allow_html=True)
-
-                        for criticidad in ORDEN_CRITICIDAD:
-                            df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
-                            if df_nivel.empty:
-                                continue
-                            vehiculos_nivel = df_nivel['id_camion'].nunique()
-                            color = COLOR_CRITICIDAD[criticidad]
-                            st.markdown(f"""
-                            <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
-                            {criticidad}  (CANTIDAD: {vehiculos_nivel})
-                            </div>""", unsafe_allow_html=True)
-
-                            for id_veh, df_veh in df_nivel.groupby('id_camion'):
-                                fila0 = df_veh.iloc[0]
-                                df_veh_ordenado = df_veh.sort_values('Fecha_Alerta', ascending=False)
-
-                                df_show = df_veh_ordenado[['Movil', 'Marca', 'Referencia_Motor', 'N_Motor',
-                                                           'SPN_Geotab', 'FMI_Geotab', 'Fecha_Alerta',
-                                                           'Descripcion_Falla', 'Criticidad']].copy()
-                                df_show['SPN_Geotab'] = df_show['SPN_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
-                                df_show['FMI_Geotab'] = df_show['FMI_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
-                                df_show['Fecha_Alerta'] = df_show['Fecha_Alerta'].dt.strftime('%d/%m/%Y %H:%M:%S')
-                                df_show = df_show.rename(columns={
-                                    'SPN_Geotab': 'SPN',
-                                    'FMI_Geotab': 'FMI',
-                                    'Fecha_Alerta': 'Fecha',
-                                    'Descripcion_Falla': 'Descripción',
-                                    'Criticidad': 'Criticidad'
-                                })
-
-                                st.dataframe(df_show, use_container_width=True, hide_index=True)
-            else:
-                st.success(f"✅ No hay fallas activas en los últimos {dias_activa_umbral} días.")
-    else:
-        st.success("✅ ¡Excelente! No se registran códigos de falla activos en la flota en este rango de fechas.")
-
-    st.markdown("---")
-    st.markdown("---")
-    st.subheader("📋 Protocolo de Atención - Todas las Fallas Activas")
-    st.caption("Listado de todos los vehículos con fallas activas, consolidadas por móvil. Usa el protocolo según la criticidad más alta del vehículo.")
-
-    if hoja_incidentes is None:
-        st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes.")
-
-    incidentes_guardados = cargar_incidentes(hoja_incidentes)
-    vehiculos_con_fallas = df_activas['id_camion'].unique() if not df_activas.empty else []
-
-    if len(vehiculos_con_fallas) > 0:
-        col_res1, col_res2, col_res3 = st.columns(3)
-        col_res1.metric("Vehículos con fallas pendientes", len(vehiculos_con_fallas))
-        col_res2.metric("Total de fallas activas", len(df_activas) if not df_activas.empty else 0)
-        orden_crit = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
-        criticidad_max_general = max(df_activas['Criticidad'], key=lambda c: orden_crit.get(c, 0)) if not df_activas.empty else 'BAJA'
-        col_res3.metric("Criticidad máxima general", criticidad_max_general)
+        with col_dona:
+            st.markdown("**Distribución de vehículos por criticidad**")
+            dist_criticidad = df_vehiculos_activos['Criticidad_Vehiculo'].value_counts().reset_index()
+            dist_criticidad.columns = ['Criticidad', 'Vehiculos']
+            fig_dona = px.pie(
+                dist_criticidad, values='Vehiculos', names='Criticidad', hole=0.55,
+                color='Criticidad',
+                color_discrete_map={'ALTA': '#E24B4A', 'MEDIA': '#EF9F27', 'BAJA': '#B4B2A9'}
+            )
+            fig_dona.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0))
+            st.plotly_chart(fig_dona, use_container_width=True)
 
         st.markdown("---")
 
-        for id_camion, grupo_vehiculo in df_activas.groupby('id_camion'):
-            fila0 = grupo_vehiculo.iloc[0]
-            criticidad_vehiculo = fila0.get('Criticidad_Vehiculo', 'BAJA')
-            protocolo = PROTOCOLOS.get(criticidad_vehiculo, PROTOCOLOS['BAJA'])
+        # ---- Tendencia Semanal (con claves únicas) ----
+        st.markdown("#### 📈 Tendencia Semanal de Fallas por Ciudad")
+        st.caption("Evolución semanal del número de fallas activas por ciudad. Usa el deslizador para ajustar el rango de semanas.")
 
-            fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
-            id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
+        result = preparar_tendencia(df_activas)
+        df_tendencia_completa, fecha_min_global, fecha_max_global, fecha_base, indices, todas_ciudades = result
 
-            grupo_ordenado = grupo_vehiculo.sort_values('Fecha_Alerta', ascending=False)
-            descripcion_consolidada = "\n".join(
-                f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
-                for i, (_, r) in enumerate(grupo_ordenado.iterrows())
-            )
-            fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
-            cantidad_fallas = len(grupo_vehiculo)
+        if df_tendencia_completa is not None and not df_tendencia_completa.empty:
+            semanas_unicas = sorted(df_tendencia_completa['Semana'].unique())
+            indice_min = indices[0]
+            indice_max = indices[-1]
 
-            if fecha_mas_reciente.tzinfo is None:
-                fecha_guardar = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
+            if indice_min == indice_max:
+                indice_min_slider = indice_min
+                indice_max_slider = indice_min + 1
+                valor_defecto = (indice_min_slider, indice_max_slider)
             else:
-                fecha_guardar = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
+                indice_min_slider = indice_min
+                indice_max_slider = indice_max
+                valor_defecto = (indice_min_slider, indice_max_slider)
 
-            if id_inc not in incidentes_guardados:
-                crear_incidente_en_hoja(
-                    hoja_incidentes, id_inc,
-                    fila0['Movil'], fila0['Placa'], descripcion_consolidada,
-                    criticidad_vehiculo, fecha_guardar, fila0.get('Ciudad', 'Sin ciudad asignada')
+            st.markdown("**Selecciona el rango de semanas con el deslizador:**")
+            # <--- CAMBIO: slider con clave única por ciudad
+            rango_indices = st.slider(
+                "Mueve las dos asas para seleccionar el rango",
+                min_value=indice_min_slider,
+                max_value=indice_max_slider,
+                value=valor_defecto,
+                key=f"tendencia_slider_{ciudad_seleccionada}"
+            )
+
+            fecha_inicio_filtro = fecha_base + pd.Timedelta(days=rango_indices[0])
+            fecha_fin_filtro = fecha_base + pd.Timedelta(days=rango_indices[1])
+
+            df_filtrado = df_tendencia_completa[
+                (df_tendencia_completa['Semana'] >= fecha_inicio_filtro) &
+                (df_tendencia_completa['Semana'] <= fecha_fin_filtro)
+            ]
+
+            ciudades_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]['Ciudad'].unique()
+
+            if len(ciudades_con_datos) > 0:
+                fig_tendencia = px.line(
+                    df_filtrado[df_filtrado['Ciudad'].isin(ciudades_con_datos)],
+                    x='Semana',
+                    y='Cantidad_Fallas',
+                    color='Ciudad',
+                    markers=True,
+                    title=f"Evolución semanal (desde {fecha_inicio_filtro.strftime('%d/%m/%Y')} hasta {fecha_fin_filtro.strftime('%d/%m/%Y')})"
                 )
-                incidentes_guardados = cargar_incidentes(hoja_incidentes)
-
-            inc = incidentes_guardados.get(id_inc, {
-                'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
-            })
-
-            emoji = "🚨" if criticidad_vehiculo == 'ALTA' else "⚠️" if criticidad_vehiculo == 'MEDIA' else "📋"
-            with st.expander(
-                f"{emoji} {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) activa(s) "
-                f"(Criticidad: {criticidad_vehiculo}) - {fila0.get('Ciudad', 'Desconocida')}",
-                expanded=(inc['estado'] == 'Abierto' and criticidad_vehiculo == 'ALTA')
-            ):
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.markdown(f"**Estado del incidente:** {inc['estado']}")
-                    st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
-                    if fecha_mas_reciente.tzinfo is None:
-                        fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
-                    else:
-                        fecha_mas_reciente_bogota = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
-                    st.markdown(f"**Última falla detectada:** {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M:%S')}")
-                    st.markdown(f"**Criticidad máxima del vehículo:** {criticidad_vehiculo}")
-                with col2:
-                    if inc['estado'] == 'Abierto':
-                        if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
-                            with st.spinner("Cerrando incidente..."):
-                                exito = actualizar_incidente_en_hoja(
-                                    hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
-                                )
-                                if exito:
-                                    st.success("✅ Incidente cerrado correctamente.")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ No se pudo cerrar el incidente.")
-                    else:
-                        st.success("✅ Este incidente ya está cerrado.")
+                fig_tendencia.update_layout(
+                    height=350,
+                    margin=dict(l=0, r=0, t=40, b=0),
+                    xaxis_title="Semana (inicio)",
+                    yaxis_title="Número de fallas activas",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                # <--- CAMBIO: clave única para el gráfico
+                st.plotly_chart(fig_tendencia, use_container_width=True, key=f"fig_tendencia_{ciudad_seleccionada}")
 
                 st.markdown("---")
-                st.markdown("**Fallas activas de este vehículo:**")
-                st.markdown(descripcion_consolidada.replace("\n", "  \n"))
+                st.markdown("#### 📊 Comparativa Semana Actual vs Semana Anterior")
 
-                st.markdown("---")
-                st.markdown("#### 🔍 Buscar causa de falla en internet")
+                df_con_datos = df_filtrado[df_filtrado['Cantidad_Fallas'] > 0]
+                semanas_con_datos = sorted(df_con_datos['Semana'].unique())
 
-                opciones_busqueda = []
-                for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
-                    spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
-                    fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
-                    desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
-                    opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
+                if len(semanas_con_datos) >= 2:
+                    semana_actual = semanas_con_datos[-1]
+                    semana_anterior = semanas_con_datos[-2]
 
-                if opciones_busqueda:
-                    falla_seleccionada = st.selectbox(
-                        "Selecciona la falla para buscar en Google:",
-                        options=opciones_busqueda,
-                        key=f"buscar_falla_{id_inc}"
+                    df_actual = df_con_datos[df_con_datos['Semana'] == semana_actual]
+                    df_anterior = df_con_datos[df_con_datos['Semana'] == semana_anterior]
+
+                    df_comparativa = df_actual.merge(
+                        df_anterior,
+                        on='Ciudad',
+                        suffixes=('_actual', '_anterior'),
+                        how='outer'
+                    ).fillna(0)
+
+                    df_comparativa['Diferencia'] = df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']
+                    df_comparativa['Cambio_%'] = ((df_comparativa['Cantidad_Fallas_actual'] - df_comparativa['Cantidad_Fallas_anterior']) /
+                                                   df_comparativa['Cantidad_Fallas_anterior'].replace(0, 1) * 100).round(1)
+
+                    st.dataframe(
+                        df_comparativa[['Ciudad', 'Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior', 'Diferencia', 'Cambio_%']],
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            'Ciudad': 'Ciudad',
+                            'Cantidad_Fallas_actual': f'Semana {semana_actual.strftime("%d/%m")}',
+                            'Cantidad_Fallas_anterior': f'Semana {semana_anterior.strftime("%d/%m")}',
+                            'Diferencia': 'Diferencia',
+                            'Cambio_%': 'Cambio %'
+                        }
                     )
-                    spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
-                    fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
-                    spn = spn_match.group(1) if spn_match else '?'
-                    fmi = fmi_match.group(1) if fmi_match else '?'
-                    url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-                    st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
-                    st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
+
+                    fig_comparativa = px.bar(
+                        df_comparativa,
+                        x='Ciudad',
+                        y=['Cantidad_Fallas_actual', 'Cantidad_Fallas_anterior'],
+                        barmode='group',
+                        title=f"Comparativa: semana del {semana_actual.strftime('%d/%m')} vs semana del {semana_anterior.strftime('%d/%m')}",
+                        labels={'value': 'Número de fallas', 'variable': 'Semana'}
+                    )
+                    fig_comparativa.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
+                    # <--- CAMBIO: clave única para el gráfico comparativo
+                    st.plotly_chart(fig_comparativa, use_container_width=True, key=f"fig_comparativa_{ciudad_seleccionada}")
                 else:
-                    st.info("No hay códigos SPN/FMI disponibles para esta falla.")
+                    st.info(f"📅 En el rango seleccionado hay {len(semanas_con_datos)} semana(s) con datos. Amplía el rango.")
 
                 st.markdown("---")
-                st.markdown(f"#### {protocolo['nombre']}")
-                st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+                st.markdown("**📊 Resumen de tendencia por ciudad**")
 
-                acciones_realizadas = list(inc['acciones_realizadas'])
-                hubo_cambio = False
-                for accion in protocolo['acciones']:
-                    orden = accion['orden']
-                    descripcion = accion['texto']
-                    responsable = accion['responsable']
-                    clave = f"accion_{id_inc}_{orden}"
+                resumen_tendencias = []
+                for ciudad in ciudades_con_datos:
+                    df_ciudad = df_con_datos[df_con_datos['Ciudad'] == ciudad]
+                    if len(df_ciudad) >= 3:
+                        x = np.arange(len(df_ciudad))
+                        y = df_ciudad['Cantidad_Fallas'].values
+                        n = len(x)
+                        pendiente = (n * np.sum(x*y) - np.sum(x)*np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
+                        if pendiente > 0.5:
+                            tendencia = "📈 Al alza"
+                        elif pendiente < -0.5:
+                            tendencia = "📉 A la baja"
+                        else:
+                            tendencia = "➡️ Estable"
+                        resumen_tendencias.append({
+                            'Ciudad': ciudad,
+                            'Pendiente': pendiente,
+                            'Tendencia': tendencia
+                        })
 
-                    realizada = clave in acciones_realizadas
-                    check = st.checkbox(
-                        f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
-                        value=realizada,
-                        key=clave
+                if resumen_tendencias:
+                    df_resumen = pd.DataFrame(resumen_tendencias)
+                    st.dataframe(
+                        df_resumen[['Ciudad', 'Tendencia', 'Pendiente']].round(2),
+                        use_container_width=True,
+                        hide_index=True
                     )
-                    if check and clave not in acciones_realizadas:
-                        acciones_realizadas.append(clave)
-                        hubo_cambio = True
-                    elif not check and clave in acciones_realizadas:
-                        acciones_realizadas.remove(clave)
-                        hubo_cambio = True
+                    max_alza = df_resumen.loc[df_resumen['Pendiente'].idxmax()]
+                    max_baja = df_resumen.loc[df_resumen['Pendiente'].idxmin()]
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1:
+                        st.metric("📈 Ciudad con mayor crecimiento", max_alza['Ciudad'],
+                                  delta=f"{max_alza['Pendiente']:.2f} fallas/semana")
+                    with col_t2:
+                        st.metric("📉 Ciudad con mayor decrecimiento", max_baja['Ciudad'],
+                                  delta=f"{max_baja['Pendiente']:.2f} fallas/semana")
+                else:
+                    st.info("📊 No hay suficientes semanas con datos (mínimo 3) para calcular la tendencia.")
+            else:
+                st.warning("⚠️ El rango seleccionado no tiene datos con fallas.")
+        else:
+            st.info("No hay datos de fallas para mostrar la tendencia semanal.")
 
-                if hubo_cambio:
-                    actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
+        # ---- Detalle por vehículo ----
+        with st.expander("📋 Ver detalle completo por vehículo (código, fecha y descripción de cada falla)"):
+            for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
+                vehiculos_ciudad = df_ciudad['id_camion'].nunique()
+                st.markdown(f"""
+                <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
+                {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
+                </div>""", unsafe_allow_html=True)
 
-                completadas = len(acciones_realizadas)
-                total = len(protocolo['acciones'])
-                if total > 0:
-                    st.progress(completadas / total)
-                    st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
+                for criticidad in ORDEN_CRITICIDAD:
+                    df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
+                    if df_nivel.empty:
+                        continue
+                    vehiculos_nivel = df_nivel['id_camion'].nunique()
+                    color = COLOR_CRITICIDAD[criticidad]
+                    st.markdown(f"""
+                    <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
+                    {criticidad}  (CANTIDAD: {vehiculos_nivel})
+                    </div>""", unsafe_allow_html=True)
+
+                    for id_veh, df_veh in df_nivel.groupby('id_camion'):
+                        fila0 = df_veh.iloc[0]
+                        df_veh_ordenado = df_veh.sort_values('Fecha_Alerta', ascending=False)
+
+                        df_show = df_veh_ordenado[['Movil', 'Marca', 'Referencia_Motor', 'N_Motor',
+                                                   'SPN_Geotab', 'FMI_Geotab', 'Fecha_Alerta',
+                                                   'Descripcion_Falla', 'Criticidad']].copy()
+                        df_show['SPN_Geotab'] = df_show['SPN_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
+                        df_show['FMI_Geotab'] = df_show['FMI_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
+                        df_show['Fecha_Alerta'] = df_show['Fecha_Alerta'].dt.strftime('%d/%m/%Y %H:%M:%S')
+                        df_show = df_show.rename(columns={
+                            'SPN_Geotab': 'SPN',
+                            'FMI_Geotab': 'FMI',
+                            'Fecha_Alerta': 'Fecha',
+                            'Descripcion_Falla': 'Descripción',
+                            'Criticidad': 'Criticidad'
+                        })
+
+                        st.dataframe(df_show, use_container_width=True, hide_index=True)
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
+    # ---- Protocolo de Atención ----
+    if not df_activas.empty:
+        st.markdown("---")
+        st.markdown("---")
+        st.subheader("📋 Protocolo de Atención - Todas las Fallas Activas")
+        st.caption("Listado de todos los vehículos con fallas activas, consolidadas por móvil. Usa el protocolo según la criticidad más alta del vehículo.")
+
+        if hoja_incidentes is None:
+            st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes.")
+
+        incidentes_guardados = cargar_incidentes(hoja_incidentes)
+        vehiculos_con_fallas = df_activas['id_camion'].unique()
+
+        if len(vehiculos_con_fallas) > 0:
+            col_res1, col_res2, col_res3 = st.columns(3)
+            col_res1.metric("Vehículos con fallas pendientes", len(vehiculos_con_fallas))
+            col_res2.metric("Total de fallas activas", len(df_activas))
+            orden_crit = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
+            criticidad_max_general = max(df_activas['Criticidad'], key=lambda c: orden_crit.get(c, 0)) if not df_activas.empty else 'BAJA'
+            col_res3.metric("Criticidad máxima general", criticidad_max_general)
+
+            st.markdown("---")
+
+            for id_camion, grupo_vehiculo in df_activas.groupby('id_camion'):
+                fila0 = grupo_vehiculo.iloc[0]
+                criticidad_vehiculo = fila0.get('Criticidad_Vehiculo', 'BAJA')
+                protocolo = PROTOCOLOS.get(criticidad_vehiculo, PROTOCOLOS['BAJA'])
+
+                fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
+                id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
+
+                grupo_ordenado = grupo_vehiculo.sort_values('Fecha_Alerta', ascending=False)
+                descripcion_consolidada = "\n".join(
+                    f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
+                    for i, (_, r) in enumerate(grupo_ordenado.iterrows())
+                )
+                fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
+                cantidad_fallas = len(grupo_vehiculo)
+
+                if fecha_mas_reciente.tzinfo is None:
+                    fecha_guardar = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
+                else:
+                    fecha_guardar = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
+
+                if id_inc not in incidentes_guardados:
+                    crear_incidente_en_hoja(
+                        hoja_incidentes, id_inc,
+                        fila0['Movil'], fila0['Placa'], descripcion_consolidada,
+                        criticidad_vehiculo, fecha_guardar, fila0.get('Ciudad', 'Sin ciudad asignada')
+                    )
+                    incidentes_guardados = cargar_incidentes(hoja_incidentes)
+
+                inc = incidentes_guardados.get(id_inc, {
+                    'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
+                })
+
+                emoji = "🚨" if criticidad_vehiculo == 'ALTA' else "⚠️" if criticidad_vehiculo == 'MEDIA' else "📋"
+                with st.expander(
+                    f"{emoji} {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) activa(s) "
+                    f"(Criticidad: {criticidad_vehiculo}) - {fila0.get('Ciudad', 'Desconocida')}",
+                    expanded=(inc['estado'] == 'Abierto' and criticidad_vehiculo == 'ALTA')
+                ):
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.markdown(f"**Estado del incidente:** {inc['estado']}")
+                        st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
+                        if fecha_mas_reciente.tzinfo is None:
+                            fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
+                        else:
+                            fecha_mas_reciente_bogota = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
+                        st.markdown(f"**Última falla detectada:** {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M:%S')}")
+                        st.markdown(f"**Criticidad máxima del vehículo:** {criticidad_vehiculo}")
+                    with col2:
+                        if inc['estado'] == 'Abierto':
+                            if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
+                                with st.spinner("Cerrando incidente..."):
+                                    exito = actualizar_incidente_en_hoja(
+                                        hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
+                                    )
+                                    if exito:
+                                        st.success("✅ Incidente cerrado correctamente.")
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ No se pudo cerrar el incidente.")
+                        else:
+                            st.success("✅ Este incidente ya está cerrado.")
+
+                    st.markdown("---")
+                    st.markdown("**Fallas activas de este vehículo:**")
+                    st.markdown(descripcion_consolidada.replace("\n", "  \n"))
+
+                    st.markdown("---")
+                    st.markdown("#### 🔍 Buscar causa de falla en internet")
+
+                    opciones_busqueda = []
+                    for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
+                        spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
+                        fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
+                        desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
+                        opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
+
+                    if opciones_busqueda:
+                        falla_seleccionada = st.selectbox(
+                            "Selecciona la falla para buscar en Google:",
+                            options=opciones_busqueda,
+                            key=f"buscar_falla_{id_inc}"
+                        )
+                        spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
+                        fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
+                        spn = spn_match.group(1) if spn_match else '?'
+                        fmi = fmi_match.group(1) if fmi_match else '?'
+                        url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+                        st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
+                        st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
+                    else:
+                        st.info("No hay códigos SPN/FMI disponibles para esta falla.")
+
+                    st.markdown("---")
+                    st.markdown(f"#### {protocolo['nombre']}")
+                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+
+                    acciones_realizadas = list(inc['acciones_realizadas'])
+                    hubo_cambio = False
+                    for accion in protocolo['acciones']:
+                        orden = accion['orden']
+                        descripcion = accion['texto']
+                        responsable = accion['responsable']
+                        clave = f"accion_{id_inc}_{orden}"
+
+                        realizada = clave in acciones_realizadas
+                        check = st.checkbox(
+                            f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
+                            value=realizada,
+                            key=clave
+                        )
+                        if check and clave not in acciones_realizadas:
+                            acciones_realizadas.append(clave)
+                            hubo_cambio = True
+                        elif not check and clave in acciones_realizadas:
+                            acciones_realizadas.remove(clave)
+                            hubo_cambio = True
+
+                    if hubo_cambio:
+                        actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
+
+                    completadas = len(acciones_realizadas)
+                    total = len(protocolo['acciones'])
+                    if total > 0:
+                        st.progress(completadas / total)
+                        st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
+        else:
+            st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
+
+    # ---- Mapa de Fallas ----
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas")
 
@@ -1273,72 +1286,55 @@ with tab_fallas:
             st.caption("🗺️ Mostrando una muestra de 200 puntos para mejorar el rendimiento.")
 
         if not df_fallas_geo.empty:
-            conteo_localidad = df_fallas_geo.groupby(['Ciudad', 'Localidad']).agg(
-                Total_Fallas=('id_camion', 'count'),
-                Vehiculos_Unicos=('id_camion', 'nunique')
-            ).reset_index().sort_values('Total_Fallas', ascending=False)
-            conteo_localidad['Porcentaje_Impacto'] = (
-                conteo_localidad['Total_Fallas'] / conteo_localidad['Total_Fallas'].sum() * 100
-            ).round(1)
+            conteo = resumir_zonas(df_fallas_geo)
+            if not conteo.empty:
+                col_mapa, col_ranking = st.columns([2, 1])
 
-            col_mapa, col_ranking = st.columns([2, 1])
+                with col_ranking:
+                    st.markdown("**Zonas con mayor recurrencia**")
+                    st.caption("(Top 10, fallas con ubicación GPS)")
+                    st.dataframe(
+                        conteo[['Ciudad', 'Localidad', 'Total_Fallas', 'Porcentaje_Impacto', 'Vehiculos_Unicos']],
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            'Ciudad': 'Ciudad',
+                            'Localidad': 'Zona',
+                            'Total_Fallas': 'Fallas',
+                            'Porcentaje_Impacto': 'Impacto %',
+                            'Vehiculos_Unicos': 'Móviles'
+                        }
+                    )
 
-            with col_ranking:
-                st.markdown("**Zonas con mayor recurrencia**")
-                st.caption("(Fallas reportadas con ubicación GPS)")
+                with col_mapa:
+                    color_mapa = 'Ciudad' if ciudad_seleccionada == 'Todas' else 'Localidad'
+                    zoom_mapa = 5.5 if ciudad_seleccionada == 'Todas' else 10.5
 
-                filas_localidad_html = ""
-                for _, fila in conteo_localidad.iterrows():
-                    ciudad_str = fila['Ciudad']
-                    zona_str = normalizar_nombre_localidad(fila['Localidad'])
-                    ubicacion_mostrar = f"<b>{ciudad_str}</b> - {zona_str}" if ciudad_str != 'Bogotá' else f"<b>Bogotá</b> - {zona_str}"
-                    filas_localidad_html += f"""
-                    <tr>
-                        <td style="text-align:left; font-size:0.85rem; color:#475569;">{ubicacion_mostrar}</td>
-                        <td style="text-align:center; color:#E24B4A; font-weight:800;">{int(fila['Total_Fallas'])}</td>
-                        <td style="text-align:center; color:#64748B;">{fila['Porcentaje_Impacto']:.1f}%</td>
-                        <td style="text-align:center; font-weight:600;">{int(fila['Vehiculos_Unicos'])}</td>
-                    </tr>"""
-
-                st.markdown(f"""
-                <table class="tabla-corporativa">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;">Ubicación (Ciudad - Zona)</th>
-                        <th style="text-align:center;">Fallas</th>
-                        <th style="text-align:center;">Impacto</th>
-                        <th style="text-align:center;">Móviles</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {filas_localidad_html}
-                </tbody>
-                </table>
-                """, unsafe_allow_html=True)
-
-            with col_mapa:
-                color_mapa = 'Ciudad' if ciudad_seleccionada == 'Todas' else 'Localidad'
-                zoom_mapa = 5.5 if ciudad_seleccionada == 'Todas' else 10.5
-
-                fig_mapa = px.scatter_map(
-                    df_fallas_geo,
-                    lat='latitude', lon='longitude',
-                    color=color_mapa,
-                    color_discrete_sequence=['#1EA0D7', '#F7A700', '#62A830', '#8E44AD', '#E24B4A'],
-                    hover_name='Movil',
-                    hover_data={'Ciudad': True, 'Localidad': True, 'Codigo': True, 'Placa': True, 'Descripcion_Falla': True},
-                    zoom=zoom_mapa, height=450
-                )
-                fig_mapa.update_layout(
-                    margin={"r": 0, "t": 0, "l": 0, "b": 0},
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
-                )
-                st.plotly_chart(fig_mapa, use_container_width=True)
+                    fig_mapa = px.scatter_map(
+                        df_fallas_geo,
+                        lat='latitude', lon='longitude',
+                        color=color_mapa,
+                        color_discrete_sequence=['#1EA0D7', '#F7A700', '#62A830', '#8E44AD', '#E24B4A'],
+                        hover_name='Movil',
+                        hover_data={'Ciudad': True, 'Localidad': True, 'Codigo': True, 'Placa': True, 'Descripcion_Falla': True},
+                        zoom=zoom_mapa, height=450
+                    )
+                    fig_mapa.update_layout(
+                        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
+                    )
+                    # <--- CAMBIO: clave única para el mapa
+                    st.plotly_chart(fig_mapa, use_container_width=True, key=f"fig_mapa_{ciudad_seleccionada}")
+            else:
+                st.info("No hay suficientes datos de zonas para mostrar.")
         else:
             st.warning(f"⚠️ No se encontraron fallas con coordenadas GPS para la ciudad: {ciudad_seleccionada}.")
     else:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
+# =============================================================================
+# TAB MANEJO (sin cambios)
+# =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
 
@@ -1437,17 +1433,17 @@ with tab_manejo:
             </tr>"""
 
         st.markdown(f"""
-        <table class="tabla-corporativa">
+        <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
         <thead>
-            <tr>
-                <th style="text-align:center;">Móvil</th>
-                <th style="text-align:center;">Placa</th>
-                <th style="text-align:center;">Motor</th>
-                <th style="text-align:center;">Fecha</th>
-                <th style="text-align:center;">Umbral RPM</th>
-                <th style="text-align:center;">RPM Máx.</th>
-                <th style="text-align:center;">Veces</th>
-                <th style="text-align:center;">Tiempo (min)</th>
+            <tr style="background-color:#1E293B;color:#ffffff;text-align:center;">
+                <th style="padding:12px 15px;text-align:center;">Móvil</th>
+                <th style="padding:12px 15px;text-align:center;">Placa</th>
+                <th style="padding:12px 15px;text-align:center;">Motor</th>
+                <th style="padding:12px 15px;text-align:center;">Fecha</th>
+                <th style="padding:12px 15px;text-align:center;">Umbral RPM</th>
+                <th style="padding:12px 15px;text-align:center;">RPM Máx.</th>
+                <th style="padding:12px 15px;text-align:center;">Veces</th>
+                <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
             </tr>
         </thead>
         <tbody>
@@ -1634,17 +1630,17 @@ with tab_manejo:
             </tr>"""
 
         st.markdown(f"""
-        <table class="tabla-corporativa">
+        <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
         <thead>
-            <tr>
-                <th style="text-align:center;">Móvil</th>
-                <th style="text-align:center;">Placa</th>
-                <th style="text-align:center;">Ciudad</th>
-                <th style="text-align:center;">Fecha</th>
-                <th style="text-align:center;">Límite</th>
-                <th style="text-align:center;">Vel. Máx.</th>
-                <th style="text-align:center;">Veces</th>
-                <th style="text-align:center;">Tiempo (min)</th>
+            <tr style="background-color:#1E293B;color:#ffffff;text-align:center;">
+                <th style="padding:12px 15px;text-align:center;">Móvil</th>
+                <th style="padding:12px 15px;text-align:center;">Placa</th>
+                <th style="padding:12px 15px;text-align:center;">Ciudad</th>
+                <th style="padding:12px 15px;text-align:center;">Fecha</th>
+                <th style="padding:12px 15px;text-align:center;">Límite</th>
+                <th style="padding:12px 15px;text-align:center;">Vel. Máx.</th>
+                <th style="padding:12px 15px;text-align:center;">Veces</th>
+                <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
             </tr>
         </thead>
         <tbody>
