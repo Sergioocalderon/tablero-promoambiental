@@ -10,7 +10,6 @@ from google.oauth2.service_account import Credentials
 import numpy as np
 import re
 import textwrap
-from duckduckgo_search import DDGS
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
