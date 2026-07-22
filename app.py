@@ -11,6 +11,7 @@ import numpy as np
 import re
 import textwrap
 import requests
+import time  # Para los reintentos de Gemini
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -602,9 +603,10 @@ def reproducir_alarma():
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 # =============================================================================
-# FUNCIÓN PARA CONSULTAR GEMINI (CON MODELO GRATUITO CORRECTO)
+# FUNCIONES DE BÚSQUEDA (DICCIONARIO LOCAL + GEMINI)
 # =============================================================================
 def buscar_descripcion_local(spn, fmi, df_diccionario):
+    """Busca la descripción de un código SPN/FMI en el diccionario local."""
     if df_diccionario.empty:
         return None
     resultado = df_diccionario[(df_diccionario['SPN'] == spn) & (df_diccionario['FMI'] == fmi)]
@@ -614,15 +616,19 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
 
 @st.cache_data(ttl=86400)
 def consultar_gemini(spn, fmi):
+    """
+    Consulta a Gemini usando un modelo gratuito y maneja la cuota.
+    Devuelve la descripción de la falla en un string.
+    """
     try:
         api_key = st.secrets["gemini"]["api_key"]
     except KeyError:
         return "❌ No se encontró la clave API de Gemini. Verifica tu archivo secrets.toml."
-    
-    # Modelo gratuito: gemini-2.0-flash (disponible en tu lista)
-    modelo = "gemini-2.0-flash"
+
+    # Modelo gratuito, rápido y con buena cuota
+    modelo = "gemini-1.5-flash-8b"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-    
+
     prompt = f"""
     Eres un experto en motores diésel. Describe de forma clara y concisa:
     - La causa más probable
@@ -631,27 +637,48 @@ def consultar_gemini(spn, fmi):
     Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
     Responde en español, en un párrafo breve (máximo 100 palabras).
     """
-    
+
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
         }]
     }
-    
-    try:
-        response = requests.post(url, json=payload, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if 'candidates' in data and data['candidates']:
-                return data['candidates'][0]['content']['parts'][0]['text'].strip()
+
+    max_retries = 3
+    wait_time = 2  # segundos
+
+    for intento in range(max_retries):
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                if 'candidates' in data and data['candidates']:
+                    text = data['candidates'][0]['content']['parts'][0]['text']
+                    return text.strip()
+                else:
+                    return "No se pudo obtener respuesta de Gemini."
+
+            elif response.status_code == 429:
+                # Límite de cuota alcanzado, esperar y reintentar
+                st.warning(f"⏳ Límite de cuota de Gemini alcanzado. Reintentando en {wait_time} segundos... (Intento {intento+1}/{max_retries})")
+                time.sleep(wait_time)
+                wait_time *= 2
+                continue
+
             else:
-                return "No se pudo obtener respuesta de Gemini."
-        else:
-            return f"Error {response.status_code}: {response.text}"
-    except requests.exceptions.RequestException as e:
-        return f"Error de conexión: {e}"
-    except Exception as e:
-        return f"Error inesperado: {e}"
+                response.raise_for_status()
+
+        except requests.exceptions.RequestException as e:
+            if intento == max_retries - 1:
+                return f"❌ Error de conexión después de varios intentos: {e}"
+            else:
+                st.warning(f"⏳ Error de conexión. Reintentando en {wait_time} segundos... (Intento {intento+1}/{max_retries})")
+                time.sleep(wait_time)
+                wait_time *= 2
+                continue
+
+    return f"❌ No se pudo obtener respuesta de Gemini después de {max_retries} intentos."
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -894,7 +921,7 @@ ciudad_seleccionada = st.sidebar.selectbox(
 df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
 
 # =============================================================================
-# TABS
+# TABS – ESTRUCTURA CON 5 PESTAÑAS
 # =============================================================================
 tab_fallas, tab_protocolo, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
     "🩺 Fallas y Diagnóstico",
@@ -1383,7 +1410,9 @@ with tab_protocolo:
                     st.markdown("**Fallas activas de este vehículo:**")
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
-                    # ---- Búsqueda de información del código ----
+                    # ==========================================================
+                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI
+                    # ==========================================================
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
 
@@ -1420,7 +1449,9 @@ with tab_protocolo:
                                     with st.spinner("Consultando a Gemini..."):
                                         resultado_ia = consultar_gemini(spn, fmi)
                                         if "Error" not in resultado_ia and "No se pudo" not in resultado_ia:
+                                            # Mostrar la respuesta de Gemini en un cuadro de texto
                                             st.info(f"🧠 **Gemini dice:** {resultado_ia}")
+                                            st.caption("💡 Si la información no es precisa, puedes buscar en Google para más detalles.")
                                         else:
                                             st.error(resultado_ia)
                             
@@ -1470,7 +1501,7 @@ with tab_protocolo:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
 # =============================================================================
-# TAB MANEJO (se mantiene igual)
+# TAB MANEJO (COMPORTAMIENTO DE MANEJO)
 # =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
