@@ -617,68 +617,88 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
 @st.cache_data(ttl=86400)
 def consultar_gemini(spn, fmi):
     """
-    Consulta a Gemini usando un modelo gratuito y maneja la cuota.
-    Devuelve la descripción de la falla en un string.
+    Consulta a Gemini usando modelos gratuitos disponibles.
+    Prueba varios modelos en orden de preferencia.
     """
     try:
         api_key = st.secrets["gemini"]["api_key"]
     except KeyError:
         return "❌ No se encontró la clave API de Gemini. Verifica tu archivo secrets.toml."
 
-    # Modelo gratuito, rápido y con buena cuota
-    modelo = "gemini-1.5-flash-8b"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+    # Modelos gratuitos disponibles (orden de preferencia)
+    modelos = [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-pro-latest"
+    ]
+    
+    ultimo_error = None
+    
+    for modelo in modelos:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+        
+        prompt = f"""
+        Eres un experto en motores diésel. Describe de forma clara y concisa:
+        - La causa más probable
+        - Los síntomas típicos
+        - Posibles soluciones
+        Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
+        Responde en español, en un párrafo breve (máximo 100 palabras).
+        """
+        
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
 
-    prompt = f"""
-    Eres un experto en motores diésel. Describe de forma clara y concisa:
-    - La causa más probable
-    - Los síntomas típicos
-    - Posibles soluciones
-    Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
-    Responde en español, en un párrafo breve (máximo 100 palabras).
-    """
+        max_retries = 2
+        wait_time = 2
 
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
-
-    max_retries = 3
-    wait_time = 2  # segundos
-
-    for intento in range(max_retries):
-        try:
-            response = requests.post(url, json=payload, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-                if 'candidates' in data and data['candidates']:
-                    text = data['candidates'][0]['content']['parts'][0]['text']
-                    return text.strip()
+        for intento in range(max_retries):
+            try:
+                response = requests.post(url, json=payload, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'candidates' in data and data['candidates']:
+                        text = data['candidates'][0]['content']['parts'][0]['text']
+                        return text.strip()
+                    else:
+                        return "No se pudo obtener respuesta de Gemini."
+                
+                elif response.status_code == 404:
+                    # El modelo no existe, probar con el siguiente
+                    ultimo_error = f"Modelo {modelo} no disponible"
+                    break  # Salir del bucle de reintentos para este modelo
+                    
+                elif response.status_code == 429:
+                    # Límite de cuota, esperar y reintentar
+                    if intento < max_retries - 1:
+                        time.sleep(wait_time)
+                        wait_time *= 2
+                        continue
+                    else:
+                        ultimo_error = f"Cuota agotada para {modelo}"
+                        break
                 else:
-                    return "No se pudo obtener respuesta de Gemini."
-
-            elif response.status_code == 429:
-                # Límite de cuota alcanzado, esperar y reintentar
-                st.warning(f"⏳ Límite de cuota de Gemini alcanzado. Reintentando en {wait_time} segundos... (Intento {intento+1}/{max_retries})")
-                time.sleep(wait_time)
-                wait_time *= 2
-                continue
-
-            else:
-                response.raise_for_status()
-
-        except requests.exceptions.RequestException as e:
-            if intento == max_retries - 1:
-                return f"❌ Error de conexión después de varios intentos: {e}"
-            else:
-                st.warning(f"⏳ Error de conexión. Reintentando en {wait_time} segundos... (Intento {intento+1}/{max_retries})")
-                time.sleep(wait_time)
-                wait_time *= 2
-                continue
-
-    return f"❌ No se pudo obtener respuesta de Gemini después de {max_retries} intentos."
+                    response.raise_for_status()
+                    
+            except requests.exceptions.RequestException as e:
+                ultimo_error = str(e)
+                if intento < max_retries - 1:
+                    time.sleep(wait_time)
+                    wait_time *= 2
+                    continue
+                break
+        
+        # Si llegamos aquí, este modelo falló, probar el siguiente
+        continue
+    
+    # Si todos los modelos fallaron
+    return f"❌ No se pudo conectar con Gemini. Último error: {ultimo_error}"
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
