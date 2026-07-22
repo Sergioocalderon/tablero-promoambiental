@@ -621,40 +621,48 @@ def consultar_gemini(spn, fmi):
     except KeyError:
         return "❌ No se encontró la clave API de Gemini. Verifica tu archivo secrets.toml."
     
-    # Validar que la clave no esté vacía
-    if not api_key or api_key == "tu-clave-aqui":
-        return "❌ La clave API está vacía o es la de ejemplo. Reemplázala con tu clave real."
+    # Intentar con gemini-pro (más compatible)
+    modelos = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    ultimo_error = None
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    for modelo in modelos:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+        
+        prompt = f"""
+        Eres un experto en motores diésel. Describe de forma clara y concisa:
+        - La causa más probable
+        - Los síntomas típicos
+        - Posibles soluciones
+        Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
+        Responde en español, en un párrafo breve (máximo 100 palabras).
+        """
+        
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
+        
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if 'candidates' in data and data['candidates']:
+                    text = data['candidates'][0]['content']['parts'][0]['text']
+                    return text.strip()
+                else:
+                    return "No se pudo obtener respuesta de Gemini."
+            elif response.status_code == 404:
+                # El modelo no existe, probar con el siguiente
+                ultimo_error = f"Modelo {modelo} no disponible"
+                continue
+            else:
+                response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            ultimo_error = str(e)
+            continue
     
-    prompt = f"""
-    Eres un experto en motores diésel. Describe de forma clara y concisa:
-    - La causa más probable
-    - Los síntomas típicos
-    - Posibles soluciones
-    Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
-    Responde en español, en un párrafo breve (máximo 100 palabras).
-    """
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
-    
-    try:
-        response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        if 'candidates' in data and data['candidates']:
-            text = data['candidates'][0]['content']['parts'][0]['text']
-            return text.strip()
-        else:
-            return "No se pudo obtener respuesta de Gemini."
-    except requests.exceptions.RequestException as e:
-        return f"Error de conexión: {e}"
-    except Exception as e:
-        return f"Error al procesar respuesta: {e}"
+    return f"❌ No se pudo conectar con Gemini. Último error: {ultimo_error}"
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -918,7 +926,6 @@ with tab_fallas:
     st.caption(f"Reporte generado el: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y')} - Hora: {datetime.now(ZONA_BOGOTA).strftime('%I:%M %p')}")
 
     if not df_activas.empty:
-        # ---- Resumen Cuantitativo ----
         df_vehiculos_activos = df_activas.drop_duplicates('id_camion')
         vehiculos_activos = df_vehiculos_activos['id_camion'].nunique()
         total_eventos_activos = len(df_activas)
@@ -943,7 +950,6 @@ with tab_fallas:
             reproducir_alarma()
         st.session_state.alertas_altas_previas = vehiculos_en_alta
 
-        # ---- Comparativo por ciudad ----
         st.markdown("**Comparativo por ciudad**")
         comparativo_ciudad = df_vehiculos_activos.groupby('Ciudad').agg(
             Vehiculos_Afectados=('id_camion', 'nunique')
@@ -967,7 +973,6 @@ with tab_fallas:
         st.plotly_chart(fig_ciudad, use_container_width=True)
         st.markdown("---")
 
-        # ---- Top 5 y distribución ----
         col_top5, col_dona = st.columns(2)
 
         with col_top5:
@@ -1278,20 +1283,15 @@ with tab_protocolo:
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
     
     if not df_activas.empty:
-        # ===== Resumen de criticidad =====
         conteo_crit = df_activas.groupby('Criticidad_Vehiculo')['id_camion'].nunique().reindex(ORDEN_CRITICIDAD, fill_value=0)
-        
         col_res1, col_res2, col_res3 = st.columns(3)
         col_res1.metric("🚨 ALTA", conteo_crit.get('ALTA', 0), help="Vehículos con criticidad ALTA (prioridad máxima)")
         col_res2.metric("⚠️ MEDIA", conteo_crit.get('MEDIA', 0), help="Vehículos con criticidad MEDIA")
         col_res3.metric("📋 BAJA", conteo_crit.get('BAJA', 0), help="Vehículos con criticidad BAJA (seguimiento preventivo)")
         
         st.markdown("---")
-        
-        # ===== Checkbox para expandir todos =====
         expandir_todos = st.checkbox("📂 Expandir todos los incidentes", value=False)
 
-        # ===== Iterar por criticidad en orden de prioridad =====
         for criticidad in ORDEN_CRITICIDAD:
             df_crit = df_activas[df_activas['Criticidad_Vehiculo'] == criticidad]
             if df_crit.empty:
@@ -1356,7 +1356,6 @@ with tab_protocolo:
                     f"(Criticidad: {criticidad}) - {fila0.get('Ciudad', 'Desconocida')}",
                     expanded=(expandir_todos or (inc['estado'] == 'Abierto' and criticidad == 'ALTA'))
                 ):
-                    # Aplicar borde izquierdo al expander mediante CSS
                     st.markdown(f"""
                     <style>
                         div[data-testid="stExpander"] {{
@@ -1483,8 +1482,322 @@ with tab_protocolo:
 # =============================================================================
 # TAB MANEJO (sin cambios)
 # =============================================================================
-# El contenido de esta pestaña ya lo tienes en tu archivo actual.
-# Asegúrate de que esté completo.
-# =============================================================================
+with tab_manejo:
+    st.subheader("🚦 Comportamiento de Manejo")
 
-# Las pestañas "Temperaturas y Niveles" y "Horómetro" se mantienen como estaban.
+    df_eventos_rpm, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+
+    if not df_eventos_rpm.empty:
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("Eventos de sobre-revolución", len(df_eventos_rpm))
+        col_m2.metric("Vehículos afectados", df_eventos_rpm['id_camion'].nunique())
+        col_m3.metric("Tiempo total en sobre-revolución", f"{df_eventos_rpm['Duracion_Segundos'].sum() / 60:,.1f} min")
+
+        st.markdown("---")
+        col_top, col_dona = st.columns(2)
+
+        with col_top:
+            st.markdown("**Top vehículos por tiempo acumulado**")
+            top_rpm = df_eventos_rpm.groupby('Movil').agg(
+                Tiempo_Min=('Duracion_Segundos', lambda s: s.sum() / 60)
+            ).reset_index().sort_values('Tiempo_Min', ascending=False).head(5)
+            fig_rpm = px.bar(
+                top_rpm.sort_values('Tiempo_Min'),
+                x='Tiempo_Min', y='Movil', orientation='h',
+                text=top_rpm.sort_values('Tiempo_Min')['Tiempo_Min'].round(1),
+                color_discrete_sequence=['#F7A700']
+            )
+            fig_rpm.update_layout(
+                height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showgrid=False, zeroline=False)
+            )
+            st.plotly_chart(fig_rpm, use_container_width=True)
+
+        with col_dona:
+            st.markdown("**Distribución de impactos por Turno**")
+            df_turno_dona = df_eventos_rpm.groupby('Turno').size().reset_index(name='Eventos')
+            fig_dona = px.pie(
+                df_turno_dona, values='Eventos', names='Turno', hole=0.55,
+                color='Turno',
+                color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'}
+            )
+            fig_dona.update_traces(textposition='inside', textinfo='percent+label')
+            fig_dona.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                                   paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_dona, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("**📈 Tendencia Diaria de Sobre-Revoluciones por Turno**")
+        st.caption("Evolución del número de infracciones detectadas por jornada operativa.")
+
+        df_tendencia = df_eventos_rpm.groupby(['Fecha', 'Turno']).size().reset_index(name='Cantidad_Eventos')
+        df_tendencia = df_tendencia.sort_values('Fecha')
+
+        fig_linea = px.line(
+            df_tendencia,
+            x='Fecha',
+            y='Cantidad_Eventos',
+            color='Turno',
+            color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'},
+            markers=True
+        )
+        fig_linea.update_layout(
+            height=320,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_title="Fecha Operativa",
+            yaxis_title="Número de Eventos",
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', zeroline=False),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_linea, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("**Detalle consolidado por vehículo/día**")
+        ranking = df_eventos_rpm.groupby(['Movil', 'Placa', 'Motor', 'Fecha']).agg(
+            Umbral_RPM=('Umbral_RPM', 'first'),
+            RPM_Maximo=('RPM_Pico', 'max'),
+            Veces=('id_camion', 'count'),
+            Tiempo_Min=('Duracion_Segundos', lambda s: round(s.sum() / 60, 1))
+        ).reset_index().sort_values('Tiempo_Min', ascending=False)
+
+        filas_ranking_html = ""
+        for _, fila in ranking.iterrows():
+            rpm_max = int(round(fila['RPM_Maximo'])) if pd.notna(fila['RPM_Maximo']) else '-'
+            filas_ranking_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Motor']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Umbral_RPM'])}</td><td style='text-align:center; font-weight:600; color:#E24B4A;'>{rpm_max}</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
+
+        tabla_rpm_html = textwrap.dedent(f"""
+            <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
+                <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
+                    <tr>
+                        <th style="padding:12px 15px;text-align:center;">Móvil</th>
+                        <th style="padding:12px 15px;text-align:center;">Placa</th>
+                        <th style="padding:12px 15px;text-align:center;">Motor</th>
+                        <th style="padding:12px 15px;text-align:center;">Fecha</th>
+                        <th style="padding:12px 15px;text-align:center;">Umbral RPM</th>
+                        <th style="padding:12px 15px;text-align:center;">RPM Máx.</th>
+                        <th style="padding:12px 15px;text-align:center;">Veces</th>
+                        <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_ranking_html}
+                </tbody>
+            </table>
+        """)
+
+        st.markdown(tabla_rpm_html, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("**🔎 Detalle de eventos por vehículo**")
+        vehiculo_seleccionado = st.selectbox(
+            "Selecciona un vehículo para ver cada evento individual",
+            options=sorted(df_eventos_rpm['Movil'].unique())
+        )
+
+        detalle_eventos = df_eventos_rpm[df_eventos_rpm['Movil'] == vehiculo_seleccionado].copy()
+        detalle_eventos['Duracion_Min'] = (detalle_eventos['Duracion_Segundos'] / 60).round(2)
+        detalle_eventos['Hora_Inicio'] = detalle_eventos['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
+        detalle_eventos['Hora_Fin'] = detalle_eventos['activeTo'].dt.strftime('%d/%m/%Y %H:%M:%S')
+        detalle_eventos = detalle_eventos.sort_values('activeFrom', ascending=False)
+
+        def formatear_duracion(segundos):
+            if segundos < 60:
+                return f"{int(round(segundos))} seg"
+            return f"{segundos / 60:.1f} min"
+
+        detalle_eventos['Duracion_Fmt'] = detalle_eventos['Duracion_Segundos'].apply(formatear_duracion)
+
+        def formatear_rpm(valor):
+            if pd.isna(valor):
+                return "Sin datos"
+            return f"{int(round(valor))} RPM"
+
+        detalle_eventos['RPM_Pico'] = pd.to_numeric(detalle_eventos['RPM_Pico'], errors='coerce')
+        detalle_eventos['RPM_Pico_Fmt'] = detalle_eventos['RPM_Pico'].apply(formatear_rpm)
+
+        detalle_eventos['Exceso_RPM'] = detalle_eventos['RPM_Pico'] - detalle_eventos['Umbral_RPM']
+
+        def clasificar_evento(row):
+            if row['Duracion_Min'] > 5 or row['Exceso_RPM'] > 200:
+                return '🔴 Crítico'
+            elif row['Duracion_Min'] > 2 or row['Exceso_RPM'] > 100:
+                return '🟠 Moderado'
+            return '⚪ Leve'
+
+        detalle_eventos['Severidad'] = detalle_eventos.apply(clasificar_evento, axis=1)
+
+        COLOR_FONDO_SEVERIDAD = {
+            '🔴 Crítico': '#FDECEC',
+            '🟠 Moderado': '#FEF3E2',
+            '⚪ Leve': '#FFFFFF',
+        }
+
+        filas_detalle_html = ""
+        for _, fila in detalle_eventos.iterrows():
+            color_fondo = COLOR_FONDO_SEVERIDAD.get(fila['Severidad'], '#FFFFFF')
+            filas_detalle_html += f"<tr style='background:{color_fondo};'><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Severidad']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Inicio']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Fin']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Duracion_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['RPM_Pico_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{int(fila['Umbral_RPM'])}</td></tr>"
+
+        tabla_detalle_html = textwrap.dedent(f"""
+            <table style="width:100%;border-collapse:collapse;">
+                <thead style="background:#f3f4f6;">
+                    <tr>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Severidad</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Hora Inicio</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Hora Fin</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Duración</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">RPM Pico</th>
+                        <th style="padding:8px;border:1px solid #ddd;text-align:center;">Umbral RPM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_detalle_html}
+                </tbody>
+            </table>
+        """)
+
+        if len(detalle_eventos) > 10:
+            with st.expander(f"📋 Ver los {len(detalle_eventos)} eventos individuales"):
+                st.markdown(tabla_detalle_html, unsafe_allow_html=True)
+        else:
+            st.markdown(tabla_detalle_html, unsafe_allow_html=True)
+    else:
+        st.info("No se registraron eventos de sobre-revolución en este periodo (o ningún vehículo del rango tiene motor L9/X12).")
+
+    st.markdown("---")
+    st.markdown("#### 🚗 Excesos de Velocidad")
+    st.caption(f"Límite fijo por ciudad. Actualmente configurado: {', '.join(f'{c} = {v} km/h' for c, v in LIMITE_VELOCIDAD_POR_CIUDAD.items())}.")
+
+    df_eventos_vel = extraer_datos_velocidad(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+
+    if not df_eventos_vel.empty:
+        col_v1, col_v2, col_v3 = st.columns(3)
+        col_v1.metric("Eventos de exceso de velocidad", len(df_eventos_vel))
+        col_v2.metric("Vehículos afectados", df_eventos_vel['id_camion'].nunique())
+        col_v3.metric("Tiempo total en exceso", f"{df_eventos_vel['Duracion_Segundos'].sum() / 60:,.1f} min")
+
+        st.markdown("---")
+        col_top_vel, col_dona_vel = st.columns(2)
+
+        with col_top_vel:
+            st.markdown("**Top vehículos por tiempo acumulado**")
+            top_vel = df_eventos_vel.groupby('Movil').agg(
+                Tiempo_Min=('Duracion_Segundos', lambda s: s.sum() / 60)
+            ).reset_index().sort_values('Tiempo_Min', ascending=False).head(5)
+            fig_top_vel = px.bar(
+                top_vel.sort_values('Tiempo_Min'),
+                x='Tiempo_Min', y='Movil', orientation='h',
+                text=top_vel.sort_values('Tiempo_Min')['Tiempo_Min'].round(1),
+                color_discrete_sequence=['#1EA0D7']
+            )
+            fig_top_vel.update_layout(
+                height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showgrid=False, zeroline=False)
+            )
+            st.plotly_chart(fig_top_vel, use_container_width=True)
+
+        with col_dona_vel:
+            st.markdown("**Distribución de excesos por Turno**")
+            df_turno_dona_vel = df_eventos_vel.groupby('Turno').size().reset_index(name='Eventos')
+            fig_dona_vel = px.pie(
+                df_turno_dona_vel, values='Eventos', names='Turno', hole=0.55,
+                color='Turno',
+                color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'}
+            )
+            fig_dona_vel.update_traces(textposition='inside', textinfo='percent+label')
+            fig_dona_vel.update_layout(height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                                       paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_dona_vel, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("**📈 Tendencia Diaria de Excesos de Velocidad por Turno**")
+        st.caption("Evolución del número de excesos de velocidad detectados por jornada operativa.")
+
+        df_tendencia_vel = df_eventos_vel.groupby(['Fecha', 'Turno']).size().reset_index(name='Cantidad_Eventos')
+        df_tendencia_vel = df_tendencia_vel.sort_values('Fecha')
+
+        fig_linea_vel = px.line(
+            df_tendencia_vel,
+            x='Fecha', y='Cantidad_Eventos', color='Turno',
+            color_discrete_map={'R1': '#1EA0D7', 'R2': '#F7A700', 'R3': '#62A830'},
+            markers=True
+        )
+        fig_linea_vel.update_layout(
+            height=320, margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_title="Fecha Operativa", yaxis_title="Número de Eventos",
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', zeroline=False),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_linea_vel, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("**Detalle consolidado por vehículo/día**")
+        ranking_vel = df_eventos_vel.groupby(['Movil', 'Placa', 'Ciudad', 'Fecha']).agg(
+            Limite=('Limite_Velocidad', 'first'),
+            Velocidad_Max=('Velocidad_Maxima', 'max'),
+            Veces=('id_camion', 'count'),
+            Tiempo_Min=('Duracion_Segundos', lambda s: round(s.sum() / 60, 1))
+        ).reset_index().sort_values('Tiempo_Min', ascending=False)
+
+        filas_ranking_vel_html = ""
+        for _, fila in ranking_vel.iterrows():
+            filas_ranking_vel_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Ciudad']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Limite'])} km/h</td><td style='text-align:center; font-weight:600; color:#1EA0D7;'>{fila['Velocidad_Max']:.0f} km/h</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
+
+        tabla_vel_html = textwrap.dedent(f"""
+            <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
+                <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
+                    <tr>
+                        <th style="padding:12px 15px;text-align:center;">Móvil</th>
+                        <th style="padding:12px 15px;text-align:center;">Placa</th>
+                        <th style="padding:12px 15px;text-align:center;">Ciudad</th>
+                        <th style="padding:12px 15px;text-align:center;">Fecha</th>
+                        <th style="padding:12px 15px;text-align:center;">Límite</th>
+                        <th style="padding:12px 15px;text-align:center;">Vel. Máx.</th>
+                        <th style="padding:12px 15px;text-align:center;">Veces</th>
+                        <th style="padding:12px 15px;text-align:center;">Tiempo (min)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_ranking_vel_html}
+                </tbody>
+            </table>
+        """)
+
+        st.markdown(tabla_vel_html, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("#### 📍 Mapa de Excesos de Velocidad")
+
+        opciones_vehiculo_mapa = ['Todos los vehículos'] + sorted(df_eventos_vel['Movil'].unique())
+        vehiculo_mapa_seleccionado = st.selectbox(
+            "Filtrar el mapa por vehículo",
+            options=opciones_vehiculo_mapa
+        )
+
+        if vehiculo_mapa_seleccionado == 'Todos los vehículos':
+            df_mapa_vel = df_eventos_vel
+            color_mapa = 'Localidad'
+        else:
+            df_mapa_vel = df_eventos_vel[df_eventos_vel['Movil'] == vehiculo_mapa_seleccionado]
+            color_mapa = 'Turno'
+            st.caption(f"{len(df_mapa_vel)} registros de exceso de velocidad para {vehiculo_mapa_seleccionado}")
+
+        fig_mapa_vel = px.scatter_map(
+            df_mapa_vel,
+            lat='latitude', lon='longitude',
+            color=color_mapa,
+            hover_name='Movil',
+            hover_data=['Velocidad_Maxima', 'Placa', 'Turno', 'Localidad'],
+            zoom=10, height=450
+        )
+        fig_mapa_vel.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        st.plotly_chart(fig_mapa_vel, use_container_width=True)
+    else:
+        st.info("No se registraron excesos de velocidad en este periodo (o ningún vehículo pertenece a una ciudad con límite configurado).")
