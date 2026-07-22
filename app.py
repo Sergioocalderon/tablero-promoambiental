@@ -602,10 +602,9 @@ def reproducir_alarma():
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 # =============================================================================
-# NUEVAS FUNCIONES PARA BÚSQUEDA (DICCIONARIO LOCAL + GEMINI)
+# FUNCIÓN PARA CONSULTAR GEMINI (CON MODELO GRATUITO CORRECTO)
 # =============================================================================
 def buscar_descripcion_local(spn, fmi, df_diccionario):
-    """Busca la descripción de un código SPN/FMI en el diccionario local."""
     if df_diccionario.empty:
         return None
     resultado = df_diccionario[(df_diccionario['SPN'] == spn) & (df_diccionario['FMI'] == fmi)]
@@ -615,54 +614,44 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
 
 @st.cache_data(ttl=86400)
 def consultar_gemini(spn, fmi):
-    """Consulta a Gemini usando la API REST para obtener descripción de una falla SPN/FMI."""
     try:
         api_key = st.secrets["gemini"]["api_key"]
     except KeyError:
         return "❌ No se encontró la clave API de Gemini. Verifica tu archivo secrets.toml."
     
-    # Solo modelos gratuitos (sin versión "pro" de pago)
-    modelos = ["gemini-1.5-flash", "gemini-pro"]
-    ultimo_error = None
+    # Modelo gratuito: gemini-2.0-flash (disponible en tu lista)
+    modelo = "gemini-2.0-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
     
-    for modelo in modelos:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-        
-        prompt = f"""
-        Eres un experto en motores diésel. Describe de forma clara y concisa:
-        - La causa más probable
-        - Los síntomas típicos
-        - Posibles soluciones
-        Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
-        Responde en español, en un párrafo breve (máximo 100 palabras).
-        """
-        
-        payload = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }]
-        }
-        
-        try:
-            response = requests.post(url, json=payload, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if 'candidates' in data and data['candidates']:
-                    text = data['candidates'][0]['content']['parts'][0]['text']
-                    return text.strip()
-                else:
-                    return "No se pudo obtener respuesta de Gemini."
-            elif response.status_code == 404:
-                # El modelo no existe, probar con el siguiente
-                ultimo_error = f"Modelo {modelo} no disponible"
-                continue
+    prompt = f"""
+    Eres un experto en motores diésel. Describe de forma clara y concisa:
+    - La causa más probable
+    - Los síntomas típicos
+    - Posibles soluciones
+    Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
+    Responde en español, en un párrafo breve (máximo 100 palabras).
+    """
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if 'candidates' in data and data['candidates']:
+                return data['candidates'][0]['content']['parts'][0]['text'].strip()
             else:
-                response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            ultimo_error = str(e)
-            continue
-    
-    return f"❌ No se pudo conectar con Gemini. Último error: {ultimo_error}"
+                return "No se pudo obtener respuesta de Gemini."
+        else:
+            return f"Error {response.status_code}: {response.text}"
+    except requests.exceptions.RequestException as e:
+        return f"Error de conexión: {e}"
+    except Exception as e:
+        return f"Error inesperado: {e}"
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -905,7 +894,7 @@ ciudad_seleccionada = st.sidebar.selectbox(
 df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
 
 # =============================================================================
-# TABS – NUEVA ESTRUCTURA CON 5 PESTAÑAS
+# TABS
 # =============================================================================
 tab_fallas, tab_protocolo, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
     "🩺 Fallas y Diagnóstico",
@@ -919,7 +908,7 @@ ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
 COLOR_CRITICIDAD = {'ALTA': '#B91C1C', 'MEDIA': '#B45309', 'BAJA': '#6B7280'}
 
 # =============================================================================
-# TAB FALLAS Y DIAGNÓSTICO (sin el protocolo)
+# TAB FALLAS Y DIAGNÓSTICO
 # =============================================================================
 with tab_fallas:
     st.subheader("🩺 Fallas y Diagnóstico")
@@ -1160,7 +1149,7 @@ with tab_fallas:
         else:
             st.info("No hay datos de fallas para mostrar la tendencia semanal.")
 
-        # ---- Detalle por vehículo (TABLA) ----
+        # ---- Detalle por vehículo ----
         with st.expander("📋 Ver detalle completo por vehículo (código, fecha y descripción de cada falla)"):
             if not df_activas.empty:
                 for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
@@ -1210,7 +1199,7 @@ with tab_fallas:
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
-    # ---- Mapa de Fallas (sin protocolo) ----
+    # ---- Mapa de Fallas ----
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas")
 
@@ -1271,7 +1260,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB PROTOCOLO DE ATENCIÓN (con Gemini)
+# TAB PROTOCOLO DE ATENCIÓN
 # =============================================================================
 with tab_protocolo:
     st.subheader("📋 Protocolo de Atención - Gestión de Incidentes")
@@ -1394,6 +1383,7 @@ with tab_protocolo:
                     st.markdown("**Fallas activas de este vehículo:**")
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
+                    # ---- Búsqueda de información del código ----
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
 
@@ -1425,7 +1415,7 @@ with tab_protocolo:
                             else:
                                 st.warning("⚠️ No disponible en el diccionario local.")
                                 
-                                # ---- 2. Consultar a Gemini (solo si el usuario lo pide) ----
+                                # ---- 2. Consultar a Gemini ----
                                 if st.button("🤖 Consultar a Gemini (IA)", key=f"gemini_{id_inc}"):
                                     with st.spinner("Consultando a Gemini..."):
                                         resultado_ia = consultar_gemini(spn, fmi)
@@ -1480,7 +1470,7 @@ with tab_protocolo:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
 # =============================================================================
-# TAB MANEJO (sin cambios)
+# TAB MANEJO (se mantiene igual)
 # =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
