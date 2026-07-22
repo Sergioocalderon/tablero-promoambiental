@@ -1220,150 +1220,199 @@ with tab_protocolo:
         st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes.")
 
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
-    vehiculos_con_fallas = df_activas['id_camion'].unique() if not df_activas.empty else []
-
-    if len(vehiculos_con_fallas) > 0:
-        # ---- Resumen de pendientes ----
+    
+    # ===== Resumen de criticidad =====
+    if not df_activas.empty:
+        # Contar vehículos por criticidad
+        conteo_crit = df_activas.groupby('Criticidad_Vehiculo')['id_camion'].nunique().reindex(ORDEN_CRITICIDAD, fill_value=0)
+        
         col_res1, col_res2, col_res3 = st.columns(3)
-        col_res1.metric("Vehículos con fallas pendientes", len(vehiculos_con_fallas))
-        col_res2.metric("Total de fallas activas", len(df_activas) if not df_activas.empty else 0)
-        orden_crit = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
-        criticidad_max_general = max(df_activas['Criticidad'], key=lambda c: orden_crit.get(c, 0)) if not df_activas.empty else 'BAJA'
-        col_res3.metric("Criticidad máxima general", criticidad_max_general)
-
+        col_res1.metric("🚨 ALTA", conteo_crit.get('ALTA', 0), delta=None, help="Vehículos con criticidad ALTA (prioridad máxima)")
+        col_res2.metric("⚠️ MEDIA", conteo_crit.get('MEDIA', 0), delta=None, help="Vehículos con criticidad MEDIA")
+        col_res3.metric("📋 BAJA", conteo_crit.get('BAJA', 0), delta=None, help="Vehículos con criticidad BAJA (seguimiento preventivo)")
+        
         st.markdown("---")
-
-        # ---- Checkbox para expandir todos ----
+        
+        # ===== Checkbox para expandir todos =====
         expandir_todos = st.checkbox("📂 Expandir todos los incidentes", value=False)
 
-        # ---- Lista de vehículos con incidentes ----
-        for id_camion, grupo_vehiculo in df_activas.groupby('id_camion'):
-            fila0 = grupo_vehiculo.iloc[0]
-            criticidad_vehiculo = fila0.get('Criticidad_Vehiculo', 'BAJA')
-            protocolo = PROTOCOLOS.get(criticidad_vehiculo, PROTOCOLOS['BAJA'])
+        # ===== Iterar por criticidad en orden de prioridad =====
+        for criticidad in ORDEN_CRITICIDAD:
+            # Filtrar vehículos de esta criticidad
+            df_crit = df_activas[df_activas['Criticidad_Vehiculo'] == criticidad]
+            if df_crit.empty:
+                continue
+            
+            # Obtener lista de vehículos y ordenarlos por cantidad de fallas y fecha
+            vehiculos_crit = df_crit.groupby('id_camion').agg(
+                Cantidad_Fallas=('id_camion', 'count'),
+                Ultima_Falla=('Fecha_Alerta', 'max'),
+                Movil=('Movil', 'first'),
+                Placa=('Placa', 'first'),
+                Ciudad=('Ciudad', 'first')
+            ).reset_index().sort_values(['Cantidad_Fallas', 'Ultima_Falla'], ascending=[False, False])
+            
+            # Contador de vehículos en esta criticidad
+            num_vehiculos = len(vehiculos_crit)
+            
+            # Colores para el encabezado
+            color_fondo = {
+                'ALTA': '#B91C1C',   # Rojo oscuro
+                'MEDIA': '#B45309',  # Naranja
+                'BAJA': '#6B7280'    # Gris
+            }.get(criticidad, '#64748B')
+            
+            # Emoji
+            emoji_cabecera = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': '📋'}.get(criticidad, '📌')
+            
+            # Mostrar encabezado de criticidad
+            st.markdown(f"""
+            <div style="background-color:{color_fondo}; color:white; padding:10px 15px; border-radius:8px; margin-top:20px; margin-bottom:15px; font-weight:bold; font-size:1.2rem;">
+                {emoji_cabecera} {criticidad} - {num_vehiculos} vehículo(s)
+            </div>
+            """, unsafe_allow_html=True)
 
-            fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
-            id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
+            # ===== Iterar por cada vehículo en esta criticidad =====
+            for _, veh_row in vehiculos_crit.iterrows():
+                id_camion = veh_row['id_camion']
+                fila0 = df_crit[df_crit['id_camion'] == id_camion].iloc[0]
+                protocolo = PROTOCOLOS.get(criticidad, PROTOCOLOS['BAJA'])
 
-            grupo_ordenado = grupo_vehiculo.sort_values('Fecha_Alerta', ascending=False)
-            descripcion_consolidada = "\n".join(
-                f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
-                for i, (_, r) in enumerate(grupo_ordenado.iterrows())
-            )
-            fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
-            cantidad_fallas = len(grupo_vehiculo)
+                fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
+                id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
 
-            if fecha_mas_reciente.tzinfo is None:
-                fecha_guardar = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
-            else:
-                fecha_guardar = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
-
-            if id_inc not in incidentes_guardados:
-                crear_incidente_en_hoja(
-                    hoja_incidentes, id_inc,
-                    fila0['Movil'], fila0['Placa'], descripcion_consolidada,
-                    criticidad_vehiculo, fecha_guardar, fila0.get('Ciudad', 'Sin ciudad asignada')
+                grupo_ordenado = df_crit[df_crit['id_camion'] == id_camion].sort_values('Fecha_Alerta', ascending=False)
+                descripcion_consolidada = "\n".join(
+                    f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
+                    for i, (_, r) in enumerate(grupo_ordenado.iterrows())
                 )
-                incidentes_guardados = cargar_incidentes(hoja_incidentes)
+                fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
+                cantidad_fallas = len(grupo_ordenado)
 
-            inc = incidentes_guardados.get(id_inc, {
-                'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
-            })
-
-            emoji = "🚨" if criticidad_vehiculo == 'ALTA' else "⚠️" if criticidad_vehiculo == 'MEDIA' else "📋"
-            with st.expander(
-                f"{emoji} {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) activa(s) "
-                f"(Criticidad: {criticidad_vehiculo}) - {fila0.get('Ciudad', 'Desconocida')}",
-                expanded=(expandir_todos or (inc['estado'] == 'Abierto' and criticidad_vehiculo == 'ALTA'))
-            ):
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.markdown(f"**Estado del incidente:** {inc['estado']}")
-                    st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
-                    if fecha_mas_reciente.tzinfo is None:
-                        fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
-                    else:
-                        fecha_mas_reciente_bogota = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
-                    st.markdown(f"**Última falla detectada:** {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M:%S')}")
-                    st.markdown(f"**Criticidad máxima del vehículo:** {criticidad_vehiculo}")
-                with col2:
-                    if inc['estado'] == 'Abierto':
-                        if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
-                            with st.spinner("Cerrando incidente..."):
-                                exito = actualizar_incidente_en_hoja(
-                                    hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
-                                )
-                                if exito:
-                                    st.success("✅ Incidente cerrado correctamente.")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ No se pudo cerrar el incidente.")
-                    else:
-                        st.success("✅ Este incidente ya está cerrado.")
-
-                st.markdown("---")
-                st.markdown("**Fallas activas de este vehículo:**")
-                st.markdown(descripcion_consolidada.replace("\n", "  \n"))
-
-                st.markdown("---")
-                st.markdown("#### 🔍 Buscar causa de falla en internet")
-
-                opciones_busqueda = []
-                for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
-                    spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
-                    fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
-                    desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
-                    opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
-
-                if opciones_busqueda:
-                    falla_seleccionada = st.selectbox(
-                        "Selecciona la falla para buscar en Google:",
-                        options=opciones_busqueda,
-                        key=f"buscar_falla_{id_inc}"
-                    )
-                    spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
-                    fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
-                    spn = spn_match.group(1) if spn_match else '?'
-                    fmi = fmi_match.group(1) if fmi_match else '?'
-                    url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-                    st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
-                    st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
+                if fecha_mas_reciente.tzinfo is None:
+                    fecha_guardar = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
                 else:
-                    st.info("No hay códigos SPN/FMI disponibles para esta falla.")
+                    fecha_guardar = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
 
-                st.markdown("---")
-                st.markdown(f"#### {protocolo['nombre']}")
-                st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
-
-                acciones_realizadas = list(inc['acciones_realizadas'])
-                hubo_cambio = False
-                for accion in protocolo['acciones']:
-                    orden = accion['orden']
-                    descripcion = accion['texto']
-                    responsable = accion['responsable']
-                    clave = f"accion_{id_inc}_{orden}"
-
-                    realizada = clave in acciones_realizadas
-                    check = st.checkbox(
-                        f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
-                        value=realizada,
-                        key=clave
+                if id_inc not in incidentes_guardados:
+                    crear_incidente_en_hoja(
+                        hoja_incidentes, id_inc,
+                        fila0['Movil'], fila0['Placa'], descripcion_consolidada,
+                        criticidad, fecha_guardar, fila0.get('Ciudad', 'Sin ciudad asignada')
                     )
-                    if check and clave not in acciones_realizadas:
-                        acciones_realizadas.append(clave)
-                        hubo_cambio = True
-                    elif not check and clave in acciones_realizadas:
-                        acciones_realizadas.remove(clave)
-                        hubo_cambio = True
+                    incidentes_guardados = cargar_incidentes(hoja_incidentes)
 
-                if hubo_cambio:
-                    actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
+                inc = incidentes_guardados.get(id_inc, {
+                    'estado': 'Abierto', 'acciones_realizadas': [], 'detalle': {}
+                })
 
-                completadas = len(acciones_realizadas)
-                total = len(protocolo['acciones'])
-                if total > 0:
-                    st.progress(completadas / total)
-                    st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
+                emoji = "🚨" if criticidad == 'ALTA' else "⚠️" if criticidad == 'MEDIA' else "📋"
+                # Borde izquierdo del color de criticidad
+                borde_color = {'ALTA': '#DC2626', 'MEDIA': '#D97706', 'BAJA': '#6B7280'}.get(criticidad, '#64748B')
+                
+                with st.expander(
+                    f"{emoji} {fila0['Movil']} - {fila0['Placa']} - {cantidad_fallas} falla(s) activa(s) "
+                    f"(Criticidad: {criticidad}) - {fila0.get('Ciudad', 'Desconocida')}",
+                    expanded=(expandir_todos or (inc['estado'] == 'Abierto' and criticidad == 'ALTA'))
+                ):
+                    # Aplicar borde izquierdo al expander mediante CSS
+                    st.markdown(f"""
+                    <style>
+                        div[data-testid="stExpander"] {{
+                            border-left: 6px solid {borde_color} !important;
+                            border-radius: 8px !important;
+                        }}
+                    </style>
+                    """, unsafe_allow_html=True)
+
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.markdown(f"**Estado del incidente:** {inc['estado']}")
+                        st.markdown(f"**Ubicación:** {fila0.get('Localidad', 'No disponible')}")
+                        if fecha_mas_reciente.tzinfo is None:
+                            fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
+                        else:
+                            fecha_mas_reciente_bogota = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
+                        st.markdown(f"**Última falla detectada:** {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M:%S')}")
+                        st.markdown(f"**Criticidad máxima del vehículo:** {criticidad}")
+                    with col2:
+                        if inc['estado'] == 'Abierto':
+                            if st.button("🔒 Cerrar incidente", key=f"cerrar_{id_inc}"):
+                                with st.spinner("Cerrando incidente..."):
+                                    exito = actualizar_incidente_en_hoja(
+                                        hoja_incidentes, id_inc, 'Cerrado', inc['acciones_realizadas']
+                                    )
+                                    if exito:
+                                        st.success("✅ Incidente cerrado correctamente.")
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ No se pudo cerrar el incidente.")
+                        else:
+                            st.success("✅ Este incidente ya está cerrado.")
+
+                    st.markdown("---")
+                    st.markdown("**Fallas activas de este vehículo:**")
+                    st.markdown(descripcion_consolidada.replace("\n", "  \n"))
+
+                    st.markdown("---")
+                    st.markdown("#### 🔍 Buscar causa de falla en internet")
+
+                    opciones_busqueda = []
+                    for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
+                        spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
+                        fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
+                        desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
+                        opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
+
+                    if opciones_busqueda:
+                        falla_seleccionada = st.selectbox(
+                            "Selecciona la falla para buscar en Google:",
+                            options=opciones_busqueda,
+                            key=f"buscar_falla_{id_inc}"
+                        )
+                        spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
+                        fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
+                        spn = spn_match.group(1) if spn_match else '?'
+                        fmi = fmi_match.group(1) if fmi_match else '?'
+                        url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+                        st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
+                        st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
+                    else:
+                        st.info("No hay códigos SPN/FMI disponibles para esta falla.")
+
+                    st.markdown("---")
+                    st.markdown(f"#### {protocolo['nombre']}")
+                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+
+                    acciones_realizadas = list(inc['acciones_realizadas'])
+                    hubo_cambio = False
+                    for accion in protocolo['acciones']:
+                        orden = accion['orden']
+                        descripcion = accion['texto']
+                        responsable = accion['responsable']
+                        clave = f"accion_{id_inc}_{orden}"
+
+                        realizada = clave in acciones_realizadas
+                        check = st.checkbox(
+                            f"**{orden}.** {descripcion} _(Responsable: {responsable})_",
+                            value=realizada,
+                            key=clave
+                        )
+                        if check and clave not in acciones_realizadas:
+                            acciones_realizadas.append(clave)
+                            hubo_cambio = True
+                        elif not check and clave in acciones_realizadas:
+                            acciones_realizadas.remove(clave)
+                            hubo_cambio = True
+
+                    if hubo_cambio:
+                        actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
+
+                    completadas = len(acciones_realizadas)
+                    total = len(protocolo['acciones'])
+                    if total > 0:
+                        st.progress(completadas / total)
+                        st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
