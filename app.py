@@ -621,8 +621,8 @@ def consultar_gemini(spn, fmi):
     except KeyError:
         return "❌ No se encontró la clave API de Gemini. Verifica tu archivo secrets.toml."
     
-    # Intentar con gemini-pro (más compatible)
-    modelos = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    # Solo modelos gratuitos (sin versión "pro" de pago)
+    modelos = ["gemini-1.5-flash", "gemini-pro"]
     ultimo_error = None
     
     for modelo in modelos:
