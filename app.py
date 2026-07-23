@@ -11,7 +11,7 @@ import numpy as np
 import re
 import textwrap
 import requests
-import time  # Para los reintentos de Gemini
+import time
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -617,23 +617,23 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
 @st.cache_data(ttl=86400)
 def consultar_gemini(spn, fmi):
     """
-    Consulta a Gemini usando modelos gratuitos disponibles.
-    Prueba varios modelos en orden de preferencia.
+    Consulta a Gemini usando modelos gratuitos y maneja errores de cuota.
     """
+    # Intentar obtener la clave API de diferentes formas
+    api_key = None
     try:
         api_key = st.secrets["gemini"]["api_key"]
     except KeyError:
-        return "❌ No se encontró la clave API de Gemini. Verifica tu archivo secrets.toml."
+        try:
+            api_key = st.secrets["GEMINI"]["api_key"]
+        except KeyError:
+            return "❌ No se encontró la clave API de Gemini. Asegúrate de tener una sección [gemini] con api_key en secrets.toml."
+    
+    if not api_key or api_key == "tu-clave-aqui":
+        return "❌ La clave API está vacía o es la de ejemplo. Reemplázala con tu clave real en secrets.toml."
 
     # Modelos gratuitos disponibles (orden de preferencia)
-    modelos = [
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-2.5-flash",
-        "gemini-flash-latest",
-        "gemini-pro-latest"
-    ]
-    
+    modelos = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     ultimo_error = None
     
     for modelo in modelos:
@@ -669,36 +669,37 @@ def consultar_gemini(spn, fmi):
                     else:
                         return "No se pudo obtener respuesta de Gemini."
                 
+                elif response.status_code == 429:
+                    st.warning(f"⏳ Límite de cuota alcanzado. Reintentando en {wait_time}s...")
+                    time.sleep(wait_time)
+                    wait_time *= 2
+                    continue
+                
                 elif response.status_code == 404:
-                    # El modelo no existe, probar con el siguiente
+                    # Modelo no encontrado, probar el siguiente
                     ultimo_error = f"Modelo {modelo} no disponible"
                     break  # Salir del bucle de reintentos para este modelo
-                    
-                elif response.status_code == 429:
-                    # Límite de cuota, esperar y reintentar
-                    if intento < max_retries - 1:
-                        time.sleep(wait_time)
-                        wait_time *= 2
-                        continue
-                    else:
-                        ultimo_error = f"Cuota agotada para {modelo}"
-                        break
+                
                 else:
                     response.raise_for_status()
                     
             except requests.exceptions.RequestException as e:
-                ultimo_error = str(e)
-                if intento < max_retries - 1:
+                if intento == max_retries - 1:
+                    ultimo_error = str(e)
+                else:
+                    st.warning(f"⏳ Error: {e}. Reintentando...")
                     time.sleep(wait_time)
                     wait_time *= 2
                     continue
-                break
-        
-        # Si llegamos aquí, este modelo falló, probar el siguiente
-        continue
+        # Si llegamos aquí, el modelo no funcionó, pasar al siguiente
+        if ultimo_error and "no disponible" in ultimo_error:
+            continue
+        else:
+            # Si hubo otro error y ya no hay más reintentos, devolver el error
+            if ultimo_error:
+                return f"❌ Error al consultar Gemini: {ultimo_error}"
     
-    # Si todos los modelos fallaron
-    return f"❌ No se pudo conectar con Gemini. Último error: {ultimo_error}"
+    return f"❌ No se pudo obtener respuesta con ningún modelo. Último error: {ultimo_error}"
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -1431,7 +1432,7 @@ with tab_protocolo:
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
                     # ==========================================================
-                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI
+                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI (CORREGIDA)
                     # ==========================================================
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
@@ -1464,7 +1465,7 @@ with tab_protocolo:
                             else:
                                 st.warning("⚠️ No disponible en el diccionario local.")
                                 
-                                # ---- 2. Consultar a Gemini ----
+                                # ---- 2. Consultar a Gemini (con modelos corregidos) ----
                                 if st.button("🤖 Consultar a Gemini (IA)", key=f"gemini_{id_inc}"):
                                     with st.spinner("Consultando a Gemini..."):
                                         resultado_ia = consultar_gemini(spn, fmi)
