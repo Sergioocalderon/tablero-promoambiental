@@ -9,6 +9,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import numpy as np
 import re
+import textwrap
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -600,18 +601,6 @@ def reproducir_alarma():
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 # =============================================================================
-# FUNCIONES DE BÚSQUEDA (SOLO DICCIONARIO LOCAL + GOOGLE)
-# =============================================================================
-def buscar_descripcion_local(spn, fmi, df_diccionario):
-    """Busca la descripción de un código SPN/FMI en el diccionario local."""
-    if df_diccionario.empty:
-        return None
-    resultado = df_diccionario[(df_diccionario['SPN'] == spn) & (df_diccionario['FMI'] == fmi)]
-    if not resultado.empty:
-        return resultado.iloc[0]['Descripcion']
-    return None
-
-# =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
 # =============================================================================
 @st.cache_data(ttl=300)
@@ -852,7 +841,7 @@ ciudad_seleccionada = st.sidebar.selectbox(
 df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
 
 # =============================================================================
-# TABS – ESTRUCTURA CON 5 PESTAÑAS
+# TABS – NUEVA ESTRUCTURA CON 5 PESTAÑAS
 # =============================================================================
 tab_fallas, tab_protocolo, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
     "🩺 Fallas y Diagnóstico",
@@ -866,13 +855,14 @@ ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
 COLOR_CRITICIDAD = {'ALTA': '#B91C1C', 'MEDIA': '#B45309', 'BAJA': '#6B7280'}
 
 # =============================================================================
-# TAB FALLAS Y DIAGNÓSTICO
+# TAB FALLAS Y DIAGNÓSTICO (sin el protocolo)
 # =============================================================================
 with tab_fallas:
     st.subheader("🩺 Fallas y Diagnóstico")
     st.caption(f"Reporte generado el: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y')} - Hora: {datetime.now(ZONA_BOGOTA).strftime('%I:%M %p')}")
 
     if not df_activas.empty:
+        # ---- Resumen Cuantitativo ----
         df_vehiculos_activos = df_activas.drop_duplicates('id_camion')
         vehiculos_activos = df_vehiculos_activos['id_camion'].nunique()
         total_eventos_activos = len(df_activas)
@@ -897,6 +887,7 @@ with tab_fallas:
             reproducir_alarma()
         st.session_state.alertas_altas_previas = vehiculos_en_alta
 
+        # ---- Comparativo por ciudad ----
         st.markdown("**Comparativo por ciudad**")
         comparativo_ciudad = df_vehiculos_activos.groupby('Ciudad').agg(
             Vehiculos_Afectados=('id_camion', 'nunique')
@@ -920,6 +911,7 @@ with tab_fallas:
         st.plotly_chart(fig_ciudad, use_container_width=True)
         st.markdown("---")
 
+        # ---- Top 5 y distribución ----
         col_top5, col_dona = st.columns(2)
 
         with col_top5:
@@ -1107,16 +1099,16 @@ with tab_fallas:
         else:
             st.info("No hay datos de fallas para mostrar la tendencia semanal.")
 
-        # ---- Detalle por vehículo ----
+        # ---- Detalle por vehículo (TABLA) ----
         with st.expander("📋 Ver detalle completo por vehículo (código, fecha y descripción de cada falla)"):
             if not df_activas.empty:
                 for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
                     vehiculos_ciudad = df_ciudad['id_camion'].nunique()
-                    st.markdown(f"""
+                    st.markdown(textwrap.dedent(f"""
                         <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
                         {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
                         </div>
-                    """, unsafe_allow_html=True)
+                    """), unsafe_allow_html=True)
 
                     for criticidad in ORDEN_CRITICIDAD:
                         df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
@@ -1124,11 +1116,11 @@ with tab_fallas:
                             continue
                         vehiculos_nivel = df_nivel['id_camion'].nunique()
                         color = COLOR_CRITICIDAD[criticidad]
-                        st.markdown(f"""
+                        st.markdown(textwrap.dedent(f"""
                             <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
                             {criticidad}  (CANTIDAD: {vehiculos_nivel})
                             </div>
-                        """, unsafe_allow_html=True)
+                        """), unsafe_allow_html=True)
 
                         for id_veh, df_veh in df_nivel.groupby('id_camion'):
                             fila0 = df_veh.iloc[0]
@@ -1157,7 +1149,7 @@ with tab_fallas:
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
-    # ---- Mapa de Fallas ----
+    # ---- Mapa de Fallas (sin protocolo) ----
     st.markdown("---")
     st.markdown("#### 📍 Distribución Geográfica de Fallas")
 
@@ -1218,7 +1210,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB PROTOCOLO DE ATENCIÓN (SIN GEMINI)
+# TAB PROTOCOLO DE ATENCIÓN (movido aquí)
 # =============================================================================
 with tab_protocolo:
     st.subheader("📋 Protocolo de Atención - Gestión de Incidentes")
@@ -1229,21 +1221,29 @@ with tab_protocolo:
 
     incidentes_guardados = cargar_incidentes(hoja_incidentes)
     
+    # ===== Resumen de criticidad =====
     if not df_activas.empty:
+        # Contar vehículos por criticidad
         conteo_crit = df_activas.groupby('Criticidad_Vehiculo')['id_camion'].nunique().reindex(ORDEN_CRITICIDAD, fill_value=0)
+        
         col_res1, col_res2, col_res3 = st.columns(3)
-        col_res1.metric("🚨 ALTA", conteo_crit.get('ALTA', 0), help="Vehículos con criticidad ALTA (prioridad máxima)")
-        col_res2.metric("⚠️ MEDIA", conteo_crit.get('MEDIA', 0), help="Vehículos con criticidad MEDIA")
-        col_res3.metric("📋 BAJA", conteo_crit.get('BAJA', 0), help="Vehículos con criticidad BAJA (seguimiento preventivo)")
+        col_res1.metric("🚨 ALTA", conteo_crit.get('ALTA', 0), delta=None, help="Vehículos con criticidad ALTA (prioridad máxima)")
+        col_res2.metric("⚠️ MEDIA", conteo_crit.get('MEDIA', 0), delta=None, help="Vehículos con criticidad MEDIA")
+        col_res3.metric("📋 BAJA", conteo_crit.get('BAJA', 0), delta=None, help="Vehículos con criticidad BAJA (seguimiento preventivo)")
         
         st.markdown("---")
+        
+        # ===== Checkbox para expandir todos =====
         expandir_todos = st.checkbox("📂 Expandir todos los incidentes", value=False)
 
+        # ===== Iterar por criticidad en orden de prioridad =====
         for criticidad in ORDEN_CRITICIDAD:
+            # Filtrar vehículos de esta criticidad
             df_crit = df_activas[df_activas['Criticidad_Vehiculo'] == criticidad]
             if df_crit.empty:
                 continue
             
+            # Obtener lista de vehículos y ordenarlos por cantidad de fallas y fecha
             vehiculos_crit = df_crit.groupby('id_camion').agg(
                 Cantidad_Fallas=('id_camion', 'count'),
                 Ultima_Falla=('Fecha_Alerta', 'max'),
@@ -1252,16 +1252,27 @@ with tab_protocolo:
                 Ciudad=('Ciudad', 'first')
             ).reset_index().sort_values(['Cantidad_Fallas', 'Ultima_Falla'], ascending=[False, False])
             
+            # Contador de vehículos en esta criticidad
             num_vehiculos = len(vehiculos_crit)
-            color_fondo = {'ALTA': '#B91C1C', 'MEDIA': '#B45309', 'BAJA': '#6B7280'}.get(criticidad, '#64748B')
+            
+            # Colores para el encabezado
+            color_fondo = {
+                'ALTA': '#B91C1C',   # Rojo oscuro
+                'MEDIA': '#B45309',  # Naranja
+                'BAJA': '#6B7280'    # Gris
+            }.get(criticidad, '#64748B')
+            
+            # Emoji
             emoji_cabecera = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': '📋'}.get(criticidad, '📌')
             
+            # Mostrar encabezado de criticidad
             st.markdown(f"""
             <div style="background-color:{color_fondo}; color:white; padding:10px 15px; border-radius:8px; margin-top:20px; margin-bottom:15px; font-weight:bold; font-size:1.2rem;">
                 {emoji_cabecera} {criticidad} - {num_vehiculos} vehículo(s)
             </div>
             """, unsafe_allow_html=True)
 
+            # ===== Iterar por cada vehículo en esta criticidad =====
             for _, veh_row in vehiculos_crit.iterrows():
                 id_camion = veh_row['id_camion']
                 fila0 = df_crit[df_crit['id_camion'] == id_camion].iloc[0]
@@ -1296,6 +1307,7 @@ with tab_protocolo:
                 })
 
                 emoji = "🚨" if criticidad == 'ALTA' else "⚠️" if criticidad == 'MEDIA' else "📋"
+                # Borde izquierdo del color de criticidad
                 borde_color = {'ALTA': '#DC2626', 'MEDIA': '#D97706', 'BAJA': '#6B7280'}.get(criticidad, '#64748B')
                 
                 with st.expander(
@@ -1303,6 +1315,7 @@ with tab_protocolo:
                     f"(Criticidad: {criticidad}) - {fila0.get('Ciudad', 'Desconocida')}",
                     expanded=(expandir_todos or (inc['estado'] == 'Abierto' and criticidad == 'ALTA'))
                 ):
+                    # Aplicar borde izquierdo al expander mediante CSS
                     st.markdown(f"""
                     <style>
                         div[data-testid="stExpander"] {{
@@ -1341,11 +1354,8 @@ with tab_protocolo:
                     st.markdown("**Fallas activas de este vehículo:**")
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
-                    # ==========================================================
-                    # BÚSQUEDA DE DESCRIPCIÓN (SOLO DICCIONARIO LOCAL + GOOGLE)
-                    # ==========================================================
                     st.markdown("---")
-                    st.markdown("#### 🔍 Información del código de falla")
+                    st.markdown("#### 🔍 Buscar causa de falla en internet")
 
                     opciones_busqueda = []
                     for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
@@ -1356,38 +1366,20 @@ with tab_protocolo:
 
                     if opciones_busqueda:
                         falla_seleccionada = st.selectbox(
-                            "Selecciona la falla para ver su descripción:",
+                            "Selecciona la falla para buscar en Google:",
                             options=opciones_busqueda,
                             key=f"buscar_falla_{id_inc}"
                         )
                         spn_match = re.search(r'SPN (\d+|\?)', falla_seleccionada)
                         fmi_match = re.search(r'FMI (\d+|\?)', falla_seleccionada)
-                        spn = int(spn_match.group(1)) if spn_match and spn_match.group(1) != '?' else None
-                        fmi = int(fmi_match.group(1)) if fmi_match and fmi_match.group(1) != '?' else None
-
-                        if spn is not None and fmi is not None:
-                            # ---- Buscar en el diccionario local ----
-                            df_diccionario = cargar_diccionario_fallas()
-                            descripcion_local = buscar_descripcion_local(spn, fmi, df_diccionario)
-                            
-                            if descripcion_local:
-                                st.success(f"📌 **Descripción (local):** {descripcion_local}")
-                            else:
-                                st.warning("⚠️ No disponible en el diccionario local.")
-                                st.info("💡 Puedes buscar en Google para obtener más información.")
-                            
-                            # ---- Enlace a Google (siempre visible) ----
-                            url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-                            st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
-                            st.caption(f"🔎 Código: **SPN {spn} | FMI {fmi}**")
-                        else:
-                            st.info("El código no tiene SPN/FMI válido.")
+                        spn = spn_match.group(1) if spn_match else '?'
+                        fmi = fmi_match.group(1) if fmi_match else '?'
+                        url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+                        st.link_button("🔍 Buscar en Google", url_google, use_container_width=True)
+                        st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
                     else:
                         st.info("No hay códigos SPN/FMI disponibles para esta falla.")
 
-                    # ==========================================================
-                    # PROTOCOLO FIJO
-                    # ==========================================================
                     st.markdown("---")
                     st.markdown(f"#### {protocolo['nombre']}")
                     st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
@@ -1425,7 +1417,7 @@ with tab_protocolo:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
 # =============================================================================
-# TAB MANEJO (COMPORTAMIENTO DE MANEJO) - SIN CAMBIOS
+# TAB MANEJO (sin cambios)
 # =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
@@ -1514,7 +1506,7 @@ with tab_manejo:
             rpm_max = int(round(fila['RPM_Maximo'])) if pd.notna(fila['RPM_Maximo']) else '-'
             filas_ranking_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Motor']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Umbral_RPM'])}</td><td style='text-align:center; font-weight:600; color:#E24B4A;'>{rpm_max}</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
 
-        tabla_rpm_html = f"""
+        tabla_rpm_html = textwrap.dedent(f"""
             <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
                 <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
                     <tr>
@@ -1532,7 +1524,7 @@ with tab_manejo:
                     {filas_ranking_html}
                 </tbody>
             </table>
-        """
+        """)
 
         st.markdown(tabla_rpm_html, unsafe_allow_html=True)
 
@@ -1586,7 +1578,7 @@ with tab_manejo:
             color_fondo = COLOR_FONDO_SEVERIDAD.get(fila['Severidad'], '#FFFFFF')
             filas_detalle_html += f"<tr style='background:{color_fondo};'><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Severidad']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Inicio']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Fin']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Duracion_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['RPM_Pico_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{int(fila['Umbral_RPM'])}</td></tr>"
 
-        tabla_detalle_html = f"""
+        tabla_detalle_html = textwrap.dedent(f"""
             <table style="width:100%;border-collapse:collapse;">
                 <thead style="background:#f3f4f6;">
                     <tr>
@@ -1602,7 +1594,7 @@ with tab_manejo:
                     {filas_detalle_html}
                 </tbody>
             </table>
-        """
+        """)
 
         if len(detalle_eventos) > 10:
             with st.expander(f"📋 Ver los {len(detalle_eventos)} eventos individuales"):
@@ -1695,7 +1687,7 @@ with tab_manejo:
         for _, fila in ranking_vel.iterrows():
             filas_ranking_vel_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Ciudad']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Limite'])} km/h</td><td style='text-align:center; font-weight:600; color:#1EA0D7;'>{fila['Velocidad_Max']:.0f} km/h</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
 
-        tabla_vel_html = f"""
+        tabla_vel_html = textwrap.dedent(f"""
             <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
                 <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
                     <tr>
@@ -1713,7 +1705,7 @@ with tab_manejo:
                     {filas_ranking_vel_html}
                 </tbody>
             </table>
-        """
+        """)
 
         st.markdown(tabla_vel_html, unsafe_allow_html=True)
 
@@ -1746,3 +1738,8 @@ with tab_manejo:
         st.plotly_chart(fig_mapa_vel, use_container_width=True)
     else:
         st.info("No se registraron excesos de velocidad en este periodo (o ningún vehículo pertenece a una ciudad con límite configurado).")
+
+# =============================================================================
+# NOTA: Las pestañas "Temperaturas y Niveles" y "Horómetro" no se han modificado
+# y se mantienen como estaban (puedes agregar su contenido si lo tienes).
+# =============================================================================
