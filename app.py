@@ -78,6 +78,8 @@ if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 if 'ciudades_disponibles' not in st.session_state:
     st.session_state.ciudades_disponibles = ['Todas']
+if 'protocolo_cache' not in st.session_state:
+    st.session_state.protocolo_cache = {}
 
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
@@ -603,7 +605,7 @@ def reproducir_alarma():
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 # =============================================================================
-# FUNCIONES DE BÚSQUEDA (DICCIONARIO LOCAL + GEMINI) - CORREGIDAS
+# FUNCIONES DE BÚSQUEDA (DICCIONARIO LOCAL + GEMINI + PROTOCOLO IA)
 # =============================================================================
 def buscar_descripcion_local(spn, fmi, df_diccionario):
     """Busca la descripción de un código SPN/FMI en el diccionario local."""
@@ -629,7 +631,6 @@ def consultar_gemini(spn, fmi):
         return "❌ La clave API parece ser inválida o vacía. Reemplázala con tu clave real en secrets.toml."
 
     # Modelos gratuitos que SÍ están disponibles (basado en la lista del usuario)
-    # Eliminamos gemini-pro porque ya no existe para claves nuevas
     modelos = ["gemini-2.0-flash", "gemini-1.5-flash"]
     ultimo_error = None
     
@@ -699,6 +700,97 @@ def consultar_gemini(spn, fmi):
                 return f"❌ Error al consultar Gemini: {ultimo_error}"
     
     return f"❌ No se pudo obtener respuesta con ningún modelo. Último error: {ultimo_error or 'Modelos no disponibles'}"
+
+@st.cache_data(ttl=86400)
+def generar_protocolo_con_ia(spn, fmi):
+    """
+    Genera un protocolo de acción sugerido usando Gemini.
+    Retorna un diccionario con: descripcion, acciones, criticidad, tiempo_respuesta.
+    """
+    try:
+        api_key = st.secrets["gemini"]["api_key"]
+    except (KeyError, AttributeError):
+        return {
+            'descripcion': 'No se pudo obtener la clave API',
+            'acciones': ['Verificar conexión a Internet', 'Revisar archivo secrets.toml'],
+            'criticidad': 'BAJA',
+            'tiempo_respuesta': 60,
+            'error': True
+        }
+
+    modelo = "gemini-2.0-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+
+    prompt = f"""
+    Eres un experto en mantenimiento de motores diésel. Para el código de falla SPN {spn} FMI {fmi}:
+
+    1. Describe brevemente la falla (máximo 30 palabras).
+    2. Proporciona 3 acciones concretas y priorizadas para resolverla.
+    3. Indica un tiempo máximo de respuesta en minutos.
+    4. Asigna una criticidad (ALTA, MEDIA o BAJA).
+
+    Responde en el siguiente formato EXACTO:
+    DESCRIPCION: <descripción>
+    ACCIONES: 1. <acción 1> | 2. <acción 2> | 3. <acción 3>
+    TIEMPO: <número> minutos
+    CRITICIDAD: <ALTA/MEDIA/BAJA>
+    """
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            text = data['candidates'][0]['content']['parts'][0]['text']
+            
+            # Parsear la respuesta
+            import re
+            descripcion = re.search(r'DESCRIPCION:\s*(.+?)(?=\n|$)', text, re.IGNORECASE)
+            acciones = re.search(r'ACCIONES:\s*(.+?)(?=\n|$)', text, re.IGNORECASE)
+            tiempo = re.search(r'TIEMPO:\s*(\d+)', text, re.IGNORECASE)
+            criticidad = re.search(r'CRITICIDAD:\s*(ALTA|MEDIA|BAJA)', text, re.IGNORECASE)
+            
+            # Procesar acciones
+            acciones_lista = []
+            if acciones:
+                raw = acciones.group(1)
+                # Separar por "|" o por números
+                partes = re.split(r'\s*\|\s*|\d+\.\s*', raw)
+                acciones_lista = [p.strip() for p in partes if p.strip()]
+                # Si no hay acciones, intentar separar por saltos de línea
+                if not acciones_lista:
+                    acciones_lista = [a.strip() for a in raw.split('\n') if a.strip()]
+            
+            # Si no se encontraron acciones, usar un valor por defecto
+            if not acciones_lista:
+                acciones_lista = ['Verificar manual técnico', 'Realizar diagnóstico', 'Consultar con supervisor']
+            
+            return {
+                'descripcion': descripcion.group(1).strip() if descripcion else f'Falla SPN {spn} FMI {fmi}',
+                'acciones': acciones_lista[:3],  # Máximo 3 acciones
+                'tiempo_respuesta': int(tiempo.group(1)) if tiempo else 30,
+                'criticidad': criticidad.group(1).upper() if criticidad else 'MEDIA',
+                'error': False
+            }
+        else:
+            return {
+                'descripcion': f'Error al consultar Gemini (código {response.status_code})',
+                'acciones': ['Esperar unos minutos', 'Intentar nuevamente', 'Usar Google como alternativa'],
+                'criticidad': 'BAJA',
+                'tiempo_respuesta': 60,
+                'error': True
+            }
+    except Exception as e:
+        return {
+            'descripcion': f'Error de conexión: {str(e)}',
+            'acciones': ['Verificar conexión a Internet', 'Reintentar más tarde'],
+            'criticidad': 'BAJA',
+            'tiempo_respuesta': 60,
+            'error': True
+        }
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -1307,7 +1399,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB PROTOCOLO DE ATENCIÓN (CON GEMINI CORREGIDO)
+# TAB PROTOCOLO DE ATENCIÓN (CON GEMINI CORREGIDO Y PROTOCOLO IA)
 # =============================================================================
 with tab_protocolo:
     st.subheader("📋 Protocolo de Atención - Gestión de Incidentes")
@@ -1354,7 +1446,7 @@ with tab_protocolo:
             for _, veh_row in vehiculos_crit.iterrows():
                 id_camion = veh_row['id_camion']
                 fila0 = df_crit[df_crit['id_camion'] == id_camion].iloc[0]
-                protocolo = PROTOCOLOS.get(criticidad, PROTOCOLOS['BAJA'])
+                protocolo_fijo = PROTOCOLOS.get(criticidad, PROTOCOLOS['BAJA'])
 
                 fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
                 id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
@@ -1431,7 +1523,60 @@ with tab_protocolo:
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
                     # ==========================================================
-                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI (CORREGIDA)
+                    # PROTOCOLO DE ACCIÓN GENERADO POR IA (NUEVO)
+                    # ==========================================================
+                    st.markdown("---")
+                    st.markdown("#### 📋 Protocolo de Acción Sugerido (generado por IA)")
+                    st.caption("Basado en el código de falla SPN/FMI, Gemini sugiere acciones concretas.")
+
+                    # Obtener el protocolo dinámico para esta falla
+                    # Usar la primera falla del grupo (la más reciente)
+                    primera_falla = grupo_ordenado.iloc[0]
+                    spn = int(primera_falla['SPN_Geotab']) if pd.notna(primera_falla['SPN_Geotab']) else None
+                    fmi = int(primera_falla['FMI_Geotab']) if pd.notna(primera_falla['FMI_Geotab']) else None
+
+                    if spn is not None and fmi is not None:
+                        # Usar caché en session_state para evitar múltiples consultas
+                        cache_key = f"protocolo_{spn}_{fmi}"
+                        if cache_key not in st.session_state:
+                            with st.spinner("Generando protocolo con IA..."):
+                                st.session_state[cache_key] = generar_protocolo_con_ia(spn, fmi)
+                        
+                        protocolo_ia = st.session_state[cache_key]
+                        
+                        if protocolo_ia.get('error', False):
+                            st.warning("⚠️ No se pudo generar el protocolo automáticamente.")
+                            st.info("💡 Puedes buscar en Google para obtener información adicional.")
+                        else:
+                            # Mostrar el protocolo generado
+                            st.markdown(f"**📌 Descripción:** {protocolo_ia['descripcion']}")
+                            
+                            # Mostrar criticidad y tiempo
+                            color_crit = {
+                                'ALTA': '#DC2626',
+                                'MEDIA': '#D97706',
+                                'BAJA': '#6B7280'
+                            }.get(protocolo_ia['criticidad'], '#64748B')
+                            
+                            st.markdown(f"""
+                            **Criticidad sugerida:** <span style="color:{color_crit};font-weight:bold;">{protocolo_ia['criticidad']}</span>  
+                            **Tiempo de respuesta sugerido:** {protocolo_ia['tiempo_respuesta']} minutos
+                            """, unsafe_allow_html=True)
+                            
+                            st.markdown("**Acciones recomendadas:**")
+                            for i, accion in enumerate(protocolo_ia['acciones'], 1):
+                                st.markdown(f"{i}. {accion}")
+                            
+                            # Botón para actualizar el protocolo (forzar nueva consulta)
+                            if st.button("🔄 Actualizar sugerencia", key=f"refresh_protocolo_{id_inc}"):
+                                if cache_key in st.session_state:
+                                    del st.session_state[cache_key]
+                                st.rerun()
+                    else:
+                        st.info("No hay SPN/FMI disponible para generar un protocolo específico.")
+
+                    # ==========================================================
+                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI (DESCRIPCIÓN)
                     # ==========================================================
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
@@ -1483,13 +1628,16 @@ with tab_protocolo:
                     else:
                         st.info("No hay códigos SPN/FMI disponibles para esta falla.")
 
+                    # ==========================================================
+                    # PROTOCOLO FIJO (RESPALDO)
+                    # ==========================================================
                     st.markdown("---")
-                    st.markdown(f"#### {protocolo['nombre']}")
-                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
+                    st.markdown(f"#### {protocolo_fijo['nombre']}")
+                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo_fijo['tiempo_max_respuesta_min']} min")
 
                     acciones_realizadas = list(inc['acciones_realizadas'])
                     hubo_cambio = False
-                    for accion in protocolo['acciones']:
+                    for accion in protocolo_fijo['acciones']:
                         orden = accion['orden']
                         descripcion = accion['texto']
                         responsable = accion['responsable']
@@ -1512,7 +1660,7 @@ with tab_protocolo:
                         actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
 
                     completadas = len(acciones_realizadas)
-                    total = len(protocolo['acciones'])
+                    total = len(protocolo_fijo['acciones'])
                     if total > 0:
                         st.progress(completadas / total)
                         st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
