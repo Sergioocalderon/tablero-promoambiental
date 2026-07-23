@@ -12,6 +12,7 @@ import re
 import textwrap
 import requests
 import time
+import os  # Para variables de entorno
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -120,6 +121,19 @@ def conectar_hoja_incidentes():
         return None
 
 hoja_incidentes = conectar_hoja_incidentes()
+
+# =============================================================================
+# OBTENER CLAVE API DE GEMINI (con fallback a variable de entorno)
+# =============================================================================
+try:
+    GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+except (KeyError, AttributeError):
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
+    if GEMINI_API_KEY:
+        st.warning("⚠️ Usando clave API de Gemini desde variable de entorno (no desde secrets.toml)")
+
+if not GEMINI_API_KEY:
+    st.error("❌ No se encontró la clave API de Gemini en secrets.toml ni en variables de entorno. La búsqueda con IA no funcionará.")
 
 # =============================================================================
 # FUNCIONES DE CARGA Y ACTUALIZACIÓN DE INCIDENTES (PERSISTENCIA)
@@ -618,26 +632,19 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
 def consultar_gemini(spn, fmi):
     """
     Consulta a Gemini usando modelos gratuitos y maneja errores de cuota.
+    Usa la variable global GEMINI_API_KEY.
     """
-    # Intentar obtener la clave API de diferentes formas
-    api_key = None
-    try:
-        api_key = st.secrets["gemini"]["api_key"]
-    except KeyError:
-        try:
-            api_key = st.secrets["GEMINI"]["api_key"]
-        except KeyError:
-            return "❌ No se encontró la clave API de Gemini. Asegúrate de tener una sección [gemini] con api_key en secrets.toml."
+    global GEMINI_API_KEY
     
-    if not api_key or api_key == "tu-clave-aqui":
-        return "❌ La clave API está vacía o es la de ejemplo. Reemplázala con tu clave real en secrets.toml."
+    if not GEMINI_API_KEY:
+        return "❌ No se encontró la clave API de Gemini. Asegúrate de tenerla en secrets.toml o en la variable de entorno GEMINI_API_KEY."
 
     # Modelos gratuitos disponibles (orden de preferencia)
     modelos = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     ultimo_error = None
     
     for modelo in modelos:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
         Eres un experto en motores diésel. Describe de forma clara y concisa:
@@ -1432,7 +1439,7 @@ with tab_protocolo:
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
                     # ==========================================================
-                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI (CORREGIDA)
+                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI
                     # ==========================================================
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
@@ -1465,12 +1472,11 @@ with tab_protocolo:
                             else:
                                 st.warning("⚠️ No disponible en el diccionario local.")
                                 
-                                # ---- 2. Consultar a Gemini (con modelos corregidos) ----
+                                # ---- 2. Consultar a Gemini ----
                                 if st.button("🤖 Consultar a Gemini (IA)", key=f"gemini_{id_inc}"):
                                     with st.spinner("Consultando a Gemini..."):
                                         resultado_ia = consultar_gemini(spn, fmi)
                                         if "Error" not in resultado_ia and "No se pudo" not in resultado_ia:
-                                            # Mostrar la respuesta de Gemini en un cuadro de texto
                                             st.info(f"🧠 **Gemini dice:** {resultado_ia}")
                                             st.caption("💡 Si la información no es precisa, puedes buscar en Google para más detalles.")
                                         else:
