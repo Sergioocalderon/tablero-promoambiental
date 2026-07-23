@@ -9,9 +9,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 import numpy as np
 import re
-import textwrap
-import requests
-import time
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -78,8 +75,6 @@ if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 if 'ciudades_disponibles' not in st.session_state:
     st.session_state.ciudades_disponibles = ['Todas']
-if 'protocolo_cache' not in st.session_state:
-    st.session_state.protocolo_cache = {}
 
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
@@ -605,7 +600,7 @@ def reproducir_alarma():
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 # =============================================================================
-# FUNCIONES DE BÚSQUEDA (DICCIONARIO LOCAL + GEMINI + PROTOCOLO IA)
+# FUNCIONES DE BÚSQUEDA (SOLO DICCIONARIO LOCAL + GOOGLE)
 # =============================================================================
 def buscar_descripcion_local(spn, fmi, df_diccionario):
     """Busca la descripción de un código SPN/FMI en el diccionario local."""
@@ -615,182 +610,6 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
     if not resultado.empty:
         return resultado.iloc[0]['Descripcion']
     return None
-
-@st.cache_data(ttl=86400)
-def consultar_gemini(spn, fmi):
-    """
-    Consulta a Gemini usando modelos gratuitos disponibles.
-    Solo usa modelos que sabemos que existen: gemini-2.0-flash, gemini-1.5-flash
-    """
-    try:
-        api_key = st.secrets["gemini"]["api_key"]
-    except (KeyError, AttributeError):
-        return "❌ No se encontró la clave API de Gemini. Asegúrate de tener una sección [gemini] con api_key en secrets.toml."
-
-    if not api_key or api_key == "tu-clave-aqui" or len(api_key) < 10:
-        return "❌ La clave API parece ser inválida o vacía. Reemplázala con tu clave real en secrets.toml."
-
-    # Modelos gratuitos que SÍ están disponibles (basado en la lista del usuario)
-    modelos = ["gemini-2.0-flash", "gemini-1.5-flash"]
-    ultimo_error = None
-    
-    for modelo in modelos:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-        
-        prompt = f"""
-        Eres un experto en motores diésel. Describe de forma clara y concisa:
-        - La causa más probable
-        - Los síntomas típicos
-        - Posibles soluciones
-        Para el código de falla SPN {spn} FMI {fmi} en motores diésel.
-        Responde en español, en un párrafo breve (máximo 100 palabras).
-        """
-        
-        payload = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }]
-        }
-
-        max_retries = 2
-        wait_time = 2
-
-        for intento in range(max_retries):
-            try:
-                response = requests.post(url, json=payload, timeout=10)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'candidates' in data and data['candidates']:
-                        text = data['candidates'][0]['content']['parts'][0]['text']
-                        return text.strip()
-                    else:
-                        return "No se pudo obtener respuesta de Gemini (respuesta vacía)."
-                
-                elif response.status_code == 429:
-                    if intento < max_retries - 1:
-                        st.warning(f"⏳ Límite de cuota alcanzado. Reintentando en {wait_time}s...")
-                        time.sleep(wait_time)
-                        wait_time *= 2
-                        continue
-                    else:
-                        return "⏳ Límite de cuota de Gemini alcanzado. Espera unos minutos y vuelve a intentar."
-                
-                elif response.status_code == 404:
-                    # Modelo no encontrado, probar el siguiente
-                    ultimo_error = f"Modelo {modelo} no disponible"
-                    break  # Salir del bucle de reintentos para este modelo
-                
-                else:
-                    response.raise_for_status()
-                    
-            except requests.exceptions.RequestException as e:
-                if intento == max_retries - 1:
-                    ultimo_error = str(e)
-                else:
-                    time.sleep(wait_time)
-                    wait_time *= 2
-                    continue
-        
-        # Si llegamos aquí, el modelo no funcionó, pasar al siguiente
-        if ultimo_error and "no disponible" in ultimo_error:
-            continue
-        else:
-            if ultimo_error:
-                return f"❌ Error al consultar Gemini: {ultimo_error}"
-    
-    return f"❌ No se pudo obtener respuesta con ningún modelo. Último error: {ultimo_error or 'Modelos no disponibles'}"
-
-@st.cache_data(ttl=86400)
-def generar_protocolo_con_ia(spn, fmi):
-    """
-    Genera un protocolo de acción sugerido usando Gemini.
-    Retorna un diccionario con: descripcion, acciones, criticidad, tiempo_respuesta.
-    """
-    try:
-        api_key = st.secrets["gemini"]["api_key"]
-    except (KeyError, AttributeError):
-        return {
-            'descripcion': 'No se pudo obtener la clave API',
-            'acciones': ['Verificar conexión a Internet', 'Revisar archivo secrets.toml'],
-            'criticidad': 'BAJA',
-            'tiempo_respuesta': 60,
-            'error': True
-        }
-
-    modelo = "gemini-2.0-flash"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-
-    prompt = f"""
-    Eres un experto en mantenimiento de motores diésel. Para el código de falla SPN {spn} FMI {fmi}:
-
-    1. Describe brevemente la falla (máximo 30 palabras).
-    2. Proporciona 3 acciones concretas y priorizadas para resolverla.
-    3. Indica un tiempo máximo de respuesta en minutos.
-    4. Asigna una criticidad (ALTA, MEDIA o BAJA).
-
-    Responde en el siguiente formato EXACTO:
-    DESCRIPCION: <descripción>
-    ACCIONES: 1. <acción 1> | 2. <acción 2> | 3. <acción 3>
-    TIEMPO: <número> minutos
-    CRITICIDAD: <ALTA/MEDIA/BAJA>
-    """
-
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
-
-    try:
-        response = requests.post(url, json=payload, timeout=15)
-        if response.status_code == 200:
-            data = response.json()
-            text = data['candidates'][0]['content']['parts'][0]['text']
-            
-            # Parsear la respuesta
-            import re
-            descripcion = re.search(r'DESCRIPCION:\s*(.+?)(?=\n|$)', text, re.IGNORECASE)
-            acciones = re.search(r'ACCIONES:\s*(.+?)(?=\n|$)', text, re.IGNORECASE)
-            tiempo = re.search(r'TIEMPO:\s*(\d+)', text, re.IGNORECASE)
-            criticidad = re.search(r'CRITICIDAD:\s*(ALTA|MEDIA|BAJA)', text, re.IGNORECASE)
-            
-            # Procesar acciones
-            acciones_lista = []
-            if acciones:
-                raw = acciones.group(1)
-                # Separar por "|" o por números
-                partes = re.split(r'\s*\|\s*|\d+\.\s*', raw)
-                acciones_lista = [p.strip() for p in partes if p.strip()]
-                # Si no hay acciones, intentar separar por saltos de línea
-                if not acciones_lista:
-                    acciones_lista = [a.strip() for a in raw.split('\n') if a.strip()]
-            
-            # Si no se encontraron acciones, usar un valor por defecto
-            if not acciones_lista:
-                acciones_lista = ['Verificar manual técnico', 'Realizar diagnóstico', 'Consultar con supervisor']
-            
-            return {
-                'descripcion': descripcion.group(1).strip() if descripcion else f'Falla SPN {spn} FMI {fmi}',
-                'acciones': acciones_lista[:3],  # Máximo 3 acciones
-                'tiempo_respuesta': int(tiempo.group(1)) if tiempo else 30,
-                'criticidad': criticidad.group(1).upper() if criticidad else 'MEDIA',
-                'error': False
-            }
-        else:
-            return {
-                'descripcion': f'Error al consultar Gemini (código {response.status_code})',
-                'acciones': ['Esperar unos minutos', 'Intentar nuevamente', 'Usar Google como alternativa'],
-                'criticidad': 'BAJA',
-                'tiempo_respuesta': 60,
-                'error': True
-            }
-    except Exception as e:
-        return {
-            'descripcion': f'Error de conexión: {str(e)}',
-            'acciones': ['Verificar conexión a Internet', 'Reintentar más tarde'],
-            'criticidad': 'BAJA',
-            'tiempo_respuesta': 60,
-            'error': True
-        }
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -1293,11 +1112,11 @@ with tab_fallas:
             if not df_activas.empty:
                 for ciudad, df_ciudad in df_activas.groupby('Ciudad'):
                     vehiculos_ciudad = df_ciudad['id_camion'].nunique()
-                    st.markdown(textwrap.dedent(f"""
+                    st.markdown(f"""
                         <div style="background:#1F4E4A;color:white;padding:8px 14px;border-radius:6px;font-weight:600;margin-top:16px;">
                         {ciudad}  (TOTAL VEHÍCULOS: {vehiculos_ciudad})
                         </div>
-                    """), unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
                     for criticidad in ORDEN_CRITICIDAD:
                         df_nivel = df_ciudad[df_ciudad['Criticidad_Vehiculo'] == criticidad]
@@ -1305,11 +1124,11 @@ with tab_fallas:
                             continue
                         vehiculos_nivel = df_nivel['id_camion'].nunique()
                         color = COLOR_CRITICIDAD[criticidad]
-                        st.markdown(textwrap.dedent(f"""
+                        st.markdown(f"""
                             <div style="background:{color};color:white;padding:6px 14px;border-radius:4px;font-weight:600;margin-top:8px;">
                             {criticidad}  (CANTIDAD: {vehiculos_nivel})
                             </div>
-                        """), unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
 
                         for id_veh, df_veh in df_nivel.groupby('id_camion'):
                             fila0 = df_veh.iloc[0]
@@ -1399,7 +1218,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB PROTOCOLO DE ATENCIÓN (CON GEMINI CORREGIDO Y PROTOCOLO IA)
+# TAB PROTOCOLO DE ATENCIÓN (SIN GEMINI)
 # =============================================================================
 with tab_protocolo:
     st.subheader("📋 Protocolo de Atención - Gestión de Incidentes")
@@ -1446,7 +1265,7 @@ with tab_protocolo:
             for _, veh_row in vehiculos_crit.iterrows():
                 id_camion = veh_row['id_camion']
                 fila0 = df_crit[df_crit['id_camion'] == id_camion].iloc[0]
-                protocolo_fijo = PROTOCOLOS.get(criticidad, PROTOCOLOS['BAJA'])
+                protocolo = PROTOCOLOS.get(criticidad, PROTOCOLOS['BAJA'])
 
                 fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
                 id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
@@ -1523,60 +1342,7 @@ with tab_protocolo:
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
                     # ==========================================================
-                    # PROTOCOLO DE ACCIÓN GENERADO POR IA (NUEVO)
-                    # ==========================================================
-                    st.markdown("---")
-                    st.markdown("#### 📋 Protocolo de Acción Sugerido (generado por IA)")
-                    st.caption("Basado en el código de falla SPN/FMI, Gemini sugiere acciones concretas.")
-
-                    # Obtener el protocolo dinámico para esta falla
-                    # Usar la primera falla del grupo (la más reciente)
-                    primera_falla = grupo_ordenado.iloc[0]
-                    spn = int(primera_falla['SPN_Geotab']) if pd.notna(primera_falla['SPN_Geotab']) else None
-                    fmi = int(primera_falla['FMI_Geotab']) if pd.notna(primera_falla['FMI_Geotab']) else None
-
-                    if spn is not None and fmi is not None:
-                        # Usar caché en session_state para evitar múltiples consultas
-                        cache_key = f"protocolo_{spn}_{fmi}"
-                        if cache_key not in st.session_state:
-                            with st.spinner("Generando protocolo con IA..."):
-                                st.session_state[cache_key] = generar_protocolo_con_ia(spn, fmi)
-                        
-                        protocolo_ia = st.session_state[cache_key]
-                        
-                        if protocolo_ia.get('error', False):
-                            st.warning("⚠️ No se pudo generar el protocolo automáticamente.")
-                            st.info("💡 Puedes buscar en Google para obtener información adicional.")
-                        else:
-                            # Mostrar el protocolo generado
-                            st.markdown(f"**📌 Descripción:** {protocolo_ia['descripcion']}")
-                            
-                            # Mostrar criticidad y tiempo
-                            color_crit = {
-                                'ALTA': '#DC2626',
-                                'MEDIA': '#D97706',
-                                'BAJA': '#6B7280'
-                            }.get(protocolo_ia['criticidad'], '#64748B')
-                            
-                            st.markdown(f"""
-                            **Criticidad sugerida:** <span style="color:{color_crit};font-weight:bold;">{protocolo_ia['criticidad']}</span>  
-                            **Tiempo de respuesta sugerido:** {protocolo_ia['tiempo_respuesta']} minutos
-                            """, unsafe_allow_html=True)
-                            
-                            st.markdown("**Acciones recomendadas:**")
-                            for i, accion in enumerate(protocolo_ia['acciones'], 1):
-                                st.markdown(f"{i}. {accion}")
-                            
-                            # Botón para actualizar el protocolo (forzar nueva consulta)
-                            if st.button("🔄 Actualizar sugerencia", key=f"refresh_protocolo_{id_inc}"):
-                                if cache_key in st.session_state:
-                                    del st.session_state[cache_key]
-                                st.rerun()
-                    else:
-                        st.info("No hay SPN/FMI disponible para generar un protocolo específico.")
-
-                    # ==========================================================
-                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI (DESCRIPCIÓN)
+                    # BÚSQUEDA DE DESCRIPCIÓN (SOLO DICCIONARIO LOCAL + GOOGLE)
                     # ==========================================================
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
@@ -1600,7 +1366,7 @@ with tab_protocolo:
                         fmi = int(fmi_match.group(1)) if fmi_match and fmi_match.group(1) != '?' else None
 
                         if spn is not None and fmi is not None:
-                            # ---- 1. Buscar en el diccionario local ----
+                            # ---- Buscar en el diccionario local ----
                             df_diccionario = cargar_diccionario_fallas()
                             descripcion_local = buscar_descripcion_local(spn, fmi, df_diccionario)
                             
@@ -1608,16 +1374,7 @@ with tab_protocolo:
                                 st.success(f"📌 **Descripción (local):** {descripcion_local}")
                             else:
                                 st.warning("⚠️ No disponible en el diccionario local.")
-                                
-                                # ---- 2. Consultar a Gemini (corregido) ----
-                                if st.button("🤖 Consultar a Gemini (IA)", key=f"gemini_{id_inc}"):
-                                    with st.spinner("Consultando a Gemini..."):
-                                        resultado_ia = consultar_gemini(spn, fmi)
-                                        if "Error" not in resultado_ia and "No se pudo" not in resultado_ia:
-                                            st.info(f"🧠 **Gemini dice:** {resultado_ia}")
-                                            st.caption("💡 Si la información no es precisa, puedes buscar en Google para más detalles.")
-                                        else:
-                                            st.error(resultado_ia)
+                                st.info("💡 Puedes buscar en Google para obtener más información.")
                             
                             # ---- Enlace a Google (siempre visible) ----
                             url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
@@ -1629,15 +1386,15 @@ with tab_protocolo:
                         st.info("No hay códigos SPN/FMI disponibles para esta falla.")
 
                     # ==========================================================
-                    # PROTOCOLO FIJO (RESPALDO)
+                    # PROTOCOLO FIJO
                     # ==========================================================
                     st.markdown("---")
-                    st.markdown(f"#### {protocolo_fijo['nombre']}")
-                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo_fijo['tiempo_max_respuesta_min']} min")
+                    st.markdown(f"#### {protocolo['nombre']}")
+                    st.caption(f"⏱️ Tiempo máximo de respuesta: {protocolo['tiempo_max_respuesta_min']} min")
 
                     acciones_realizadas = list(inc['acciones_realizadas'])
                     hubo_cambio = False
-                    for accion in protocolo_fijo['acciones']:
+                    for accion in protocolo['acciones']:
                         orden = accion['orden']
                         descripcion = accion['texto']
                         responsable = accion['responsable']
@@ -1660,7 +1417,7 @@ with tab_protocolo:
                         actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
 
                     completadas = len(acciones_realizadas)
-                    total = len(protocolo_fijo['acciones'])
+                    total = len(protocolo['acciones'])
                     if total > 0:
                         st.progress(completadas / total)
                         st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
@@ -1668,7 +1425,7 @@ with tab_protocolo:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
 # =============================================================================
-# TAB MANEJO (COMPORTAMIENTO DE MANEJO)
+# TAB MANEJO (COMPORTAMIENTO DE MANEJO) - SIN CAMBIOS
 # =============================================================================
 with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
@@ -1757,7 +1514,7 @@ with tab_manejo:
             rpm_max = int(round(fila['RPM_Maximo'])) if pd.notna(fila['RPM_Maximo']) else '-'
             filas_ranking_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Motor']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Umbral_RPM'])}</td><td style='text-align:center; font-weight:600; color:#E24B4A;'>{rpm_max}</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
 
-        tabla_rpm_html = textwrap.dedent(f"""
+        tabla_rpm_html = f"""
             <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
                 <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
                     <tr>
@@ -1775,7 +1532,7 @@ with tab_manejo:
                     {filas_ranking_html}
                 </tbody>
             </table>
-        """)
+        """
 
         st.markdown(tabla_rpm_html, unsafe_allow_html=True)
 
@@ -1829,7 +1586,7 @@ with tab_manejo:
             color_fondo = COLOR_FONDO_SEVERIDAD.get(fila['Severidad'], '#FFFFFF')
             filas_detalle_html += f"<tr style='background:{color_fondo};'><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Severidad']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Inicio']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Hora_Fin']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['Duracion_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{fila['RPM_Pico_Fmt']}</td><td style='padding:8px;border:1px solid #ddd;text-align:center;'>{int(fila['Umbral_RPM'])}</td></tr>"
 
-        tabla_detalle_html = textwrap.dedent(f"""
+        tabla_detalle_html = f"""
             <table style="width:100%;border-collapse:collapse;">
                 <thead style="background:#f3f4f6;">
                     <tr>
@@ -1845,7 +1602,7 @@ with tab_manejo:
                     {filas_detalle_html}
                 </tbody>
             </table>
-        """)
+        """
 
         if len(detalle_eventos) > 10:
             with st.expander(f"📋 Ver los {len(detalle_eventos)} eventos individuales"):
@@ -1938,7 +1695,7 @@ with tab_manejo:
         for _, fila in ranking_vel.iterrows():
             filas_ranking_vel_html += f"<tr><td style='text-align:center; font-weight:600;'>{fila['Movil']}</td><td style='text-align:center;'>{fila['Placa']}</td><td style='text-align:center;'>{fila['Ciudad']}</td><td style='text-align:center;'>{fila['Fecha']}</td><td style='text-align:center; color:#64748B;'>{int(fila['Limite'])} km/h</td><td style='text-align:center; font-weight:600; color:#1EA0D7;'>{fila['Velocidad_Max']:.0f} km/h</td><td style='text-align:center;'>{int(fila['Veces'])}</td><td style='text-align:center; font-weight:600;'>{fila['Tiempo_Min']:.1f}</td></tr>"
 
-        tabla_vel_html = textwrap.dedent(f"""
+        tabla_vel_html = f"""
             <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:0.9rem;border-radius:8px;overflow:hidden;box-shadow:0px 4px 6px rgba(0,0,0,0.05);margin-bottom:20px;">
                 <thead style="background-color:#1E293B;color:#ffffff;text-align:center;">
                     <tr>
@@ -1956,7 +1713,7 @@ with tab_manejo:
                     {filas_ranking_vel_html}
                 </tbody>
             </table>
-        """)
+        """
 
         st.markdown(tabla_vel_html, unsafe_allow_html=True)
 
