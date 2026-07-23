@@ -12,7 +12,6 @@ import re
 import textwrap
 import requests
 import time
-import os  # Para variables de entorno
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -121,19 +120,6 @@ def conectar_hoja_incidentes():
         return None
 
 hoja_incidentes = conectar_hoja_incidentes()
-
-# =============================================================================
-# OBTENER CLAVE API DE GEMINI (con fallback a variable de entorno)
-# =============================================================================
-try:
-    GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
-except (KeyError, AttributeError):
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
-    if GEMINI_API_KEY:
-        st.warning("⚠️ Usando clave API de Gemini desde variable de entorno (no desde secrets.toml)")
-
-if not GEMINI_API_KEY:
-    st.error("❌ No se encontró la clave API de Gemini en secrets.toml ni en variables de entorno. La búsqueda con IA no funcionará.")
 
 # =============================================================================
 # FUNCIONES DE CARGA Y ACTUALIZACIÓN DE INCIDENTES (PERSISTENCIA)
@@ -617,7 +603,7 @@ def reproducir_alarma():
     st.toast("🚨 ¡NUEVA ALERTA CRÍTICA DETECTADA!", icon="🔴")
 
 # =============================================================================
-# FUNCIONES DE BÚSQUEDA (DICCIONARIO LOCAL + GEMINI)
+# FUNCIONES DE BÚSQUEDA (DICCIONARIO LOCAL + GEMINI) - CORREGIDAS
 # =============================================================================
 def buscar_descripcion_local(spn, fmi, df_diccionario):
     """Busca la descripción de un código SPN/FMI en el diccionario local."""
@@ -631,20 +617,24 @@ def buscar_descripcion_local(spn, fmi, df_diccionario):
 @st.cache_data(ttl=86400)
 def consultar_gemini(spn, fmi):
     """
-    Consulta a Gemini usando modelos gratuitos y maneja errores de cuota.
-    Usa la variable global GEMINI_API_KEY.
+    Consulta a Gemini usando modelos gratuitos disponibles.
+    Solo usa modelos que sabemos que existen: gemini-2.0-flash, gemini-1.5-flash
     """
-    global GEMINI_API_KEY
-    
-    if not GEMINI_API_KEY:
-        return "❌ No se encontró la clave API de Gemini. Asegúrate de tenerla en secrets.toml o en la variable de entorno GEMINI_API_KEY."
+    try:
+        api_key = st.secrets["gemini"]["api_key"]
+    except (KeyError, AttributeError):
+        return "❌ No se encontró la clave API de Gemini. Asegúrate de tener una sección [gemini] con api_key en secrets.toml."
 
-    # Modelos gratuitos disponibles (orden de preferencia)
-    modelos = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    if not api_key or api_key == "tu-clave-aqui" or len(api_key) < 10:
+        return "❌ La clave API parece ser inválida o vacía. Reemplázala con tu clave real en secrets.toml."
+
+    # Modelos gratuitos que SÍ están disponibles (basado en la lista del usuario)
+    # Eliminamos gemini-pro porque ya no existe para claves nuevas
+    modelos = ["gemini-2.0-flash", "gemini-1.5-flash"]
     ultimo_error = None
     
     for modelo in modelos:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
         
         prompt = f"""
         Eres un experto en motores diésel. Describe de forma clara y concisa:
@@ -674,13 +664,16 @@ def consultar_gemini(spn, fmi):
                         text = data['candidates'][0]['content']['parts'][0]['text']
                         return text.strip()
                     else:
-                        return "No se pudo obtener respuesta de Gemini."
+                        return "No se pudo obtener respuesta de Gemini (respuesta vacía)."
                 
                 elif response.status_code == 429:
-                    st.warning(f"⏳ Límite de cuota alcanzado. Reintentando en {wait_time}s...")
-                    time.sleep(wait_time)
-                    wait_time *= 2
-                    continue
+                    if intento < max_retries - 1:
+                        st.warning(f"⏳ Límite de cuota alcanzado. Reintentando en {wait_time}s...")
+                        time.sleep(wait_time)
+                        wait_time *= 2
+                        continue
+                    else:
+                        return "⏳ Límite de cuota de Gemini alcanzado. Espera unos minutos y vuelve a intentar."
                 
                 elif response.status_code == 404:
                     # Modelo no encontrado, probar el siguiente
@@ -694,19 +687,18 @@ def consultar_gemini(spn, fmi):
                 if intento == max_retries - 1:
                     ultimo_error = str(e)
                 else:
-                    st.warning(f"⏳ Error: {e}. Reintentando...")
                     time.sleep(wait_time)
                     wait_time *= 2
                     continue
+        
         # Si llegamos aquí, el modelo no funcionó, pasar al siguiente
         if ultimo_error and "no disponible" in ultimo_error:
             continue
         else:
-            # Si hubo otro error y ya no hay más reintentos, devolver el error
             if ultimo_error:
                 return f"❌ Error al consultar Gemini: {ultimo_error}"
     
-    return f"❌ No se pudo obtener respuesta con ningún modelo. Último error: {ultimo_error}"
+    return f"❌ No se pudo obtener respuesta con ningún modelo. Último error: {ultimo_error or 'Modelos no disponibles'}"
 
 # =============================================================================
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
@@ -1315,7 +1307,7 @@ with tab_fallas:
         st.info("No hay fallas registradas en el período seleccionado con ubicación GPS.")
 
 # =============================================================================
-# TAB PROTOCOLO DE ATENCIÓN
+# TAB PROTOCOLO DE ATENCIÓN (CON GEMINI CORREGIDO)
 # =============================================================================
 with tab_protocolo:
     st.subheader("📋 Protocolo de Atención - Gestión de Incidentes")
@@ -1439,7 +1431,7 @@ with tab_protocolo:
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
 
                     # ==========================================================
-                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI
+                    # BÚSQUEDA DE INFORMACIÓN DE FALLAS CON GEMINI (CORREGIDA)
                     # ==========================================================
                     st.markdown("---")
                     st.markdown("#### 🔍 Información del código de falla")
@@ -1472,7 +1464,7 @@ with tab_protocolo:
                             else:
                                 st.warning("⚠️ No disponible en el diccionario local.")
                                 
-                                # ---- 2. Consultar a Gemini ----
+                                # ---- 2. Consultar a Gemini (corregido) ----
                                 if st.button("🤖 Consultar a Gemini (IA)", key=f"gemini_{id_inc}"):
                                     with st.spinner("Consultando a Gemini..."):
                                         resultado_ia = consultar_gemini(spn, fmi)
