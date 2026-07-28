@@ -409,23 +409,35 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_eventos['Umbral_RPM'] = df_eventos['Motor'].map({'L9': 2100, 'X12': 2100})
     df_eventos = pd.merge(df_eventos, _df_vehiculos, on='id_camion', how='left')
 
-    # Un solo viaje al servidor para TODAS las lecturas de RPM del periodo (antes: una
-    # llamada StatusData por cada evento de sobre-revolución).
-    try:
-        lecturas_rpm_raw = _client.get('StatusData', search={
-            'diagnosticSearch': {'id': ID_DIAGNOSTICO_RPM_MOTOR},
-            'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-            'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        })
-    except Exception as e:
-        st.warning(f"No se pudieron traer lecturas de RPM: {e}")
-        lecturas_rpm_raw = []
-
+    # Un viaje de red agrupado por vehículo (con deviceSearch, igual que el patrón que sí
+    # funciona) en vez de una llamada StatusData por cada evento de sobre-revolución.
+    vehiculos_con_eventos_rpm = df_eventos['id_camion'].unique().tolist()
     df_lecturas_rpm = pd.DataFrame()
-    if lecturas_rpm_raw:
-        df_lecturas_rpm = pd.DataFrame(lecturas_rpm_raw)
-        if not df_lecturas_rpm.empty and 'device' in df_lecturas_rpm.columns:
-            df_lecturas_rpm['id_camion'] = df_lecturas_rpm['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
+    if vehiculos_con_eventos_rpm:
+        llamadas_rpm = [
+            ('Get', {
+                'typeName': 'StatusData',
+                'search': {
+                    'diagnosticSearch': {'id': ID_DIAGNOSTICO_RPM_MOTOR},
+                    'deviceSearch': {'id': id_veh},
+                    'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                }
+            })
+            for id_veh in vehiculos_con_eventos_rpm
+        ]
+        try:
+            resultados_rpm = _client.multi_call(llamadas_rpm)
+        except Exception as e:
+            st.warning(f"No se pudieron traer lecturas de RPM: {e}")
+            resultados_rpm = []
+        filas_rpm = []
+        for id_veh, lecturas in zip(vehiculos_con_eventos_rpm, resultados_rpm):
+            if lecturas and isinstance(lecturas, list):
+                for l in lecturas:
+                    filas_rpm.append({'id_camion': id_veh, 'dateTime': l.get('dateTime'), 'data': l.get('data')})
+        if filas_rpm:
+            df_lecturas_rpm = pd.DataFrame(filas_rpm)
             df_lecturas_rpm['dateTime'] = convertir_a_bogota(df_lecturas_rpm['dateTime'])
             df_lecturas_rpm['data'] = pd.to_numeric(df_lecturas_rpm['data'], errors='coerce')
             df_lecturas_rpm = df_lecturas_rpm[['id_camion', 'dateTime', 'data']].dropna()
@@ -933,24 +945,36 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 )
 
                 # --- Contexto (freeze frame): RPM, temperatura y odómetro al momento de la falla ---
+                # Antes: pedía el diagnóstico para TODA la flota y luego filtraba.
+                # Ahora: pide solo los vehículos con falla (normalmente muchos menos que
+                # la flota completa), agrupados en un solo viaje de red por diagnóstico.
                 def _obtener_lecturas_diagnostico(diag_id, nombre_columna):
-                    try:
-                        lecturas_raw = _client.get('StatusData', search={
-                            'diagnosticSearch': {'id': diag_id},
-                            'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-                            'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                    if not vehiculos_con_falla:
+                        return pd.DataFrame()
+                    llamadas = [
+                        ('Get', {
+                            'typeName': 'StatusData',
+                            'search': {
+                                'diagnosticSearch': {'id': diag_id},
+                                'deviceSearch': {'id': id_veh},
+                                'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                                'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                            }
                         })
+                        for id_veh in vehiculos_con_falla
+                    ]
+                    try:
+                        resultados = _client.multi_call(llamadas)
                     except Exception:
                         return pd.DataFrame()
-                    if not lecturas_raw:
+                    filas = []
+                    for id_veh, lecturas in zip(vehiculos_con_falla, resultados):
+                        if lecturas and isinstance(lecturas, list):
+                            for l in lecturas:
+                                filas.append({'id_camion': id_veh, 'dateTime': l.get('dateTime'), 'data': l.get('data')})
+                    if not filas:
                         return pd.DataFrame()
-                    df_lec = pd.DataFrame(lecturas_raw)
-                    if df_lec.empty or 'device' not in df_lec.columns or 'data' not in df_lec.columns:
-                        return pd.DataFrame()
-                    df_lec['id_camion'] = df_lec['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
-                    df_lec = df_lec[df_lec['id_camion'].isin(vehiculos_con_falla)]
-                    if df_lec.empty:
-                        return pd.DataFrame()
+                    df_lec = pd.DataFrame(filas)
                     df_lec['dateTime'] = convertir_a_bogota(df_lec['dateTime'])
                     df_lec[nombre_columna] = pd.to_numeric(df_lec['data'], errors='coerce')
                     df_lec = df_lec[['id_camion', 'dateTime', nombre_columna]].dropna()
