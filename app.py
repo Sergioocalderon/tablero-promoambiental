@@ -1349,5 +1349,140 @@ with tab_protocolo:
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
-# Las pestañas de Manejo, Temperaturas y Horómetro se mantienen sin cambios.
-# (Si las necesitas, avísame y las incluyo nuevamente.)
+# =============================================================================
+# TAB COMPORTAMIENTO DE MANEJO
+# =============================================================================
+with tab_manejo:
+    st.subheader("🚦 Comportamiento de Manejo")
+    st.caption("Eventos de sobre-revolución (RPM) y exceso de velocidad en el periodo seleccionado.")
+
+    df_eventos_rpm, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+    df_eventos_vel = extraer_datos_velocidad(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+
+    sub_rpm, sub_vel = st.tabs(["🔧 Sobre-revolución (RPM)", "🚗 Exceso de Velocidad"])
+
+    # --- SUB-TAB: SOBRE-REVOLUCIÓN (RPM) ---
+    with sub_rpm:
+        if not df_eventos_rpm.empty:
+            vehiculos_afectados_rpm = df_eventos_rpm['id_camion'].nunique()
+            total_eventos_rpm = len(df_eventos_rpm)
+            duracion_promedio_rpm = df_eventos_rpm['Duracion_Segundos'].mean()
+            rpm_pico_max = df_eventos_rpm['RPM_Pico'].max() if 'RPM_Pico' in df_eventos_rpm.columns else None
+
+            col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+            col_r1.metric("Vehículos con eventos", vehiculos_afectados_rpm)
+            col_r2.metric("Eventos totales", total_eventos_rpm)
+            col_r3.metric("Duración promedio", f"{duracion_promedio_rpm:,.0f} seg")
+            col_r4.metric("RPM pico registrado", f"{rpm_pico_max:,.0f}" if pd.notna(rpm_pico_max) else "N/D")
+
+            st.markdown("---")
+            col_rpm_top, col_rpm_turno = st.columns(2)
+            with col_rpm_top:
+                st.markdown("**Top 10 vehículos con más eventos de sobre-revolución**")
+                top_rpm = df_eventos_rpm.groupby('Movil').size().reset_index(name='Eventos') \
+                    .sort_values('Eventos', ascending=False).head(10)
+                fig_top_rpm = px.bar(
+                    top_rpm.sort_values('Eventos'),
+                    x='Eventos', y='Movil', orientation='h',
+                    text='Eventos', color_discrete_sequence=['#E24B4A']
+                )
+                fig_top_rpm.update_layout(
+                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                    yaxis=dict(showgrid=False, zeroline=False)
+                )
+                st.plotly_chart(fig_top_rpm, use_container_width=True)
+
+            with col_rpm_turno:
+                st.markdown("**Eventos por turno**")
+                eventos_turno_rpm = df_eventos_rpm.groupby('Turno').size().reset_index(name='Eventos')
+                fig_turno_rpm = px.bar(
+                    eventos_turno_rpm, x='Turno', y='Eventos',
+                    text='Eventos', color_discrete_sequence=['#1EA0D7']
+                )
+                fig_turno_rpm.update_layout(
+                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    yaxis=dict(showgrid=False, zeroline=False, visible=False)
+                )
+                st.plotly_chart(fig_turno_rpm, use_container_width=True)
+
+            with st.expander("📋 Ver detalle de eventos de sobre-revolución"):
+                df_show_rpm = df_eventos_rpm[['Movil', 'Placa', 'Ciudad', 'Motor', 'Umbral_RPM', 'RPM_Pico',
+                                               'activeFrom', 'Duracion_Segundos', 'Turno']].copy()
+                df_show_rpm['activeFrom'] = df_show_rpm['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
+                df_show_rpm['Duracion_Segundos'] = df_show_rpm['Duracion_Segundos'].round(0)
+                df_show_rpm = df_show_rpm.rename(columns={
+                    'activeFrom': 'Fecha/Hora', 'Duracion_Segundos': 'Duración (seg)',
+                    'Umbral_RPM': 'Umbral RPM', 'RPM_Pico': 'RPM Pico'
+                }).sort_values('Fecha/Hora', ascending=False)
+                st.dataframe(df_show_rpm, use_container_width=True, hide_index=True)
+        else:
+            st.success("✅ No hay eventos de sobre-revolución en el periodo seleccionado.")
+
+    # --- SUB-TAB: EXCESO DE VELOCIDAD ---
+    with sub_vel:
+        if not df_eventos_vel.empty:
+            vehiculos_afectados_vel = df_eventos_vel['id_camion'].nunique()
+            total_eventos_vel = len(df_eventos_vel)
+            velocidad_max_registrada = df_eventos_vel['Velocidad_Maxima'].max()
+            duracion_promedio_vel = df_eventos_vel['Duracion_Segundos'].mean()
+
+            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+            col_v1.metric("Vehículos con excesos", vehiculos_afectados_vel)
+            col_v2.metric("Eventos totales", total_eventos_vel)
+            col_v3.metric("Velocidad máxima registrada", f"{velocidad_max_registrada:,.0f} km/h")
+            col_v4.metric("Duración promedio", f"{duracion_promedio_vel:,.0f} seg")
+
+            st.markdown("---")
+            col_vel_top, col_vel_localidad = st.columns(2)
+            with col_vel_top:
+                st.markdown("**Top 10 vehículos con más excesos de velocidad**")
+                top_vel = df_eventos_vel.groupby('Movil').size().reset_index(name='Eventos') \
+                    .sort_values('Eventos', ascending=False).head(10)
+                fig_top_vel = px.bar(
+                    top_vel.sort_values('Eventos'),
+                    x='Eventos', y='Movil', orientation='h',
+                    text='Eventos', color_discrete_sequence=['#EF9F27']
+                )
+                fig_top_vel.update_layout(
+                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                    yaxis=dict(showgrid=False, zeroline=False)
+                )
+                st.plotly_chart(fig_top_vel, use_container_width=True)
+
+            with col_vel_localidad:
+                st.markdown("**Top 10 localidades con más excesos**")
+                top_localidad_vel = df_eventos_vel.groupby('Localidad').size().reset_index(name='Eventos') \
+                    .sort_values('Eventos', ascending=False).head(10)
+                fig_localidad_vel = px.bar(
+                    top_localidad_vel.sort_values('Eventos'),
+                    x='Eventos', y='Localidad', orientation='h',
+                    text='Eventos', color_discrete_sequence=['#62A830']
+                )
+                fig_localidad_vel.update_layout(
+                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
+                    yaxis=dict(showgrid=False, zeroline=False)
+                )
+                st.plotly_chart(fig_localidad_vel, use_container_width=True)
+
+            with st.expander("📋 Ver detalle de excesos de velocidad"):
+                df_show_vel = df_eventos_vel[['Movil', 'Placa', 'Ciudad', 'Localidad', 'Limite_Velocidad',
+                                               'Velocidad_Maxima', 'activeFrom', 'Duracion_Segundos', 'Turno']].copy()
+                df_show_vel['activeFrom'] = df_show_vel['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
+                df_show_vel['Duracion_Segundos'] = df_show_vel['Duracion_Segundos'].round(0)
+                df_show_vel = df_show_vel.rename(columns={
+                    'activeFrom': 'Fecha/Hora', 'Duracion_Segundos': 'Duración (seg)',
+                    'Limite_Velocidad': 'Límite (km/h)', 'Velocidad_Maxima': 'Velocidad Máxima (km/h)'
+                }).sort_values('Fecha/Hora', ascending=False)
+                st.dataframe(df_show_vel, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay registros de exceso de velocidad en el periodo seleccionado. Recuerda que solo se monitorea Bogotá (límite 50 km/h) por ahora.")
+
+# Las pestañas de Temperaturas y Horómetro quedan pendientes.
+# (Avísame cuándo las quieras y las construyo igual que hicimos con Manejo.)
