@@ -485,46 +485,50 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
             continue
 
         for id_veh, logs in zip(ids_vehiculos, resultados):
-            if not logs:
-                continue
-            df_log = pd.DataFrame(logs)
-            if df_log.empty or 'speed' not in df_log.columns:
-                continue
-            df_log['dateTime'] = convertir_a_bogota(df_log['dateTime'])
-            df_log = df_log.sort_values('dateTime').reset_index(drop=True)
-
-            # Localidad por punto: solo se calcula para puntos que ya superan el límite
-            # mínimo posible. El resto conserva un valor por defecto (nunca es infracción).
-            df_log['Localidad_Punto'] = 'Fuera de zonas definidas'
-            mascara_relevante = df_log['speed'] > limite_minimo_global
-            if mascara_relevante.any():
-                df_log.loc[mascara_relevante, 'Localidad_Punto'] = df_log.loc[mascara_relevante].apply(
-                    lambda r: determinar_localidad(r.get('longitude'), r.get('latitude'), zonas), axis=1
-                )
-            df_log['Limite_Aplicable'] = df_log['Localidad_Punto'].apply(
-                lambda loc: obtener_limite_velocidad_aplicable(loc, limite)
-            )
-            df_log['excede'] = df_log['speed'] > df_log['Limite_Aplicable']
-            df_log['grupo'] = (df_log['excede'] != df_log['excede'].shift()).cumsum()
-            for _, grupo_df in df_log[df_log['excede']].groupby('grupo'):
-                inicio = grupo_df['dateTime'].iloc[0]
-                fin = grupo_df['dateTime'].iloc[-1]
-                duracion = (fin - inicio).total_seconds()
-                if duracion < 5:
+            try:
+                if not logs or not isinstance(logs, list):
                     continue
-                idx_max = grupo_df['speed'].idxmax()
-                fila_max = grupo_df.loc[idx_max]
-                eventos.append({
-                    'id_camion': id_veh,
-                    'activeFrom': inicio,
-                    'activeTo': fin,
-                    'Duracion_Segundos': duracion,
-                    'Velocidad_Maxima': grupo_df['speed'].max(),
-                    'latitude': fila_max.get('latitude'),
-                    'longitude': fila_max.get('longitude'),
-                    'Localidad': fila_max['Localidad_Punto'],
-                    'Limite_Velocidad': fila_max['Limite_Aplicable'],
-                })
+                df_log = pd.DataFrame(logs)
+                if df_log.empty or 'speed' not in df_log.columns:
+                    continue
+                df_log['dateTime'] = convertir_a_bogota(df_log['dateTime'])
+                df_log = df_log.sort_values('dateTime').reset_index(drop=True)
+
+                # Localidad por punto: solo se calcula para puntos que ya superan el límite
+                # mínimo posible. El resto conserva un valor por defecto (nunca es infracción).
+                df_log['Localidad_Punto'] = 'Fuera de zonas definidas'
+                mascara_relevante = df_log['speed'] > limite_minimo_global
+                if mascara_relevante.any():
+                    df_log.loc[mascara_relevante, 'Localidad_Punto'] = df_log.loc[mascara_relevante].apply(
+                        lambda r: determinar_localidad(r.get('longitude'), r.get('latitude'), zonas), axis=1
+                    )
+                df_log['Limite_Aplicable'] = df_log['Localidad_Punto'].apply(
+                    lambda loc: obtener_limite_velocidad_aplicable(loc, limite)
+                )
+                df_log['excede'] = df_log['speed'] > df_log['Limite_Aplicable']
+                df_log['grupo'] = (df_log['excede'] != df_log['excede'].shift()).cumsum()
+                for _, grupo_df in df_log[df_log['excede']].groupby('grupo'):
+                    inicio = grupo_df['dateTime'].iloc[0]
+                    fin = grupo_df['dateTime'].iloc[-1]
+                    duracion = (fin - inicio).total_seconds()
+                    if duracion < 5:
+                        continue
+                    idx_max = grupo_df['speed'].idxmax()
+                    fila_max = grupo_df.loc[idx_max]
+                    eventos.append({
+                        'id_camion': id_veh,
+                        'activeFrom': inicio,
+                        'activeTo': fin,
+                        'Duracion_Segundos': duracion,
+                        'Velocidad_Maxima': grupo_df['speed'].max(),
+                        'latitude': fila_max.get('latitude'),
+                        'longitude': fila_max.get('longitude'),
+                        'Localidad': fila_max['Localidad_Punto'],
+                        'Limite_Velocidad': fila_max['Limite_Aplicable'],
+                    })
+            except Exception:
+                # Un vehículo con datos inesperados no debe tumbar el resto del cálculo.
+                continue
     if not eventos:
         return pd.DataFrame()
     df_eventos_vel = pd.DataFrame(eventos)
