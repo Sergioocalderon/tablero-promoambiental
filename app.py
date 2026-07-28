@@ -940,9 +940,42 @@ ciudad_seleccionada = st.sidebar.selectbox(
     key="filtro_ciudad"
 )
 
+st.sidebar.subheader("🔍 Buscar Vehículo")
+placa_buscada = st.sidebar.text_input(
+    "Placa o número de móvil",
+    value="",
+    placeholder="Ej: ABC123 o 450",
+    key="buscar_placa"
+).strip().upper()
+
+st.sidebar.subheader("🕐 Filtrar por Turno")
+turnos_seleccionados = st.sidebar.multiselect(
+    "Selecciona turno(s)",
+    options=['R1', 'R2', 'R3'],
+    default=['R1', 'R2', 'R3'],
+    key="filtro_turno",
+    help="R1: 05:00-13:00 | R2: 13:00-21:00 | R3: 21:00-05:00"
+)
+
 # Cargar incidentes y procesar activas con el filtro de cerrados
 incidentes_guardados = cargar_incidentes(hoja_incidentes)
 df_activas = procesar_activas(df_fallas, ciudad_seleccionada, incidentes_guardados)
+
+if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns:
+    df_activas['Turno'] = df_activas['Fecha_Alerta'].apply(clasificar_turno)
+
+if placa_buscada and not df_activas.empty:
+    df_activas = df_activas[
+        df_activas['Placa'].astype(str).str.upper().str.contains(placa_buscada, na=False) |
+        df_activas['Movil'].astype(str).str.upper().str.contains(placa_buscada, na=False)
+    ]
+    if df_activas.empty:
+        st.sidebar.warning(f"No se encontraron fallas activas para '{placa_buscada}'.")
+
+if turnos_seleccionados and len(turnos_seleccionados) < 3 and not df_activas.empty:
+    df_activas = df_activas[df_activas['Turno'].isin(turnos_seleccionados)]
+    if df_activas.empty:
+        st.sidebar.warning(f"No hay fallas activas en el/los turno(s) seleccionado(s).")
 
 # =============================================================================
 # TABS
@@ -1358,6 +1391,26 @@ with tab_manejo:
 
     df_eventos_rpm, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
     df_eventos_vel = extraer_datos_velocidad(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+
+    if placa_buscada:
+        if not df_eventos_rpm.empty:
+            df_eventos_rpm = df_eventos_rpm[
+                df_eventos_rpm['Placa'].astype(str).str.upper().str.contains(placa_buscada, na=False) |
+                df_eventos_rpm['Movil'].astype(str).str.upper().str.contains(placa_buscada, na=False)
+            ]
+        if not df_eventos_vel.empty:
+            df_eventos_vel = df_eventos_vel[
+                df_eventos_vel['Placa'].astype(str).str.upper().str.contains(placa_buscada, na=False) |
+                df_eventos_vel['Movil'].astype(str).str.upper().str.contains(placa_buscada, na=False)
+            ]
+        st.caption(f"🔍 Filtrando por: **{placa_buscada}**")
+
+    if turnos_seleccionados and len(turnos_seleccionados) < 3:
+        if not df_eventos_rpm.empty:
+            df_eventos_rpm = df_eventos_rpm[df_eventos_rpm['Turno'].isin(turnos_seleccionados)]
+        if not df_eventos_vel.empty:
+            df_eventos_vel = df_eventos_vel[df_eventos_vel['Turno'].isin(turnos_seleccionados)]
+        st.caption(f"🕐 Turno(s): **{', '.join(turnos_seleccionados)}**")
 
     sub_rpm, sub_vel = st.tabs(["🔧 Sobre-revolución (RPM)", "🚗 Exceso de Velocidad"])
 
