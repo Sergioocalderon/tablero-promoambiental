@@ -293,6 +293,25 @@ REFERENCIA_MOTOR_POR_MARCA = {
 NOMBRE_REGLA_RPM_POR_MOTOR = {'L9': 'SOBRE REVOLUCION (L9)', 'X12': 'SOBRE REVOLUCION (X12)'}
 LIMITE_VELOCIDAD_POR_CIUDAD = {'Bogotá': 50}
 
+# Límites especiales por localidad/zona (Geotab Zone), independientes del límite de ciudad.
+# La coincidencia es por substring, insensible a mayúsculas/minúsculas, contra el nombre
+# de la zona tal como está en Geotab. AJUSTA la clave si tu zona se llama distinto
+# (ej. "Relleno Sanitario Doña Juana", "RS Colomba", etc.).
+LIMITE_VELOCIDAD_ZONAS_ESPECIALES = {
+    'doña juana': 30,
+}
+
+def obtener_limite_velocidad_aplicable(localidad, limite_ciudad):
+    """Devuelve el límite de velocidad para un punto dado su localidad.
+    Si la localidad coincide con una zona especial, usa ese límite;
+    si no, usa el límite general de la ciudad (ej. 50 km/h)."""
+    if localidad:
+        localidad_l = localidad.lower()
+        for clave, limite_especial in LIMITE_VELOCIDAD_ZONAS_ESPECIALES.items():
+            if clave.lower() in localidad_l:
+                return limite_especial
+    return limite_ciudad
+
 # IDs de diagnóstico Geotab usados para el "freeze frame" (contexto al momento de la falla).
 # ID_DIAGNOSTICO_RPM_MOTOR ya se usaba en extraer_datos_manejo(); se reutiliza aquí.
 ID_DIAGNOSTICO_RPM_MOTOR = 'aW3Nmy-ktfEuvrdkya4z0yg'          # Engine Speed (RPM)
@@ -439,7 +458,16 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
                 continue
             df_log['dateTime'] = convertir_a_bogota(df_log['dateTime'])
             df_log = df_log.sort_values('dateTime').reset_index(drop=True)
-            df_log['excede'] = df_log['speed'] > limite
+            # Localidad por punto: necesaria ANTES de decidir si hay exceso, porque
+            # el límite aplicable depende de en qué zona está el vehículo en ese instante
+            # (ej. 30 km/h dentro del relleno sanitario, 50 km/h en el resto de la ciudad).
+            df_log['Localidad_Punto'] = df_log.apply(
+                lambda r: determinar_localidad(r.get('longitude'), r.get('latitude'), zonas), axis=1
+            )
+            df_log['Limite_Aplicable'] = df_log['Localidad_Punto'].apply(
+                lambda loc: obtener_limite_velocidad_aplicable(loc, limite)
+            )
+            df_log['excede'] = df_log['speed'] > df_log['Limite_Aplicable']
             df_log['grupo'] = (df_log['excede'] != df_log['excede'].shift()).cumsum()
             for _, grupo_df in df_log[df_log['excede']].groupby('grupo'):
                 inicio = grupo_df['dateTime'].iloc[0]
@@ -449,7 +477,6 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
                     continue
                 idx_max = grupo_df['speed'].idxmax()
                 fila_max = grupo_df.loc[idx_max]
-                localidad = determinar_localidad(fila_max.get('longitude'), fila_max.get('latitude'), zonas)
                 eventos.append({
                     'id_camion': veh['id_camion'],
                     'activeFrom': inicio,
@@ -458,8 +485,8 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
                     'Velocidad_Maxima': grupo_df['speed'].max(),
                     'latitude': fila_max.get('latitude'),
                     'longitude': fila_max.get('longitude'),
-                    'Localidad': localidad,
-                    'Limite_Velocidad': limite,
+                    'Localidad': fila_max['Localidad_Punto'],
+                    'Limite_Velocidad': fila_max['Limite_Aplicable'],
                 })
     if not eventos:
         return pd.DataFrame()
@@ -1535,7 +1562,7 @@ with tab_manejo:
                 }).sort_values('Fecha/Hora', ascending=False)
                 st.dataframe(df_show_vel, use_container_width=True, hide_index=True)
         else:
-            st.info("No hay registros de exceso de velocidad en el periodo seleccionado. Recuerda que solo se monitorea Bogotá (límite 50 km/h) por ahora.")
+            st.success("✅ No hay registros de exceso de velocidad en el periodo seleccionado. Recuerda que solo se monitorea Bogotá — límite general 50 km/h, y 30 km/h dentro del relleno sanitario.")
 
 # Las pestañas de Temperaturas y Horómetro quedan pendientes.
 # (Avísame cuándo las quieras y las construyo igual que hicimos con Manejo.)
