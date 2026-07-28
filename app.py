@@ -408,23 +408,39 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_eventos['Duracion_Segundos'] = (df_eventos['activeTo'] - df_eventos['activeFrom']).dt.total_seconds()
     df_eventos['Umbral_RPM'] = df_eventos['Motor'].map({'L9': 2100, 'X12': 2100})
     df_eventos = pd.merge(df_eventos, _df_vehiculos, on='id_camion', how='left')
-    ID_DIAGNOSTICO_RPM = 'aW3Nmy-ktfEuvrdkya4z0yg'
+
+    # Un solo viaje al servidor para TODAS las lecturas de RPM del periodo (antes: una
+    # llamada StatusData por cada evento de sobre-revolución).
+    try:
+        lecturas_rpm_raw = _client.get('StatusData', search={
+            'diagnosticSearch': {'id': ID_DIAGNOSTICO_RPM_MOTOR},
+            'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        })
+    except Exception as e:
+        st.warning(f"No se pudieron traer lecturas de RPM: {e}")
+        lecturas_rpm_raw = []
+
+    df_lecturas_rpm = pd.DataFrame()
+    if lecturas_rpm_raw:
+        df_lecturas_rpm = pd.DataFrame(lecturas_rpm_raw)
+        if not df_lecturas_rpm.empty and 'device' in df_lecturas_rpm.columns:
+            df_lecturas_rpm['id_camion'] = df_lecturas_rpm['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
+            df_lecturas_rpm['dateTime'] = convertir_a_bogota(df_lecturas_rpm['dateTime'])
+            df_lecturas_rpm['data'] = pd.to_numeric(df_lecturas_rpm['data'], errors='coerce')
+            df_lecturas_rpm = df_lecturas_rpm[['id_camion', 'dateTime', 'data']].dropna()
+
     def obtener_pico_evento(row):
-        try:
-            desde = row['activeFrom'] - timedelta(seconds=30)
-            hasta = row['activeTo'] + timedelta(seconds=30)
-            lecturas = _client.get('StatusData', search={
-                'diagnosticSearch': {'id': ID_DIAGNOSTICO_RPM},
-                'deviceSearch': {'id': row['id_camion']},
-                'fromDate': desde.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-                'toDate': hasta.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-            })
-            if not lecturas:
-                return None
-            valores = [l.get('data') for l in lecturas if l.get('data') is not None]
-            return max(valores) if valores else None
-        except Exception:
+        if df_lecturas_rpm.empty:
             return None
+        desde = row['activeFrom'] - timedelta(seconds=30)
+        hasta = row['activeTo'] + timedelta(seconds=30)
+        ventana = df_lecturas_rpm[
+            (df_lecturas_rpm['id_camion'] == row['id_camion']) &
+            (df_lecturas_rpm['dateTime'] >= desde) &
+            (df_lecturas_rpm['dateTime'] <= hasta)
+        ]
+        return ventana['data'].max() if not ventana.empty else None
     df_eventos['RPM_Pico'] = df_eventos.apply(obtener_pico_evento, axis=1)
     df_rpm_diario = df_eventos.groupby(['id_camion', 'Fecha'])['RPM_Pico'].max().reset_index()
     df_rpm_diario = df_rpm_diario.rename(columns={'RPM_Pico': 'RPM_Maximo'})
@@ -437,20 +453,38 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
     f_inicio_utc = f_inicio.astimezone(timezone.utc)
     f_fin_utc = f_fin.astimezone(timezone.utc)
     zonas = obtener_zonas(_client)
+    # El límite más bajo posible entre todos los configurados (ciudad + zonas especiales).
+    # Un punto por debajo de este valor NUNCA puede ser infracción, así que nos ahorramos
+    # el cálculo de localidad (point-in-polygon, costoso) para esos puntos.
+    limites_posibles = list(LIMITE_VELOCIDAD_POR_CIUDAD.values()) + list(LIMITE_VELOCIDAD_ZONAS_ESPECIALES.values())
+    limite_minimo_global = min(limites_posibles) if limites_posibles else 0
     eventos = []
     for ciudad, limite in LIMITE_VELOCIDAD_POR_CIUDAD.items():
         vehiculos_ciudad = _df_vehiculos[_df_vehiculos['Ciudad'] == ciudad]
         if vehiculos_ciudad.empty:
             continue
-        for _, veh in vehiculos_ciudad.iterrows():
-            try:
-                logs = _client.get('LogRecord', search={
-                    'deviceSearch': {'id': veh['id_camion']},
+        ids_vehiculos = vehiculos_ciudad['id_camion'].tolist()
+
+        # Un solo viaje de ida y vuelta al servidor para TODOS los vehículos de la ciudad
+        # (antes: una llamada HTTP secuencial por cada vehículo — el cuello de botella real).
+        llamadas = [
+            ('Get', {
+                'typeName': 'LogRecord',
+                'search': {
+                    'deviceSearch': {'id': id_veh},
                     'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
                     'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-                })
-            except Exception:
-                continue
+                }
+            })
+            for id_veh in ids_vehiculos
+        ]
+        try:
+            resultados = _client.multi_call(llamadas)
+        except Exception as e:
+            st.warning(f"No se pudo agrupar la consulta de LogRecord para {ciudad}, se omite: {e}")
+            continue
+
+        for id_veh, logs in zip(ids_vehiculos, resultados):
             if not logs:
                 continue
             df_log = pd.DataFrame(logs)
@@ -458,12 +492,15 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
                 continue
             df_log['dateTime'] = convertir_a_bogota(df_log['dateTime'])
             df_log = df_log.sort_values('dateTime').reset_index(drop=True)
-            # Localidad por punto: necesaria ANTES de decidir si hay exceso, porque
-            # el límite aplicable depende de en qué zona está el vehículo en ese instante
-            # (ej. 30 km/h dentro del relleno sanitario, 50 km/h en el resto de la ciudad).
-            df_log['Localidad_Punto'] = df_log.apply(
-                lambda r: determinar_localidad(r.get('longitude'), r.get('latitude'), zonas), axis=1
-            )
+
+            # Localidad por punto: solo se calcula para puntos que ya superan el límite
+            # mínimo posible. El resto conserva un valor por defecto (nunca es infracción).
+            df_log['Localidad_Punto'] = 'Fuera de zonas definidas'
+            mascara_relevante = df_log['speed'] > limite_minimo_global
+            if mascara_relevante.any():
+                df_log.loc[mascara_relevante, 'Localidad_Punto'] = df_log.loc[mascara_relevante].apply(
+                    lambda r: determinar_localidad(r.get('longitude'), r.get('latitude'), zonas), axis=1
+                )
             df_log['Limite_Aplicable'] = df_log['Localidad_Punto'].apply(
                 lambda loc: obtener_limite_velocidad_aplicable(loc, limite)
             )
@@ -478,7 +515,7 @@ def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
                 idx_max = grupo_df['speed'].idxmax()
                 fila_max = grupo_df.loc[idx_max]
                 eventos.append({
-                    'id_camion': veh['id_camion'],
+                    'id_camion': id_veh,
                     'activeFrom': inicio,
                     'activeTo': fin,
                     'Duracion_Segundos': duracion,
@@ -849,17 +886,26 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 zonas = obtener_zonas(_client)
                 vehiculos_con_falla = df_fallas['id_camion'].unique().tolist()
                 logs_por_camion = []
-                for id_veh in vehiculos_con_falla:
-                    try:
-                        logs_veh = _client.get('LogRecord', search={
+                # Un solo viaje de ida y vuelta al servidor para todos los vehículos con
+                # falla (antes: una llamada HTTP secuencial por cada uno).
+                llamadas_logs = [
+                    ('Get', {
+                        'typeName': 'LogRecord',
+                        'search': {
                             'deviceSearch': {'id': id_veh},
                             'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
                             'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-                        })
+                        }
+                    })
+                    for id_veh in vehiculos_con_falla
+                ]
+                try:
+                    resultados_logs = _client.multi_call(llamadas_logs)
+                    for logs_veh in resultados_logs:
                         if logs_veh:
                             logs_por_camion.extend(logs_veh)
-                    except Exception:
-                        continue
+                except Exception as e:
+                    st.warning(f"No se pudo agrupar la consulta de LogRecord para geolocalizar fallas: {e}")
                 if logs_por_camion:
                     df_logs = pd.DataFrame(logs_por_camion)
                     df_logs['id_camion'] = df_logs['device'].apply(lambda x: x['id'] if isinstance(x, dict) else str(x))
