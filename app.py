@@ -86,13 +86,25 @@ st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
 # =============================================================================
 # CONEXIONES A GEOTAB Y GOOGLE SHEETS (CACHEADAS)
 # =============================================================================
+def obtener_credencial(nombre_env, ruta_secrets=None):
+    """Busca primero en variables de entorno (Oracle/Render/HF); si no existe,
+    recurre a st.secrets (Streamlit Community Cloud), usando ruta_secrets
+    como tupla (seccion, clave)."""
+    valor = os.environ.get(nombre_env)
+    if valor:
+        return valor
+    if ruta_secrets:
+        seccion, clave = ruta_secrets
+        return st.secrets[seccion][clave]
+    return None
+
 @st.cache_resource
 def iniciar_conexion_geotab():
     try:
-        USUARIO = os.environ["GEOTAB_USUARIO"]
-        CONTRASENA = os.environ["GEOTAB_CONTRASENA"]
-        BASE_DE_DATOS = os.environ["GEOTAB_DATABASE"]
-        SERVIDOR = os.environ["GEOTAB_SERVER"]
+        USUARIO = obtener_credencial("GEOTAB_USUARIO", ("geotab", "usuario"))
+        CONTRASENA = obtener_credencial("GEOTAB_CONTRASENA", ("geotab", "contrasena"))
+        BASE_DE_DATOS = obtener_credencial("GEOTAB_DATABASE", ("geotab", "database"))
+        SERVIDOR = obtener_credencial("GEOTAB_SERVER", ("geotab", "server"))
         client = mygeotab.API(username=USUARIO, password=CONTRASENA, database=BASE_DE_DATOS, server=SERVIDOR)
         client.authenticate()
         return client
@@ -111,7 +123,11 @@ ALCANCES_SHEETS = [
 @st.cache_resource
 def conectar_hoja_incidentes():
     try:
-        credenciales_info = json.loads(os.environ["GCP_SERVICE_ACCOUNT_JSON"])
+        credenciales_env = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+        if credenciales_env:
+            credenciales_info = json.loads(credenciales_env)
+        else:
+            credenciales_info = dict(st.secrets["gcp_service_account"])
         credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
         cliente_sheets = gspread.authorize(credenciales)
         hoja = cliente_sheets.open_by_key(ID_HOJA_INCIDENTES).sheet1
