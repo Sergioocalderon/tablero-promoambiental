@@ -1,3 +1,6 @@
+import os
+import json
+import io
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -86,10 +89,10 @@ st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
 @st.cache_resource
 def iniciar_conexion_geotab():
     try:
-        USUARIO = st.secrets["geotab"]["usuario"]
-        CONTRASENA = st.secrets["geotab"]["contrasena"]
-        BASE_DE_DATOS = st.secrets["geotab"]["database"]
-        SERVIDOR = st.secrets["geotab"]["server"]
+        USUARIO = os.environ["GEOTAB_USUARIO"]
+        CONTRASENA = os.environ["GEOTAB_CONTRASENA"]
+        BASE_DE_DATOS = os.environ["GEOTAB_DATABASE"]
+        SERVIDOR = os.environ["GEOTAB_SERVER"]
         client = mygeotab.API(username=USUARIO, password=CONTRASENA, database=BASE_DE_DATOS, server=SERVIDOR)
         client.authenticate()
         return client
@@ -108,7 +111,7 @@ ALCANCES_SHEETS = [
 @st.cache_resource
 def conectar_hoja_incidentes():
     try:
-        credenciales_info = dict(st.secrets["gcp_service_account"])
+        credenciales_info = json.loads(os.environ["GCP_SERVICE_ACCOUNT_JSON"])
         credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
         cliente_sheets = gspread.authorize(credenciales)
         hoja = cliente_sheets.open_by_key(ID_HOJA_INCIDENTES).sheet1
@@ -457,6 +460,12 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_rpm_diario = df_eventos.groupby(['id_camion', 'Fecha'])['RPM_Pico'].max().reset_index()
     df_rpm_diario = df_rpm_diario.rename(columns={'RPM_Pico': 'RPM_Maximo'})
     return df_eventos, df_rpm_diario
+
+def convertir_a_excel(df):
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Datos')
+    return buffer.getvalue()
 
 @st.cache_data(ttl=180)
 def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
@@ -1490,8 +1499,27 @@ with tab_manejo:
     st.subheader("🚦 Comportamiento de Manejo")
     st.caption("Eventos de sobre-revolución (RPM) y exceso de velocidad en el periodo seleccionado.")
 
+    # El exceso de velocidad se calcula a partir de LogRecord (posición/velocidad cruda,
+    # registrada cada 15-30 seg por vehículo), que es el dato más pesado de toda la app.
+    # Rangos de fechas largos pueden traer cientos de miles de filas de golpe y agotar
+    # la memoria disponible, así que limitamos ese cálculo a un máximo de días.
+    MAX_DIAS_EXCESOS = 7
+    dias_solicitados = (fecha_fin - fecha_inicio).days + 1
+    calcular_excesos = True
+    if dias_solicitados > MAX_DIAS_EXCESOS:
+        calcular_excesos = False
+        st.warning(
+            f"⚠️ El rango seleccionado es de {dias_solicitados} días. Para evitar sobrecargar la "
+            f"app, el exceso de velocidad solo se calcula para rangos de hasta {MAX_DIAS_EXCESOS} días. "
+            f"Reduce el rango de fechas en la barra lateral para ver esta sección, o consulta el "
+            f"detalle de sobre-revolución (RPM) más abajo, que sí se calcula para cualquier rango."
+        )
+
     df_eventos_rpm, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
-    df_eventos_vel = extraer_datos_velocidad(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+    if calcular_excesos:
+        df_eventos_vel = extraer_datos_velocidad(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+    else:
+        df_eventos_vel = pd.DataFrame()
 
     if placa_buscada:
         if not df_eventos_rpm.empty:
@@ -1572,6 +1600,12 @@ with tab_manejo:
                     'Umbral_RPM': 'Umbral RPM', 'RPM_Pico': 'RPM Pico'
                 }).sort_values('Fecha/Hora', ascending=False)
                 st.dataframe(df_show_rpm, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "⬇️ Descargar Excel (sobre-revolución)",
+                    data=convertir_a_excel(df_show_rpm),
+                    file_name=f"sobre_revolucion_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
         else:
             st.success("✅ No hay eventos de sobre-revolución en el periodo seleccionado.")
 
@@ -1635,6 +1669,12 @@ with tab_manejo:
                     'Limite_Velocidad': 'Límite (km/h)', 'Velocidad_Maxima': 'Velocidad Máxima (km/h)'
                 }).sort_values('Fecha/Hora', ascending=False)
                 st.dataframe(df_show_vel, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "⬇️ Descargar Excel (excesos de velocidad)",
+                    data=convertir_a_excel(df_show_vel),
+                    file_name=f"excesos_velocidad_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
         else:
             st.success("✅ No hay registros de exceso de velocidad en el periodo seleccionado. Recuerda que solo se monitorea Bogotá — límite general 50 km/h, y 30 km/h dentro del relleno sanitario.")
 
