@@ -5,3 +5,5 @@ mygeotab
 tzdata
 gspread
 google-auth
+numpy
+openpyxl
