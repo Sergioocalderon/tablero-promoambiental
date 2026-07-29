@@ -1633,7 +1633,17 @@ with tab_manejo:
                     'activeFrom': 'Fecha/Hora', 'Duracion_Segundos': 'Duración (seg)',
                     'Umbral_RPM': 'Umbral RPM', 'RPM_Pico': 'RPM Pico'
                 }).sort_values('RPM Pico', ascending=False)
-                st.dataframe(df_show_rpm, use_container_width=True, hide_index=True)
+                st.dataframe(
+                    df_show_rpm, use_container_width=True, hide_index=True,
+                    column_config={
+                        "RPM Pico": st.column_config.ProgressColumn(
+                            "RPM Pico", min_value=0, max_value=2500, format="%d RPM"
+                        ),
+                        "Umbral RPM": st.column_config.NumberColumn("Umbral RPM", format="%d RPM"),
+                        "Duración (seg)": st.column_config.NumberColumn("Duración (seg)", format="%d seg"),
+                        "Fecha/Hora": st.column_config.TextColumn("Fecha/Hora", width="medium"),
+                    }
+                )
                 st.download_button(
                     "⬇️ Descargar Excel (sobre-revolución)",
                     data=convertir_a_excel(df_show_rpm),
@@ -1703,7 +1713,17 @@ with tab_manejo:
                     'activeFrom': 'Fecha/Hora', 'Duracion_Segundos': 'Duración (seg)',
                     'Limite_Velocidad': 'Límite (km/h)', 'Velocidad_Maxima': 'Velocidad Máxima (km/h)'
                 }).sort_values('Velocidad Máxima (km/h)', ascending=False)
-                st.dataframe(df_show_vel, use_container_width=True, hide_index=True)
+                st.dataframe(
+                    df_show_vel, use_container_width=True, hide_index=True,
+                    column_config={
+                        "Velocidad Máxima (km/h)": st.column_config.ProgressColumn(
+                            "Velocidad Máxima (km/h)", min_value=0, max_value=120, format="%d km/h"
+                        ),
+                        "Límite (km/h)": st.column_config.NumberColumn("Límite (km/h)", format="%d km/h"),
+                        "Duración (seg)": st.column_config.NumberColumn("Duración (seg)", format="%d seg"),
+                        "Fecha/Hora": st.column_config.TextColumn("Fecha/Hora", width="medium"),
+                    }
+                )
                 st.download_button(
                     "⬇️ Descargar Excel (excesos de velocidad)",
                     data=convertir_a_excel(df_show_vel),
