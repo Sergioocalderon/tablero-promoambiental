@@ -483,23 +483,6 @@ def convertir_a_excel(df):
         df.to_excel(writer, index=False, sheet_name='Datos')
     return buffer.getvalue()
 
-def render_tarjetas_metricas(metricas, color_acento):
-    """metricas: lista de tuplas (etiqueta, valor). color_acento: color hex del borde/ícono."""
-    tarjetas_html = ""
-    for etiqueta, valor in metricas:
-        tarjetas_html += f"""
-        <div style="background:#FFFFFF; border-radius:10px; padding:16px 18px;
-                    box-shadow:0px 4px 10px rgba(0,0,0,0.06); border-top:4px solid {color_acento};
-                    flex:1; min-width:150px;">
-            <div style="font-size:0.85rem; font-weight:600; color:#64748B; margin-bottom:6px;
-                        text-transform:uppercase; letter-spacing:0.03em;">{etiqueta}</div>
-            <div style="font-size:1.9rem; font-weight:800; color:#1E293B;">{valor}</div>
-        </div>"""
-    st.markdown(
-        f"""<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px;">{tarjetas_html}</div>""",
-        unsafe_allow_html=True
-    )
-
 @st.cache_data(ttl=180)
 def extraer_datos_velocidad(_client, f_inicio, f_fin, _df_vehiculos):
     if _client is None or _df_vehiculos.empty:
@@ -1584,12 +1567,11 @@ with tab_manejo:
             duracion_promedio_rpm = df_eventos_rpm['Duracion_Segundos'].mean()
             rpm_pico_max = df_eventos_rpm['RPM_Pico'].max() if 'RPM_Pico' in df_eventos_rpm.columns else None
 
-            render_tarjetas_metricas([
-                ("Vehículos con eventos", f"{vehiculos_afectados_rpm}"),
-                ("Eventos totales", f"{total_eventos_rpm}"),
-                ("Duración promedio", f"{duracion_promedio_rpm:,.0f} seg"),
-                ("RPM pico registrado", f"{rpm_pico_max:,.0f}" if pd.notna(rpm_pico_max) else "N/D"),
-            ], color_acento="#E24B4A")
+            col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+            col_r1.metric("Vehículos con eventos", vehiculos_afectados_rpm)
+            col_r2.metric("Eventos totales", total_eventos_rpm)
+            col_r3.metric("Duración promedio", f"{duracion_promedio_rpm:,.0f} seg")
+            col_r4.metric("RPM pico registrado", f"{rpm_pico_max:,.0f}" if pd.notna(rpm_pico_max) else "N/D")
 
             st.markdown("---")
             col_rpm_top, col_rpm_turno = st.columns(2)
@@ -1661,12 +1643,11 @@ with tab_manejo:
             velocidad_max_registrada = df_eventos_vel['Velocidad_Maxima'].max()
             duracion_promedio_vel = df_eventos_vel['Duracion_Segundos'].mean()
 
-            render_tarjetas_metricas([
-                ("Vehículos con excesos", f"{vehiculos_afectados_vel}"),
-                ("Eventos totales", f"{total_eventos_vel}"),
-                ("Velocidad máxima registrada", f"{velocidad_max_registrada:,.0f} km/h"),
-                ("Duración promedio", f"{duracion_promedio_vel:,.0f} seg"),
-            ], color_acento="#EF9F27")
+            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+            col_v1.metric("Vehículos con excesos", vehiculos_afectados_vel)
+            col_v2.metric("Eventos totales", total_eventos_vel)
+            col_v3.metric("Velocidad máxima registrada", f"{velocidad_max_registrada:,.0f} km/h")
+            col_v4.metric("Duración promedio", f"{duracion_promedio_vel:,.0f} seg")
 
             st.markdown("---")
             col_vel_top, col_vel_localidad = st.columns(2)
