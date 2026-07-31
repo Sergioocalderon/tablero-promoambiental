@@ -1289,8 +1289,8 @@ with tab_fallas:
                             df_show = df_veh_ordenado[['Movil', 'Marca', 'Referencia_Motor', 'N_Motor',
                                                        'SPN_Geotab', 'FMI_Geotab', 'Fecha_Alerta',
                                                        'Descripcion_Falla', 'Criticidad']].copy()
-                            df_show['SPN_Geotab'] = df_show['SPN_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
-                            df_show['FMI_Geotab'] = df_show['FMI_Geotab'].apply(lambda x: int(x) if pd.notna(x) else '?')
+                            df_show['SPN_Geotab'] = df_show['SPN_Geotab'].apply(lambda x: str(int(x)) if pd.notna(x) else '?')
+                            df_show['FMI_Geotab'] = df_show['FMI_Geotab'].apply(lambda x: str(int(x)) if pd.notna(x) else '?')
                             df_show['Fecha_Alerta'] = df_show['Fecha_Alerta'].dt.strftime('%d/%m/%Y %H:%M:%S')
                             df_show = df_show.rename(columns={'SPN_Geotab':'SPN','FMI_Geotab':'FMI','Fecha_Alerta':'Fecha','Descripcion_Falla':'Descripción','Criticidad':'Criticidad'})
                             st.dataframe(df_show, use_container_width=True, hide_index=True)
