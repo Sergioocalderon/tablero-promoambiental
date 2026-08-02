@@ -241,6 +241,14 @@ ID_DIAGNOSTICO_TEMPERATURA = 'DiagnosticEngineCoolantTemperatureId'
 ID_DIAGNOSTICO_ODOMETRO = 'DiagnosticOdometerId'               # Geotab entrega esto en metros
 ID_DIAGNOSTICO_VELOCIDAD = 'DiagnosticSpeedId'                 # Velocidad (km/h)
 ID_DIAGNOSTICO_COMBUSTIBLE = 'DiagnosticFuelLevelId'           # Nivel de combustible (%)
+ID_DIAGNOSTICO_REFRIGERANTE = 'DiagnosticCoolantLevelId'       # Nivel de refrigerante (%)
+ID_DIAGNOSTICO_ADBLUE = 'DiagnosticDieselExhaustFluidId'       # Nivel de AdBlue / DEF (%)
+
+NIVELES_DISPONIBLES = {
+    'Combustible': ID_DIAGNOSTICO_COMBUSTIBLE,
+    'Refrigerante': ID_DIAGNOSTICO_REFRIGERANTE,
+    'AdBlue': ID_DIAGNOSTICO_ADBLUE,
+}
 TOLERANCIA_FREEZE_FRAME = pd.Timedelta('5min')
 
 def clasificar_turno(momento):
@@ -383,8 +391,8 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     return df_eventos, df_rpm_diario
 
 @st.cache_data(ttl=180)
-def extraer_nivel_combustible_vehiculo(_client, id_veh, f_inicio, f_fin):
-    """Trae el nivel de combustible (%) de UN solo vehículo en el rango dado.
+def extraer_nivel_vehiculo(_client, id_veh, diagnostico_id, f_inicio, f_fin):
+    """Trae UN tipo de nivel (%) de UN solo vehículo en el rango dado.
     A diferencia del exceso de velocidad (que trae LogRecord de toda una ciudad),
     esto es liviano porque consulta un solo vehículo a la vez."""
     if _client is None or not id_veh:
@@ -394,12 +402,12 @@ def extraer_nivel_combustible_vehiculo(_client, id_veh, f_inicio, f_fin):
     try:
         registros = _client.get('StatusData', search={
             'deviceSearch': {'id': id_veh},
-            'diagnosticSearch': {'id': ID_DIAGNOSTICO_COMBUSTIBLE},
+            'diagnosticSearch': {'id': diagnostico_id},
             'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         })
     except Exception as e:
-        st.warning(f"No se pudo traer el nivel de combustible: {e}")
+        st.warning(f"No se pudo traer el nivel: {e}")
         return pd.DataFrame()
     if not registros:
         return pd.DataFrame()
@@ -407,8 +415,8 @@ def extraer_nivel_combustible_vehiculo(_client, id_veh, f_inicio, f_fin):
     if df.empty or 'data' not in df.columns:
         return pd.DataFrame()
     df['Fecha_Hora'] = convertir_a_bogota(df['dateTime'])
-    df['Nivel_Combustible'] = pd.to_numeric(df['data'], errors='coerce')
-    return df[['Fecha_Hora', 'Nivel_Combustible']].dropna().sort_values('Fecha_Hora')
+    df['Nivel'] = pd.to_numeric(df['data'], errors='coerce')
+    return df[['Fecha_Hora', 'Nivel']].dropna().sort_values('Fecha_Hora')
 
 def convertir_a_excel(df):
     buffer = io.BytesIO()
@@ -1338,25 +1346,30 @@ with tab_alertas:
 # =============================================================================
 with tab_niveles:
     st.subheader("📉 Niveles")
-    st.caption("Seguimiento del nivel de combustible de un vehículo en el periodo seleccionado.")
+    st.caption("Seguimiento del nivel de combustible, refrigerante o AdBlue de un vehículo en el periodo seleccionado.")
 
     if not df_vehiculos_global.empty:
-        opciones_vehiculo = df_vehiculos_global.sort_values('Movil').apply(
-            lambda r: f"{r['Movil']} - {r['Placa']}", axis=1
-        ).tolist()
-        vehiculo_seleccionado = st.selectbox(
-            "Selecciona un vehículo", opciones_vehiculo, key="niveles_vehiculo_sel"
-        )
+        col_sel1, col_sel2 = st.columns([1, 2])
+        with col_sel1:
+            tipo_nivel = st.selectbox("Tipo de nivel", list(NIVELES_DISPONIBLES.keys()), key="niveles_tipo_sel")
+        with col_sel2:
+            opciones_vehiculo = df_vehiculos_global.sort_values('Movil').apply(
+                lambda r: f"{r['Movil']} - {r['Placa']}", axis=1
+            ).tolist()
+            vehiculo_seleccionado = st.selectbox(
+                "Selecciona un vehículo", opciones_vehiculo, key="niveles_vehiculo_sel"
+            )
         movil_sel = vehiculo_seleccionado.split(" - ")[0]
         fila_veh = df_vehiculos_global[df_vehiculos_global['Movil'] == movil_sel].iloc[0]
         id_veh_sel = fila_veh['id_camion']
+        diagnostico_sel = NIVELES_DISPONIBLES[tipo_nivel]
 
-        df_nivel = extraer_nivel_combustible_vehiculo(client, id_veh_sel, fecha_inicio, fecha_fin)
+        df_nivel = extraer_nivel_vehiculo(client, id_veh_sel, diagnostico_sel, fecha_inicio, fecha_fin)
 
         if not df_nivel.empty:
-            nivel_actual = df_nivel.iloc[-1]['Nivel_Combustible']
-            nivel_min = df_nivel['Nivel_Combustible'].min()
-            nivel_max = df_nivel['Nivel_Combustible'].max()
+            nivel_actual = df_nivel.iloc[-1]['Nivel']
+            nivel_min = df_nivel['Nivel'].min()
+            nivel_max = df_nivel['Nivel'].max()
 
             col_n1, col_n2, col_n3 = st.columns(3)
             col_n1.metric("Nivel actual", f"{nivel_actual:,.0f} %")
@@ -1364,14 +1377,14 @@ with tab_niveles:
             col_n3.metric("Máximo en el periodo", f"{nivel_max:,.0f} %")
 
             fig_nivel = px.line(
-                df_nivel, x='Fecha_Hora', y='Nivel_Combustible',
-                title=f"Nivel de combustible — {vehiculo_seleccionado}",
+                df_nivel, x='Fecha_Hora', y='Nivel',
+                title=f"Nivel de {tipo_nivel} — {vehiculo_seleccionado}",
                 markers=True
             )
             fig_nivel.update_traces(line_color='#62A830')
             fig_nivel.update_layout(
                 height=400, margin=dict(l=0, r=0, t=40, b=0),
-                yaxis_title="Nivel de combustible (%)", xaxis_title="Fecha/Hora"
+                yaxis_title=f"Nivel de {tipo_nivel} (%)", xaxis_title="Fecha/Hora"
             )
             st.plotly_chart(fig_nivel, use_container_width=True)
 
@@ -1379,17 +1392,17 @@ with tab_niveles:
                 df_show_nivel = df_nivel.copy()
                 df_show_nivel['Fecha_Hora'] = df_show_nivel['Fecha_Hora'].dt.strftime('%d/%m/%Y %H:%M:%S')
                 df_show_nivel = df_show_nivel.rename(columns={
-                    'Fecha_Hora': 'Fecha/Hora', 'Nivel_Combustible': 'Nivel (%)'
+                    'Fecha_Hora': 'Fecha/Hora', 'Nivel': 'Nivel (%)'
                 }).sort_values('Fecha/Hora', ascending=False)
                 st.dataframe(df_show_nivel, use_container_width=True, hide_index=True)
                 st.download_button(
-                    "⬇️ Descargar Excel (nivel de combustible)",
+                    f"⬇️ Descargar Excel (nivel de {tipo_nivel.lower()})",
                     data=convertir_a_excel(df_show_nivel),
-                    file_name=f"nivel_combustible_{movil_sel}_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
+                    file_name=f"nivel_{tipo_nivel.lower()}_{movil_sel}_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
         else:
-            st.info("No hay lecturas de nivel de combustible para este vehículo en el periodo seleccionado.")
+            st.info(f"No hay lecturas de nivel de {tipo_nivel.lower()} para este vehículo en el periodo seleccionado.")
     else:
         st.info("No hay vehículos disponibles.")
 
