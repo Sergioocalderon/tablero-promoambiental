@@ -240,6 +240,7 @@ ID_DIAGNOSTICO_RPM_MOTOR = 'aW3Nmy-ktfEuvrdkya4z0yg'          # Engine Speed (RP
 ID_DIAGNOSTICO_TEMPERATURA = 'DiagnosticEngineCoolantTemperatureId'
 ID_DIAGNOSTICO_ODOMETRO = 'DiagnosticOdometerId'               # Geotab entrega esto en metros
 ID_DIAGNOSTICO_VELOCIDAD = 'DiagnosticSpeedId'                 # Velocidad (km/h)
+ID_DIAGNOSTICO_COMBUSTIBLE = 'DiagnosticFuelLevelId'           # Nivel de combustible (%)
 TOLERANCIA_FREEZE_FRAME = pd.Timedelta('5min')
 
 def clasificar_turno(momento):
@@ -380,6 +381,34 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_rpm_diario = df_eventos.groupby(['id_camion', 'Fecha'])['RPM_Pico'].max().reset_index()
     df_rpm_diario = df_rpm_diario.rename(columns={'RPM_Pico': 'RPM_Maximo'})
     return df_eventos, df_rpm_diario
+
+@st.cache_data(ttl=180)
+def extraer_nivel_combustible_vehiculo(_client, id_veh, f_inicio, f_fin):
+    """Trae el nivel de combustible (%) de UN solo vehículo en el rango dado.
+    A diferencia del exceso de velocidad (que trae LogRecord de toda una ciudad),
+    esto es liviano porque consulta un solo vehículo a la vez."""
+    if _client is None or not id_veh:
+        return pd.DataFrame()
+    f_inicio_utc = f_inicio.astimezone(timezone.utc)
+    f_fin_utc = f_fin.astimezone(timezone.utc)
+    try:
+        registros = _client.get('StatusData', search={
+            'deviceSearch': {'id': id_veh},
+            'diagnosticSearch': {'id': ID_DIAGNOSTICO_COMBUSTIBLE},
+            'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        })
+    except Exception as e:
+        st.warning(f"No se pudo traer el nivel de combustible: {e}")
+        return pd.DataFrame()
+    if not registros:
+        return pd.DataFrame()
+    df = pd.DataFrame(registros)
+    if df.empty or 'data' not in df.columns:
+        return pd.DataFrame()
+    df['Fecha_Hora'] = convertir_a_bogota(df['dateTime'])
+    df['Nivel_Combustible'] = pd.to_numeric(df['data'], errors='coerce')
+    return df[['Fecha_Hora', 'Nivel_Combustible']].dropna().sort_values('Fecha_Hora')
 
 def convertir_a_excel(df):
     buffer = io.BytesIO()
@@ -1000,9 +1029,10 @@ if turnos_seleccionados and len(turnos_seleccionados) < 3 and not df_activas.emp
 # =============================================================================
 # TABS
 # =============================================================================
-tab_fallas, tab_alertas, tab_seguimiento = st.tabs([
+tab_fallas, tab_alertas, tab_niveles, tab_seguimiento = st.tabs([
     "🩺 Fallas y Diagnóstico",
     "🚨 Alertas",
+    "📉 Niveles",
     "⏱️ Seguimiento de Códigos"
 ])
 
@@ -1302,6 +1332,66 @@ with tab_alertas:
                         st.caption(f"🔎 Buscando: **SPN {spn_sel} | FMI {fmi_sel}**")
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
+
+# =============================================================================
+# TAB NIVELES (seguimiento del nivel de combustible por vehículo)
+# =============================================================================
+with tab_niveles:
+    st.subheader("📉 Niveles")
+    st.caption("Seguimiento del nivel de combustible de un vehículo en el periodo seleccionado.")
+
+    if not df_vehiculos_global.empty:
+        opciones_vehiculo = df_vehiculos_global.sort_values('Movil').apply(
+            lambda r: f"{r['Movil']} - {r['Placa']}", axis=1
+        ).tolist()
+        vehiculo_seleccionado = st.selectbox(
+            "Selecciona un vehículo", opciones_vehiculo, key="niveles_vehiculo_sel"
+        )
+        movil_sel = vehiculo_seleccionado.split(" - ")[0]
+        fila_veh = df_vehiculos_global[df_vehiculos_global['Movil'] == movil_sel].iloc[0]
+        id_veh_sel = fila_veh['id_camion']
+
+        df_nivel = extraer_nivel_combustible_vehiculo(client, id_veh_sel, fecha_inicio, fecha_fin)
+
+        if not df_nivel.empty:
+            nivel_actual = df_nivel.iloc[-1]['Nivel_Combustible']
+            nivel_min = df_nivel['Nivel_Combustible'].min()
+            nivel_max = df_nivel['Nivel_Combustible'].max()
+
+            col_n1, col_n2, col_n3 = st.columns(3)
+            col_n1.metric("Nivel actual", f"{nivel_actual:,.0f} %")
+            col_n2.metric("Mínimo en el periodo", f"{nivel_min:,.0f} %")
+            col_n3.metric("Máximo en el periodo", f"{nivel_max:,.0f} %")
+
+            fig_nivel = px.line(
+                df_nivel, x='Fecha_Hora', y='Nivel_Combustible',
+                title=f"Nivel de combustible — {vehiculo_seleccionado}",
+                markers=True
+            )
+            fig_nivel.update_traces(line_color='#62A830')
+            fig_nivel.update_layout(
+                height=400, margin=dict(l=0, r=0, t=40, b=0),
+                yaxis_title="Nivel de combustible (%)", xaxis_title="Fecha/Hora"
+            )
+            st.plotly_chart(fig_nivel, use_container_width=True)
+
+            with st.expander("📋 Ver detalle de lecturas"):
+                df_show_nivel = df_nivel.copy()
+                df_show_nivel['Fecha_Hora'] = df_show_nivel['Fecha_Hora'].dt.strftime('%d/%m/%Y %H:%M:%S')
+                df_show_nivel = df_show_nivel.rename(columns={
+                    'Fecha_Hora': 'Fecha/Hora', 'Nivel_Combustible': 'Nivel (%)'
+                }).sort_values('Fecha/Hora', ascending=False)
+                st.dataframe(df_show_nivel, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "⬇️ Descargar Excel (nivel de combustible)",
+                    data=convertir_a_excel(df_show_nivel),
+                    file_name=f"nivel_combustible_{movil_sel}_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.info("No hay lecturas de nivel de combustible para este vehículo en el periodo seleccionado.")
+    else:
+        st.info("No hay vehículos disponibles.")
 
 # =============================================================================
 # TAB SEGUIMIENTO DE CÓDIGOS (tiempo activo + activación/desactivación)
