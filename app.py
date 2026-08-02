@@ -239,6 +239,7 @@ def obtener_limite_velocidad_aplicable(localidad, limite_ciudad):
 ID_DIAGNOSTICO_RPM_MOTOR = 'aW3Nmy-ktfEuvrdkya4z0yg'          # Engine Speed (RPM)
 ID_DIAGNOSTICO_TEMPERATURA = 'DiagnosticEngineCoolantTemperatureId'
 ID_DIAGNOSTICO_ODOMETRO = 'DiagnosticOdometerId'               # Geotab entrega esto en metros
+ID_DIAGNOSTICO_VELOCIDAD = 'DiagnosticSpeedId'                 # Velocidad (km/h)
 TOLERANCIA_FREEZE_FRAME = pd.Timedelta('5min')
 
 def clasificar_turno(momento):
@@ -903,6 +904,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                     (ID_DIAGNOSTICO_RPM_MOTOR, 'RPM_Momento_Falla'),
                     (ID_DIAGNOSTICO_TEMPERATURA, 'Temperatura_Momento_Falla'),
                     (ID_DIAGNOSTICO_ODOMETRO, 'Odometro_Momento_Falla'),
+                    (ID_DIAGNOSTICO_VELOCIDAD, 'Velocidad_Momento_Falla'),
                 ]:
                     df_lecturas = _obtener_lecturas_diagnostico(diag_id, nombre_columna)
                     if not df_lecturas.empty:
@@ -998,8 +1000,9 @@ if turnos_seleccionados and len(turnos_seleccionados) < 3 and not df_activas.emp
 # =============================================================================
 # TABS
 # =============================================================================
-tab_fallas, tab_seguimiento = st.tabs([
+tab_fallas, tab_alertas, tab_seguimiento = st.tabs([
     "🩺 Fallas y Diagnóstico",
+    "🚨 Alertas",
     "⏱️ Seguimiento de Códigos"
 ])
 
@@ -1189,6 +1192,95 @@ with tab_fallas:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
     # Mapa (se omite por brevedad pero se mantiene igual que antes)
+
+# =============================================================================
+# TAB ALERTAS (severidad + contexto: kilometraje, temperatura, RPM, velocidad)
+# =============================================================================
+with tab_alertas:
+    st.subheader("🚨 Alertas por Severidad")
+    st.caption("Una alerta por vehículo, coloreada según su nivel de criticidad, con el contexto del vehículo en el momento de la falla más reciente.")
+
+    if not df_activas.empty:
+        for criticidad in ORDEN_CRITICIDAD:
+            df_crit = df_activas[df_activas['Criticidad_Vehiculo'] == criticidad]
+            if df_crit.empty:
+                continue
+            vehiculos_crit = df_crit.groupby('id_camion').agg(
+                Cantidad_Fallas=('id_camion', 'count'),
+                Ultima_Falla=('Fecha_Alerta', 'max'),
+                Movil=('Movil', 'first'),
+                Placa=('Placa', 'first'),
+                Ciudad=('Ciudad', 'first')
+            ).reset_index().sort_values(['Cantidad_Fallas', 'Ultima_Falla'], ascending=[False, False])
+
+            num_vehiculos = len(vehiculos_crit)
+            color_fondo = COLOR_CRITICIDAD[criticidad]
+            emoji_cabecera = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': '📋'}[criticidad]
+
+            st.markdown(f"""
+            <div style="background-color:{color_fondo}; color:white; padding:10px 15px; border-radius:8px; margin-top:20px; margin-bottom:15px; font-weight:bold; font-size:1.2rem;">
+                {emoji_cabecera} {criticidad} - {num_vehiculos} vehículo(s)
+            </div>
+            """, unsafe_allow_html=True)
+
+            for _, veh_row in vehiculos_crit.iterrows():
+                id_camion = veh_row['id_camion']
+                grupo_ordenado = df_crit[df_crit['id_camion'] == id_camion].sort_values('Fecha_Alerta', ascending=False)
+                fila0 = grupo_ordenado.iloc[0]
+
+                if 'Grupo_Sistema' in grupo_ordenado.columns:
+                    bloques_descripcion = []
+                    for sistema, df_sistema in grupo_ordenado.groupby('Grupo_Sistema', sort=False):
+                        lineas = "\n".join(
+                            f"   • {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
+                            for _, r in df_sistema.iterrows()
+                        )
+                        bloques_descripcion.append(f"**Sistema: {sistema}**\n{lineas}")
+                    descripcion_consolidada = "\n\n".join(bloques_descripcion)
+                else:
+                    descripcion_consolidada = "\n".join(
+                        f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
+                        for i, (_, r) in enumerate(grupo_ordenado.iterrows())
+                    )
+
+                fecha_mas_reciente = fila0['Fecha_Alerta']
+                cantidad_fallas = len(grupo_ordenado)
+                emoji = "🚨" if criticidad == 'ALTA' else "⚠️" if criticidad == 'MEDIA' else "📋"
+
+                with st.expander(
+                    f"{emoji} {fila0['Movil']} - {fila0['Placa']} | {criticidad} | {cantidad_fallas} falla(s) — {fecha_mas_reciente.strftime('%d/%m/%Y %H:%M')}"
+                ):
+                    rpm_val = fila0.get('RPM_Momento_Falla')
+                    temp_val = fila0.get('Temperatura_Momento_Falla')
+                    odo_val = fila0.get('Odometro_Momento_Falla')
+                    vel_val = fila0.get('Velocidad_Momento_Falla')
+                    rpm_txt = f"{rpm_val:,.0f} RPM" if pd.notna(rpm_val) else "No disponible"
+                    temp_txt = f"{temp_val:,.0f} °C" if pd.notna(temp_val) else "No disponible"
+                    odo_txt = f"{odo_val:,.0f} km" if pd.notna(odo_val) else "No disponible"
+                    vel_txt = f"{vel_val:,.0f} km/h" if pd.notna(vel_val) else "No disponible"
+
+                    st.markdown(f"""
+                    <div style="background-color:{color_fondo}; padding:12px; border-radius:8px; color:white; margin-bottom:10px;">
+                        <h3 style="margin:0;">{emoji} {criticidad} - {fila0['Movil']} ({fila0['Placa']}) - {cantidad_fallas} falla(s) activa(s)</h3>
+                        <p style="margin:4px 0;"><strong>Ubicación:</strong> {fila0.get('Localidad','No disponible')}</p>
+                        <p style="margin:4px 0;"><strong>Ciudad:</strong> {fila0.get('Ciudad','Sin ciudad asignada')}</p>
+                        <p style="margin:4px 0;"><strong>Última alerta:</strong> {fecha_mas_reciente.strftime('%d/%m/%Y %H:%M:%S')}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown(f"""
+                    <div style="background-color:#F1F5F9; padding:10px 14px; border-radius:8px; margin-bottom:10px; display:flex; gap:24px; flex-wrap:wrap;">
+                        <span>🛣️ <strong>Kilometraje:</strong> {odo_txt}</span>
+                        <span>🌡️ <strong>Temperatura:</strong> {temp_txt}</span>
+                        <span>📊 <strong>RPM:</strong> {rpm_txt}</span>
+                        <span>🚗 <strong>Velocidad:</strong> {vel_txt}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("**Fallas detectadas (agrupadas por sistema):**")
+                    st.markdown(descripcion_consolidada.replace("\n", "  \n"))
+    else:
+        st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
 # =============================================================================
 # TAB SEGUIMIENTO DE CÓDIGOS (tiempo activo + activación/desactivación)
