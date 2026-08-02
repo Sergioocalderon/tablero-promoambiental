@@ -418,6 +418,54 @@ def extraer_nivel_vehiculo(_client, id_veh, diagnostico_id, f_inicio, f_fin):
     df['Nivel'] = pd.to_numeric(df['data'], errors='coerce')
     return df[['Fecha_Hora', 'Nivel']].dropna().sort_values('Fecha_Hora')
 
+UMBRAL_NIVEL_BAJO = 20  # % — por debajo de esto se marca como alerta en el resumen de flota
+
+@st.cache_data(ttl=300)
+def extraer_niveles_flota(_client, _df_vehiculos, horas_atras=48):
+    """Trae el ÚLTIMO nivel reportado (combustible, refrigerante, AdBlue) de TODOS los
+    vehículos, usando una ventana corta (no todo el rango de fechas del tablero) y un
+    solo viaje de red por tipo de nivel — así se evita el problema de memoria que
+    tenía el filtro de excesos de velocidad."""
+    if _client is None or _df_vehiculos.empty:
+        return pd.DataFrame()
+
+    f_fin_utc = datetime.now(timezone.utc)
+    f_inicio_utc = f_fin_utc - timedelta(hours=horas_atras)
+    ids_vehiculos = _df_vehiculos['id_camion'].tolist()
+
+    resultado = _df_vehiculos[['id_camion', 'Movil', 'Placa', 'Ciudad']].copy().set_index('id_camion')
+
+    for nombre_nivel, diag_id in NIVELES_DISPONIBLES.items():
+        llamadas = [
+            ('Get', {
+                'typeName': 'StatusData',
+                'search': {
+                    'deviceSearch': {'id': id_veh},
+                    'diagnosticSearch': {'id': diag_id},
+                    'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                }
+            })
+            for id_veh in ids_vehiculos
+        ]
+        try:
+            resultados = _client.multi_call(llamadas)
+        except Exception as e:
+            st.warning(f"No se pudo traer el nivel de {nombre_nivel} para la flota: {e}")
+            resultados = [[] for _ in ids_vehiculos]
+
+        valores_por_vehiculo = {}
+        for id_veh, lecturas in zip(ids_vehiculos, resultados):
+            if lecturas and isinstance(lecturas, list):
+                ultimo = max(lecturas, key=lambda r: r['dateTime'])
+                try:
+                    valores_por_vehiculo[id_veh] = float(ultimo['data'])
+                except (TypeError, ValueError):
+                    pass
+        resultado[nombre_nivel] = resultado.index.map(valores_por_vehiculo)
+
+    return resultado.reset_index(drop=True)
+
 def convertir_a_excel(df):
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -1346,9 +1394,48 @@ with tab_alertas:
 # =============================================================================
 with tab_niveles:
     st.subheader("📉 Niveles")
-    st.caption("Seguimiento del nivel de combustible, refrigerante o AdBlue de un vehículo en el periodo seleccionado.")
+    st.caption("Seguimiento del nivel de combustible, refrigerante o AdBlue.")
 
-    if not df_vehiculos_global.empty:
+    modo_niveles = st.radio(
+        "¿Qué quieres ver?", ["Un vehículo (histórico)", "Toda la flota (resumen actual)"],
+        horizontal=True, key="niveles_modo"
+    )
+    st.markdown("---")
+
+    if modo_niveles == "Toda la flota (resumen actual)":
+        st.caption(
+            f"Último nivel reportado por cada vehículo en las últimas 48 horas "
+            f"(no el rango de fechas de la barra lateral, para mantener esto liviano). "
+            f"Los niveles por debajo de {UMBRAL_NIVEL_BAJO}% se resaltan en rojo."
+        )
+        df_flota = extraer_niveles_flota(client, df_vehiculos_global)
+        if not df_flota.empty:
+            df_show_flota = df_flota.rename(columns={
+                'Movil': 'Móvil', 'Placa': 'Placa', 'Ciudad': 'Ciudad'
+            }).sort_values('Combustible', na_position='last')
+
+            def _resaltar_bajo(val):
+                if pd.isna(val):
+                    return ''
+                return 'background-color: #FCA5A5' if val < UMBRAL_NIVEL_BAJO else ''
+
+            columnas_nivel = list(NIVELES_DISPONIBLES.keys())
+            st.dataframe(
+                df_show_flota.style.map(_resaltar_bajo, subset=columnas_nivel).format(
+                    {c: '{:.0f}%' for c in columnas_nivel}, na_rep='Sin datos'
+                ),
+                use_container_width=True, hide_index=True
+            )
+            st.download_button(
+                "⬇️ Descargar Excel (resumen de niveles de flota)",
+                data=convertir_a_excel(df_show_flota),
+                file_name=f"resumen_niveles_flota_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        else:
+            st.info("No hay datos de niveles disponibles para la flota en las últimas 48 horas.")
+
+    elif not df_vehiculos_global.empty:
         col_sel1, col_sel2 = st.columns([1, 2])
         with col_sel1:
             tipo_nivel = st.selectbox("Tipo de nivel", list(NIVELES_DISPONIBLES.keys()), key="niveles_tipo_sel")
