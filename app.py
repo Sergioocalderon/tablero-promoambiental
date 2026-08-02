@@ -1279,6 +1279,27 @@ with tab_alertas:
 
                     st.markdown("**Fallas detectadas (agrupadas por sistema):**")
                     st.markdown(descripcion_consolidada.replace("\n", "  \n"))
+
+                    st.markdown("---")
+                    st.markdown("#### 🔍 Buscar causa de falla")
+                    opciones_busqueda = []
+                    for idx_op, (_, row) in enumerate(grupo_ordenado.iterrows()):
+                        spn = int(row['SPN_Geotab']) if pd.notna(row.get('SPN_Geotab')) else '?'
+                        fmi = int(row['FMI_Geotab']) if pd.notna(row.get('FMI_Geotab')) else '?'
+                        desc = row['Descripcion_Falla']
+                        desc_corta = desc[:45] + "..." if len(str(desc)) > 45 else desc
+                        opciones_busqueda.append((f"{idx_op+1}. SPN {spn} | FMI {fmi} - {desc_corta}", spn, fmi))
+                    if opciones_busqueda:
+                        etiquetas_busqueda = [o[0] for o in opciones_busqueda]
+                        falla_sel = st.selectbox(
+                            "Selecciona la falla", etiquetas_busqueda,
+                            key=f"buscar_alerta_{id_camion}_{criticidad}"
+                        )
+                        idx_sel = etiquetas_busqueda.index(falla_sel)
+                        _, spn_sel, fmi_sel = opciones_busqueda[idx_sel]
+                        url_google = f"https://www.google.com/search?q=SPN+{spn_sel}+FMI+{fmi_sel}+causa+falla+motores+diesel"
+                        st.link_button("🔍 Buscar en Google", url_google)
+                        st.caption(f"🔎 Buscando: **SPN {spn_sel} | FMI {fmi_sel}**")
     else:
         st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
 
@@ -1311,50 +1332,6 @@ with tab_seguimiento:
     col_s1.metric("Códigos activos ahora", len(claves_actuales))
     col_s2.metric("🆕 Recién activados", len(claves_nuevas))
     col_s3.metric("✅ Recién desactivados", len(claves_desactivadas))
-
-    st.markdown("---")
-
-    st.markdown("### 🔍 Buscador de Códigos")
-    st.caption("Busca la causa de un código activo por descripción, móvil, placa o número SPN/FMI.")
-    termino_busqueda = st.text_input(
-        "Escribe parte del código, la descripción, el móvil o la placa",
-        key="buscador_codigos"
-    )
-
-    if not df_codigos_activos.empty:
-        df_busqueda = df_codigos_activos.copy()
-        if termino_busqueda:
-            termino_l = termino_busqueda.lower()
-            columnas_busqueda = ['Codigo', 'Descripcion_Falla', 'Movil', 'Placa']
-            mascara = pd.Series(False, index=df_busqueda.index)
-            for col in columnas_busqueda:
-                if col in df_busqueda.columns:
-                    mascara |= df_busqueda[col].astype(str).str.lower().str.contains(termino_l, na=False)
-            df_busqueda = df_busqueda[mascara]
-
-        if not df_busqueda.empty:
-            opciones = []
-            for idx_fila, r in df_busqueda.iterrows():
-                spn = int(r['SPN_Geotab']) if pd.notna(r.get('SPN_Geotab')) else '?'
-                fmi = int(r['FMI_Geotab']) if pd.notna(r.get('FMI_Geotab')) else '?'
-                desc = r.get('Descripcion_Falla') or r['Codigo']
-                desc_corta = desc[:50] + "..." if len(str(desc)) > 50 else desc
-                opciones.append((f"{r['Movil']} | SPN {spn} FMI {fmi} - {desc_corta}", idx_fila))
-
-            etiquetas = [o[0] for o in opciones]
-            seleccion = st.selectbox("Resultados encontrados", etiquetas, key="seleccion_busqueda_codigo")
-            idx_seleccionado = dict(opciones)[seleccion]
-            fila_sel = df_busqueda.loc[idx_seleccionado]
-
-            spn_sel = int(fila_sel['SPN_Geotab']) if pd.notna(fila_sel.get('SPN_Geotab')) else '?'
-            fmi_sel = int(fila_sel['FMI_Geotab']) if pd.notna(fila_sel.get('FMI_Geotab')) else '?'
-            url_google = f"https://www.google.com/search?q=SPN+{spn_sel}+FMI+{fmi_sel}+causa+falla+motores+diesel"
-            st.link_button("🔍 Buscar causa en Google", url_google)
-            st.caption(f"Buscando: **SPN {spn_sel} | FMI {fmi_sel}** — {fila_sel.get('Descripcion_Falla', '')}")
-        else:
-            st.info("No se encontraron códigos activos que coincidan con la búsqueda.")
-    else:
-        st.info("No hay códigos activos para buscar.")
 
     st.markdown("---")
 
