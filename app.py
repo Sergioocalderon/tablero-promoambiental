@@ -1314,6 +1314,50 @@ with tab_seguimiento:
 
     st.markdown("---")
 
+    st.markdown("### 🔍 Buscador de Códigos")
+    st.caption("Busca la causa de un código activo por descripción, móvil, placa o número SPN/FMI.")
+    termino_busqueda = st.text_input(
+        "Escribe parte del código, la descripción, el móvil o la placa",
+        key="buscador_codigos"
+    )
+
+    if not df_codigos_activos.empty:
+        df_busqueda = df_codigos_activos.copy()
+        if termino_busqueda:
+            termino_l = termino_busqueda.lower()
+            columnas_busqueda = ['Codigo', 'Descripcion_Falla', 'Movil', 'Placa']
+            mascara = pd.Series(False, index=df_busqueda.index)
+            for col in columnas_busqueda:
+                if col in df_busqueda.columns:
+                    mascara |= df_busqueda[col].astype(str).str.lower().str.contains(termino_l, na=False)
+            df_busqueda = df_busqueda[mascara]
+
+        if not df_busqueda.empty:
+            opciones = []
+            for idx_fila, r in df_busqueda.iterrows():
+                spn = int(r['SPN_Geotab']) if pd.notna(r.get('SPN_Geotab')) else '?'
+                fmi = int(r['FMI_Geotab']) if pd.notna(r.get('FMI_Geotab')) else '?'
+                desc = r.get('Descripcion_Falla') or r['Codigo']
+                desc_corta = desc[:50] + "..." if len(str(desc)) > 50 else desc
+                opciones.append((f"{r['Movil']} | SPN {spn} FMI {fmi} - {desc_corta}", idx_fila))
+
+            etiquetas = [o[0] for o in opciones]
+            seleccion = st.selectbox("Resultados encontrados", etiquetas, key="seleccion_busqueda_codigo")
+            idx_seleccionado = dict(opciones)[seleccion]
+            fila_sel = df_busqueda.loc[idx_seleccionado]
+
+            spn_sel = int(fila_sel['SPN_Geotab']) if pd.notna(fila_sel.get('SPN_Geotab')) else '?'
+            fmi_sel = int(fila_sel['FMI_Geotab']) if pd.notna(fila_sel.get('FMI_Geotab')) else '?'
+            url_google = f"https://www.google.com/search?q=SPN+{spn_sel}+FMI+{fmi_sel}+causa+falla+motores+diesel"
+            st.link_button("🔍 Buscar causa en Google", url_google)
+            st.caption(f"Buscando: **SPN {spn_sel} | FMI {fmi_sel}** — {fila_sel.get('Descripcion_Falla', '')}")
+        else:
+            st.info("No se encontraron códigos activos que coincidan con la búsqueda.")
+    else:
+        st.info("No hay códigos activos para buscar.")
+
+    st.markdown("---")
+
     if not df_codigos_activos.empty:
         df_codigos_activos['Estado'] = df_codigos_activos['clave'].apply(
             lambda c: '🆕 Nuevo' if c in claves_nuevas else 'Ya estaba activo'
@@ -1321,14 +1365,25 @@ with tab_seguimiento:
         df_codigos_activos['Tiempo_Activo_Horas'] = (df_codigos_activos['Duracion_Activa_Min'] / 60).round(1)
 
         st.markdown("**Códigos actualmente activos**")
-        columnas_mostrar = ['Movil', 'Placa', 'Ciudad', 'Codigo', 'Criticidad',
+        columnas_mostrar = ['Movil', 'Placa', 'Ciudad', 'Codigo', 'Descripcion_Falla', 'Criticidad',
                              'Dias_Activa', 'Tiempo_Activo_Horas', 'Estado']
         columnas_disponibles = [c for c in columnas_mostrar if c in df_codigos_activos.columns]
         df_show_seg = df_codigos_activos[columnas_disponibles].rename(columns={
+            'Codigo': 'Código',
+            'Descripcion_Falla': 'Descripción',
             'Dias_Activa': 'Días desde última alerta',
             'Tiempo_Activo_Horas': 'Tiempo activo (horas)'
         }).sort_values('Tiempo activo (horas)', ascending=False)
-        st.dataframe(df_show_seg, use_container_width=True, hide_index=True)
+        st.dataframe(
+            df_show_seg, use_container_width=True, hide_index=True,
+            column_config={
+                "Código": st.column_config.TextColumn("Código", width="medium"),
+                "Descripción": st.column_config.TextColumn("Descripción", width="large"),
+                "Criticidad": st.column_config.TextColumn("Criticidad", width="small"),
+                "Días desde última alerta": st.column_config.NumberColumn("Días desde última alerta", format="%d días"),
+                "Tiempo activo (horas)": st.column_config.NumberColumn("Tiempo activo (horas)", format="%.1f h"),
+            }
+        )
         st.download_button(
             "⬇️ Descargar Excel (seguimiento de códigos)",
             data=convertir_a_excel(df_show_seg),
