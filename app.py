@@ -11,8 +11,6 @@ import streamlit.components.v1 as components
 import gspread
 from google.oauth2.service_account import Credentials
 import numpy as np
-import re
-import textwrap
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 
@@ -114,14 +112,17 @@ def iniciar_conexion_geotab():
 
 client = iniciar_conexion_geotab()
 
-ID_HOJA_INCIDENTES = "1QdPCp8Vgwc9mJLLAMNK2f1uKFggTrDaj2KI__bWC0LQ"
+ID_HOJA_SEGUIMIENTO = "1QdPCp8Vgwc9mJLLAMNK2f1uKFggTrDaj2KI__bWC0LQ"  # mismo libro que ya se usaba
 ALCANCES_SHEETS = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
 
 @st.cache_resource
-def conectar_hoja_incidentes():
+def conectar_hoja_seguimiento():
+    """Conecta con una hoja dedicada a guardar qué códigos estaban activos la última
+    vez que se revisó el tablero, para poder detectar cuáles se acaban de activar
+    y cuáles ya se desactivaron. La crea si todavía no existe."""
     try:
         credenciales_env = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
         if credenciales_env:
@@ -130,91 +131,46 @@ def conectar_hoja_incidentes():
             credenciales_info = dict(st.secrets["gcp_service_account"])
         credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
         cliente_sheets = gspread.authorize(credenciales)
-        hoja = cliente_sheets.open_by_key(ID_HOJA_INCIDENTES).sheet1
+        libro = cliente_sheets.open_by_key(ID_HOJA_SEGUIMIENTO)
+        try:
+            hoja = libro.worksheet('snapshot_codigos')
+        except gspread.exceptions.WorksheetNotFound:
+            hoja = libro.add_worksheet(title='snapshot_codigos', rows=3000, cols=2)
+            hoja.append_row(['clave', 'fecha_registro'])
         return hoja
     except Exception as e:
         st.warning(f"No se pudo conectar con Google Sheets: {e}")
         return None
 
-hoja_incidentes = conectar_hoja_incidentes()
+hoja_snapshot = conectar_hoja_seguimiento()
 
 # =============================================================================
-# FUNCIONES DE CARGA Y ACTUALIZACIÓN DE INCIDENTES (PERSISTENCIA)
+# FUNCIONES DE SEGUIMIENTO DE CÓDIGOS (ACTIVACIÓN / DESACTIVACIÓN)
 # =============================================================================
 @st.cache_data(ttl=20)
-def cargar_incidentes(_hoja):
+def cargar_snapshot_codigos(_hoja):
     if _hoja is None:
-        return {}
+        return set()
     try:
-        registros = _hoja.get_all_records()
+        valores = _hoja.col_values(1)[1:]  # saltar encabezado
+        return set(v for v in valores if v)
     except Exception as e:
-        st.warning(f"No se pudieron leer los incidentes: {e}")
-        return {}
-    incidentes = {}
-    for r in registros:
-        id_inc = str(r.get('id_incidente', '')).strip()
-        if not id_inc:
-            continue
-        acciones_texto = str(r.get('acciones_completadas', '') or '')
-        acciones_lista = [a for a in acciones_texto.split('|') if a]
-        incidentes[id_inc] = {
-            'estado': r.get('estado') or 'Abierto',
-            'acciones_realizadas': acciones_lista,
-            # Leer la columna K (título esperado: "Ubicacion Reparacion")
-            'ubicacion': r.get('Ubicacion Reparacion', 'No registrada'),
-            'detalle': {
-                'Movil': r.get('movil'),
-                'Placa': r.get('placa'),
-                'Descripcion_Falla': r.get('descripcion_falla'),
-                'Criticidad': r.get('criticidad'),
-                'Ciudad': r.get('ciudad') or 'Sin ciudad asignada',
-            }
-        }
-    return incidentes
+        st.warning(f"No se pudo leer el snapshot de códigos: {e}")
+        return set()
 
-def crear_incidente_en_hoja(hoja, id_incidente, movil, placa, descripcion_falla, criticidad, fecha_hora, ciudad):
+def guardar_snapshot_codigos(hoja, claves_actuales):
     if hoja is None:
         return
     try:
-        hoja.append_row([
-            id_incidente,          # A
-            movil,                 # B
-            placa,                 # C
-            descripcion_falla,     # D
-            criticidad,            # E
-            'Abierto',             # F
-            '',                    # G
-            str(fecha_hora),       # H
-            '',                    # I (fecha cierre - vacía)
-            ciudad,                # J (ciudad)
-            ''                     # K (ubicación reparación - vacía)
-        ])
-        cargar_incidentes.clear()
+        hoja.clear()
+        hoja.append_row(['clave', 'fecha_registro'])
+        ahora_str = str(datetime.now(ZONA_BOGOTA))
+        filas = [[clave, ahora_str] for clave in sorted(claves_actuales)]
+        if filas:
+            hoja.append_rows(filas)
+        cargar_snapshot_codigos.clear()
     except Exception as e:
-        st.warning(f"No se pudo guardar el incidente: {e}")
-
-def actualizar_incidente_en_hoja(hoja, id_incidente, nuevo_estado, acciones_realizadas, ubicacion=None):
-    if hoja is None:
-        st.error("❌ No hay conexión con Google Sheets.")
-        return False
-    try:
-        celda = hoja.find(id_incidente, in_column=1)
-        if not celda:
-            st.error(f"❌ No se encontró el incidente con ID '{id_incidente}'.")
-            return False
-        fila = celda.row
-        hoja.update_cell(fila, 6, nuevo_estado)                  # F
-        hoja.update_cell(fila, 7, '|'.join(acciones_realizadas)) # G
-        if nuevo_estado == 'Cerrado':
-            hoja.update_cell(fila, 9, str(datetime.now(ZONA_BOGOTA)))  # I (fecha cierre)
-            if ubicacion:
-                hoja.update_cell(fila, 11, ubicacion)            # K (ubicación)
-        cargar_incidentes.clear()
-        st.success(f"✅ Incidente {id_incidente} actualizado a '{nuevo_estado}'.")
-        return True
-    except Exception as e:
-        st.error(f"❌ Error al actualizar: {e}")
-        return False
+        st.warning(f"No se pudo guardar el snapshot de códigos: {e}")
 
 # =============================================================================
 # SIDEBAR – FILTROS
@@ -245,61 +201,8 @@ if st.sidebar.button("🔄 Actualizar datos", use_container_width=True):
     st.rerun()
 
 # =============================================================================
-# PROTOCOLOS Y CONSTANTES
+# CONSTANTES DE CLASIFICACIÓN DE VEHÍCULOS
 # =============================================================================
-PROTOCOLOS = {
-    'ALTA': {
-        'nombre': 'Protocolo de Emergencia',
-        'acciones': [
-            {'orden': 1, 'texto': 'Notificar al supervisor de turno.', 'responsable': 'Supervisor'},
-            {'orden': 2, 'texto': 'Contactar al conductor.', 'responsable': 'Coordinador'},
-            {'orden': 3, 'texto': 'Enviar grúa o mecánico.', 'responsable': 'Jefe de Flota'},
-            {'orden': 4, 'texto': 'Registrar incidente en ticketing.', 'responsable': 'Operador'},
-            {'orden': 5, 'texto': 'Seguimiento hasta cierre.', 'responsable': 'Supervisor'}
-        ],
-        'tiempo_max_respuesta_min': 5
-    },
-    'MEDIA': {
-        'nombre': 'Protocolo de Atención Programada',
-        'acciones': [
-            {'orden': 1, 'texto': 'Evaluar necesidad de detener ruta.', 'responsable': 'Coordinador'},
-            {'orden': 2, 'texto': 'Agendar cita en taller.', 'responsable': 'Operador'},
-            {'orden': 3, 'texto': 'Notificar al conductor.', 'responsable': 'Operador'}
-        ],
-        'tiempo_max_respuesta_min': 30
-    },
-    'BAJA': {
-        'nombre': 'Registro y Mantenimiento Preventivo',
-        'acciones': [
-            {'orden': 1, 'texto': 'Registrar en historial.', 'responsable': 'Sistema'},
-            {'orden': 2, 'texto': 'Programar revisión preventiva.', 'responsable': 'Sistema'}
-        ],
-        'tiempo_max_respuesta_min': 1440
-    }
-}
-
-IMPACTO_POR_GRUPO = {
-    # AJUSTA estas claves para que coincidan EXACTO con los valores que existan
-    # en la columna "Grupo" de diccionario_fallas.csv. Estos son valores de ejemplo.
-    'Motor': 'Riesgo de daño mayor al motor si continúa operando sin atención.',
-    'Refrigeracion': 'Riesgo de sobrecalentamiento y daño al motor.',
-    'Frenos': 'Riesgo directo de seguridad vial. Prioridad máxima.',
-    'Emisiones': 'Riesgo de multas ambientales y falla del sistema de escape.',
-    'Combustible': 'Riesgo de pérdida de potencia o varada en ruta.',
-    'Electrico': 'Riesgo de fallas intermitentes en otros sistemas del vehículo.',
-    'Transmision': 'Riesgo de daño a la caja de cambios si continúa en operación.',
-}
-
-def obtener_texto_impacto(grupo_sistema, criticidad):
-    if grupo_sistema in IMPACTO_POR_GRUPO:
-        return IMPACTO_POR_GRUPO[grupo_sistema]
-    texto_generico_por_criticidad = {
-        'ALTA': 'Riesgo de varada o daño mayor si el vehículo continúa en operación.',
-        'MEDIA': 'Puede derivar en una falla mayor si no se atiende pronto.',
-        'BAJA': 'Sin riesgo inmediato, pero debe registrarse para mantenimiento preventivo.',
-    }
-    return texto_generico_por_criticidad.get(criticidad, 'Impacto operativo no determinado.')
-
 REFERENCIA_MOTOR_POR_MARCA = {
     "volkswagen": "ISF 3.8",
     "volskwagen": "ISF 3.8",
@@ -754,7 +657,7 @@ def reproducir_alarma():
 # FUNCIONES CACHEADAS PARA PROCESAMIENTO
 # =============================================================================
 @st.cache_data(ttl=300)
-def procesar_activas(df_fallas, ciudad_filtro, incidentes_guardados=None):
+def procesar_activas(df_fallas, ciudad_filtro):
     if df_fallas.empty:
         return pd.DataFrame()
     df = df_fallas.copy()
@@ -773,16 +676,6 @@ def procesar_activas(df_fallas, ciudad_filtro, incidentes_guardados=None):
     criticidad_max_por_vehiculo = df.groupby('id_camion')['Rank_Criticidad'].min()
     rank_a_texto = {0: 'ALTA', 1: 'MEDIA', 2: 'BAJA'}
     df['Criticidad_Vehiculo'] = df['id_camion'].map(criticidad_max_por_vehiculo).map(rank_a_texto)
-
-    # Filtrar incidentes cerrados hoy
-    if incidentes_guardados:
-        fecha_hoy = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
-        ids_cerrados = {
-            id_inc for id_inc, inc in incidentes_guardados.items()
-            if inc['estado'] == 'Cerrado'
-        }
-        df['inc_id'] = df['id_camion'].apply(lambda x: f"VEH_{x}_{fecha_hoy}")
-        df = df[~df['inc_id'].isin(ids_cerrados)]
     return df
 
 @st.cache_data(ttl=300)
@@ -1084,8 +977,7 @@ turnos_seleccionados = st.sidebar.multiselect(
 )
 
 # Cargar incidentes y procesar activas con el filtro de cerrados
-incidentes_guardados = cargar_incidentes(hoja_incidentes)
-df_activas = procesar_activas(df_fallas, ciudad_seleccionada, incidentes_guardados)
+df_activas = procesar_activas(df_fallas, ciudad_seleccionada)
 
 if not df_activas.empty and 'Fecha_Alerta' in df_activas.columns:
     df_activas['Turno'] = df_activas['Fecha_Alerta'].apply(clasificar_turno)
@@ -1106,12 +998,9 @@ if turnos_seleccionados and len(turnos_seleccionados) < 3 and not df_activas.emp
 # =============================================================================
 # TABS
 # =============================================================================
-tab_fallas, tab_protocolo, tab_manejo, tab_temperaturas, tab_horometro = st.tabs([
+tab_fallas, tab_seguimiento = st.tabs([
     "🩺 Fallas y Diagnóstico",
-    "📋 Protocolo de Atención",
-    "🚦 Comportamiento de Manejo",
-    "🌡️ Temperaturas y Niveles",
-    "⏱️ Horómetro"
+    "⏱️ Seguimiento de Códigos"
 ])
 
 ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
@@ -1302,417 +1191,63 @@ with tab_fallas:
     # Mapa (se omite por brevedad pero se mantiene igual que antes)
 
 # =============================================================================
-# TAB PROTOCOLO DE ATENCIÓN (RENOVADO)
+# TAB SEGUIMIENTO DE CÓDIGOS (tiempo activo + activación/desactivación)
 # =============================================================================
-with tab_protocolo:
-    st.subheader("📋 Protocolo de Atención - Gestión de Incidentes")
-    st.caption("Monitoreo nacional desde Bogotá. Se registra el taller que realizó la reparación.")
+with tab_seguimiento:
+    st.subheader("⏱️ Seguimiento de Códigos")
+    st.caption(
+        "Cuánto tiempo llevan activos los códigos de falla, y cuáles se activaron "
+        "o desactivaron desde la última vez que se revisó el tablero."
+    )
 
-    if hoja_incidentes is None:
-        st.warning("⚠️ No hay conexión con la hoja de seguimiento de incidentes.")
-
-    incidentes_guardados = cargar_incidentes(hoja_incidentes)  # recargar
-
-    estado_filtro = st.radio("Mostrar incidentes:", ["Abiertos", "Cerrados", "Todos"], horizontal=True)
+    claves_anteriores = cargar_snapshot_codigos(hoja_snapshot)
 
     if not df_activas.empty:
-        conteo_crit = df_activas.groupby('Criticidad_Vehiculo')['id_camion'].nunique().reindex(ORDEN_CRITICIDAD, fill_value=0)
-        col_res1, col_res2, col_res3 = st.columns(3)
-        col_res1.metric("🚨 ALTA", conteo_crit.get('ALTA',0))
-        col_res2.metric("⚠️ MEDIA", conteo_crit.get('MEDIA',0))
-        col_res3.metric("📋 BAJA", conteo_crit.get('BAJA',0))
-        st.markdown("---")
-
-        expandir_todos = st.checkbox("📂 Expandir todos los incidentes", value=False)
-
-        for criticidad in ORDEN_CRITICIDAD:
-            df_crit = df_activas[df_activas['Criticidad_Vehiculo'] == criticidad]
-            if df_crit.empty:
-                continue
-            vehiculos_crit = df_crit.groupby('id_camion').agg(
-                Cantidad_Fallas=('id_camion', 'count'),
-                Ultima_Falla=('Fecha_Alerta', 'max'),
-                Movil=('Movil', 'first'),
-                Placa=('Placa', 'first'),
-                Ciudad=('Ciudad', 'first')
-            ).reset_index().sort_values(['Cantidad_Fallas', 'Ultima_Falla'], ascending=[False, False])
-
-            num_vehiculos = len(vehiculos_crit)
-            color_fondo = {'ALTA':'#B91C1C','MEDIA':'#B45309','BAJA':'#6B7280'}[criticidad]
-            emoji_cabecera = {'ALTA':'🚨','MEDIA':'⚠️','BAJA':'📋'}[criticidad]
-
-            st.markdown(f"""
-            <div style="background-color:{color_fondo}; color:white; padding:10px 15px; border-radius:8px; margin-top:20px; margin-bottom:15px; font-weight:bold; font-size:1.2rem;">
-                {emoji_cabecera} {criticidad} - {num_vehiculos} vehículo(s)
-            </div>
-            """, unsafe_allow_html=True)
-
-            for _, veh_row in vehiculos_crit.iterrows():
-                id_camion = veh_row['id_camion']
-                fila0 = df_crit[df_crit['id_camion'] == id_camion].iloc[0]
-                protocolo = PROTOCOLOS.get(criticidad, PROTOCOLOS['BAJA'])
-
-                fecha_hoy_str = datetime.now(ZONA_BOGOTA).strftime('%Y%m%d')
-                id_inc = f"VEH_{id_camion}_{fecha_hoy_str}"
-
-                grupo_ordenado = df_crit[df_crit['id_camion'] == id_camion].sort_values('Fecha_Alerta', ascending=False)
-
-                # Agrupación inteligente: las fallas se organizan por sistema (Grupo_Sistema)
-                # en vez de listarse todas sueltas, para ver de un vistazo qué componente falló.
-                if 'Grupo_Sistema' in grupo_ordenado.columns:
-                    bloques_descripcion = []
-                    for sistema, df_sistema in grupo_ordenado.groupby('Grupo_Sistema', sort=False):
-                        lineas = "\n".join(
-                            f"   • {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
-                            for _, r in df_sistema.iterrows()
-                        )
-                        bloques_descripcion.append(f"**Sistema: {sistema}**\n{lineas}")
-                    descripcion_consolidada = "\n\n".join(bloques_descripcion)
-                    sistema_principal = grupo_ordenado.iloc[0]['Grupo_Sistema']
-                else:
-                    descripcion_consolidada = "\n".join(
-                        f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
-                        for i, (_, r) in enumerate(grupo_ordenado.iterrows())
-                    )
-                    sistema_principal = 'Sin clasificar'
-
-                fecha_mas_reciente = grupo_ordenado.iloc[0]['Fecha_Alerta']
-                cantidad_fallas = len(grupo_ordenado)
-                texto_impacto = obtener_texto_impacto(sistema_principal, criticidad)
-
-                if fecha_mas_reciente.tzinfo is None:
-                    fecha_mas_reciente_bogota = fecha_mas_reciente.replace(tzinfo=ZONA_BOGOTA)
-                else:
-                    fecha_mas_reciente_bogota = fecha_mas_reciente.tz_convert(ZONA_BOGOTA)
-
-                if id_inc not in incidentes_guardados:
-                    crear_incidente_en_hoja(
-                        hoja_incidentes, id_inc,
-                        fila0['Movil'], fila0['Placa'], descripcion_consolidada,
-                        criticidad, fecha_mas_reciente_bogota, fila0.get('Ciudad', 'Sin ciudad asignada')
-                    )
-                    incidentes_guardados = cargar_incidentes(hoja_incidentes)
-
-                inc = incidentes_guardados.get(id_inc, {'estado':'Abierto', 'acciones_realizadas':[], 'detalle':{}})
-
-                if estado_filtro == "Abiertos" and inc['estado'] == 'Cerrado':
-                    continue
-                if estado_filtro == "Cerrados" and inc['estado'] != 'Cerrado':
-                    continue
-
-                emoji = "🚨" if criticidad == 'ALTA' else "⚠️" if criticidad == 'MEDIA' else "📋"
-                borde_color = {'ALTA':'#DC2626','MEDIA':'#D97706','BAJA':'#6B7280'}[criticidad]
-
-                with st.expander(
-                    f"{emoji} {fila0['Movil']} - {fila0['Placa']} | {criticidad} | {cantidad_fallas} falla(s) — {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M')}",
-                    expanded=(expandir_todos or (inc['estado'] == 'Abierto' and criticidad == 'ALTA'))
-                ):
-                    st.markdown(f"""<style>div[data-testid="stExpander"] {{ border-left: 6px solid {borde_color} !important; border-radius: 8px !important; }}</style>""", unsafe_allow_html=True)
-
-                    rpm_val = fila0.get('RPM_Momento_Falla')
-                    temp_val = fila0.get('Temperatura_Momento_Falla')
-                    odo_val = fila0.get('Odometro_Momento_Falla')
-                    rpm_txt = f"{rpm_val:,.0f} RPM" if pd.notna(rpm_val) else "No disponible"
-                    temp_txt = f"{temp_val:,.0f} °C" if pd.notna(temp_val) else "No disponible"
-                    odo_txt = f"{odo_val:,.0f} km" if pd.notna(odo_val) else "No disponible"
-
-                    st.markdown(f"""
-                    <div style="background-color:{color_fondo}; padding:12px; border-radius:8px; color:white; margin-bottom:10px;">
-                        <h3 style="margin:0;">{emoji} {criticidad} - {fila0['Movil']} ({fila0['Placa']}) - {cantidad_fallas} falla(s) activa(s)</h3>
-                        <p style="margin:4px 0;"><strong>Ubicación:</strong> {fila0.get('Localidad','No disponible')}</p>
-                        <p style="margin:4px 0;"><strong>Ciudad:</strong> {fila0.get('Ciudad','Sin ciudad asignada')}</p>
-                        <p style="margin:4px 0;"><strong>Estado:</strong> {inc['estado']}</p>
-                        <p style="margin:4px 0;"><strong>Última alerta:</strong> {fecha_mas_reciente_bogota.strftime('%d/%m/%Y %H:%M:%S')}</p>
-                        <p style="margin:8px 0 0 0; font-style:italic;">⚠️ Impacto operativo: {texto_impacto}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown(f"""
-                    <div style="background-color:#F1F5F9; padding:10px 14px; border-radius:8px; margin-bottom:10px; display:flex; gap:24px; flex-wrap:wrap;">
-                        <span>📊 <strong>RPM al momento:</strong> {rpm_txt}</span>
-                        <span>🌡️ <strong>Temperatura:</strong> {temp_txt}</span>
-                        <span>🛣️ <strong>Odómetro:</strong> {odo_txt}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown("**Fallas detectadas (agrupadas por sistema):**")
-                    st.markdown(descripcion_consolidada.replace("\n", "  \n"))
-
-                    if inc['estado'] == 'Abierto':
-                        with st.form(key=f"form_cierre_{id_inc}"):
-                            ciudad_vehiculo = fila0.get('Ciudad', 'Sin ciudad asignada')
-                            opciones_taller = [f"Taller propio ({ciudad_vehiculo})"]
-                            if ciudad_vehiculo == 'Bogotá':
-                                opciones_taller.append("Navitrans Tintalito (Bogotá)")
-                            opciones_taller.append("Otro taller externo")
-                            ubicacion = st.selectbox("¿Dónde se realizó la reparación?", opciones_taller, key=f"ubicacion_{id_inc}")
-                            if st.form_submit_button("🔒 Cerrar incidente"):
-                                exito = actualizar_incidente_en_hoja(
-                                    hoja_incidentes, id_inc, 'Cerrado',
-                                    inc['acciones_realizadas'], ubicacion
-                                )
-                                if exito:
-                                    st.success("✅ Incidente cerrado correctamente.")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ No se pudo cerrar el incidente.")
-                    else:
-                        ubicacion_registrada = inc.get('ubicacion', 'No registrada')
-                        st.success(f"✅ Incidente cerrado. Reparado en: {ubicacion_registrada}")
-
-                    # Búsqueda
-                    st.markdown("---")
-                    st.markdown("#### 🔍 Buscar causa de falla")
-                    opciones_busqueda = []
-                    for idx, (_, row) in enumerate(grupo_ordenado.iterrows()):
-                        spn = int(row['SPN_Geotab']) if pd.notna(row['SPN_Geotab']) else '?'
-                        fmi = int(row['FMI_Geotab']) if pd.notna(row['FMI_Geotab']) else '?'
-                        desc = row['Descripcion_Falla'][:45] + "..." if len(row['Descripcion_Falla']) > 45 else row['Descripcion_Falla']
-                        opciones_busqueda.append(f"{idx+1}. SPN {spn} | FMI {fmi} - {desc}")
-                    if opciones_busqueda:
-                        falla_sel = st.selectbox("Selecciona la falla", opciones_busqueda, key=f"buscar_{id_inc}")
-                        spn_match = re.search(r'SPN (\d+|\?)', falla_sel)
-                        fmi_match = re.search(r'FMI (\d+|\?)', falla_sel)
-                        spn = spn_match.group(1) if spn_match else '?'
-                        fmi = fmi_match.group(1) if fmi_match else '?'
-                        url_google = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-                        st.link_button("🔍 Buscar en Google", url_google)
-                        st.caption(f"🔎 Buscando: **SPN {spn} | FMI {fmi}**")
-
-                    # Protocolo
-                    st.markdown("---")
-                    st.markdown(f"#### {protocolo['nombre']}")
-                    st.caption(f"⏱️ Tiempo máximo: {protocolo['tiempo_max_respuesta_min']} min")
-                    acciones_realizadas = list(inc['acciones_realizadas'])
-                    hubo_cambio = False
-                    for accion in protocolo['acciones']:
-                        orden = accion['orden']
-                        descripcion = accion['texto']
-                        responsable = accion['responsable']
-                        clave = f"accion_{id_inc}_{orden}"
-                        realizada = clave in acciones_realizadas
-                        check = st.checkbox(f"**{orden}.** {descripcion} _(Responsable: {responsable})_", value=realizada, key=clave)
-                        if check and clave not in acciones_realizadas:
-                            acciones_realizadas.append(clave)
-                            hubo_cambio = True
-                        elif not check and clave in acciones_realizadas:
-                            acciones_realizadas.remove(clave)
-                            hubo_cambio = True
-                    if hubo_cambio:
-                        actualizar_incidente_en_hoja(hoja_incidentes, id_inc, inc['estado'], acciones_realizadas)
-                    completadas = len(acciones_realizadas)
-                    total = len(protocolo['acciones'])
-                    if total > 0:
-                        st.progress(completadas / total)
-                        st.caption(f"Progreso: {completadas} de {total} acciones completadas.")
-    else:
-        st.success("✅ No hay fallas activas en este momento. ¡Excelente!")
-
-# =============================================================================
-# TAB COMPORTAMIENTO DE MANEJO
-# =============================================================================
-with tab_manejo:
-    st.subheader("🚦 Comportamiento de Manejo")
-    st.caption("Eventos de sobre-revolución (RPM) y exceso de velocidad en el periodo seleccionado.")
-
-    # El exceso de velocidad se calcula a partir de LogRecord (posición/velocidad cruda,
-    # registrada cada 15-30 seg por vehículo), que es el dato más pesado de toda la app.
-    # Rangos de fechas largos pueden traer cientos de miles de filas de golpe y agotar
-    # la memoria disponible, así que limitamos ese cálculo a un máximo de días.
-    MAX_DIAS_EXCESOS = 7
-    dias_solicitados = (fecha_fin - fecha_inicio).days + 1
-    calcular_excesos = True
-    if dias_solicitados > MAX_DIAS_EXCESOS:
-        calcular_excesos = False
-        st.warning(
-            f"⚠️ El rango seleccionado es de {dias_solicitados} días. Para evitar sobrecargar la "
-            f"app, el exceso de velocidad solo se calcula para rangos de hasta {MAX_DIAS_EXCESOS} días. "
-            f"Reduce el rango de fechas en la barra lateral para ver esta sección, o consulta el "
-            f"detalle de sobre-revolución (RPM) más abajo, que sí se calcula para cualquier rango."
+        df_codigos_activos = df_activas.drop_duplicates(['id_camion', 'Codigo']).copy()
+        df_codigos_activos['clave'] = (
+            df_codigos_activos['id_camion'].astype(str) + '|' + df_codigos_activos['Codigo'].astype(str)
         )
-
-    df_eventos_rpm, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
-    if calcular_excesos:
-        df_eventos_vel = extraer_datos_velocidad(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+        claves_actuales = set(df_codigos_activos['clave'])
     else:
-        df_eventos_vel = pd.DataFrame()
+        df_codigos_activos = pd.DataFrame()
+        claves_actuales = set()
 
-    if placa_buscada:
-        if not df_eventos_rpm.empty:
-            df_eventos_rpm = df_eventos_rpm[
-                df_eventos_rpm['Placa'].astype(str).str.upper().str.contains(placa_buscada, na=False) |
-                df_eventos_rpm['Movil'].astype(str).str.upper().str.contains(placa_buscada, na=False)
-            ]
-        if not df_eventos_vel.empty:
-            df_eventos_vel = df_eventos_vel[
-                df_eventos_vel['Placa'].astype(str).str.upper().str.contains(placa_buscada, na=False) |
-                df_eventos_vel['Movil'].astype(str).str.upper().str.contains(placa_buscada, na=False)
-            ]
-        st.caption(f"🔍 Filtrando por: **{placa_buscada}**")
+    claves_nuevas = claves_actuales - claves_anteriores
+    claves_desactivadas = claves_anteriores - claves_actuales
 
-    if turnos_seleccionados and len(turnos_seleccionados) < 3:
-        if not df_eventos_rpm.empty:
-            df_eventos_rpm = df_eventos_rpm[df_eventos_rpm['Turno'].isin(turnos_seleccionados)]
-        if not df_eventos_vel.empty:
-            df_eventos_vel = df_eventos_vel[df_eventos_vel['Turno'].isin(turnos_seleccionados)]
-        st.caption(f"🕐 Turno(s): **{', '.join(turnos_seleccionados)}**")
+    col_s1, col_s2, col_s3 = st.columns(3)
+    col_s1.metric("Códigos activos ahora", len(claves_actuales))
+    col_s2.metric("🆕 Recién activados", len(claves_nuevas))
+    col_s3.metric("✅ Recién desactivados", len(claves_desactivadas))
 
-    sub_rpm, sub_vel = st.tabs(["🔧 Sobre-revolución (RPM)", "🚗 Exceso de Velocidad"])
+    st.markdown("---")
 
-    # --- SUB-TAB: SOBRE-REVOLUCIÓN (RPM) ---
-    with sub_rpm:
-        if not df_eventos_rpm.empty:
-            vehiculos_afectados_rpm = df_eventos_rpm['id_camion'].nunique()
-            total_eventos_rpm = len(df_eventos_rpm)
-            duracion_promedio_rpm = df_eventos_rpm['Duracion_Segundos'].mean()
-            rpm_pico_max = df_eventos_rpm['RPM_Pico'].max() if 'RPM_Pico' in df_eventos_rpm.columns else None
+    if not df_codigos_activos.empty:
+        df_codigos_activos['Estado'] = df_codigos_activos['clave'].apply(
+            lambda c: '🆕 Nuevo' if c in claves_nuevas else 'Ya estaba activo'
+        )
+        df_codigos_activos['Tiempo_Activo_Horas'] = (df_codigos_activos['Duracion_Activa_Min'] / 60).round(1)
 
-            col_r1, col_r2, col_r3, col_r4 = st.columns(4)
-            col_r1.metric("Vehículos con eventos", vehiculos_afectados_rpm)
-            col_r2.metric("Eventos totales", total_eventos_rpm)
-            col_r3.metric("Duración promedio", f"{duracion_promedio_rpm:,.0f} seg")
-            col_r4.metric("RPM pico registrado", f"{rpm_pico_max:,.0f}" if pd.notna(rpm_pico_max) else "N/D")
+        st.markdown("**Códigos actualmente activos**")
+        columnas_mostrar = ['Movil', 'Placa', 'Ciudad', 'Codigo', 'Criticidad',
+                             'Dias_Activa', 'Tiempo_Activo_Horas', 'Estado']
+        columnas_disponibles = [c for c in columnas_mostrar if c in df_codigos_activos.columns]
+        df_show_seg = df_codigos_activos[columnas_disponibles].rename(columns={
+            'Dias_Activa': 'Días desde última alerta',
+            'Tiempo_Activo_Horas': 'Tiempo activo (horas)'
+        }).sort_values('Tiempo activo (horas)', ascending=False)
+        st.dataframe(df_show_seg, use_container_width=True, hide_index=True)
+        st.download_button(
+            "⬇️ Descargar Excel (seguimiento de códigos)",
+            data=convertir_a_excel(df_show_seg),
+            file_name=f"seguimiento_codigos_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.success("✅ No hay códigos activos en este momento.")
 
-            st.markdown("---")
-            col_rpm_top, col_rpm_turno = st.columns(2)
-            with col_rpm_top:
-                st.markdown("**Top 10 vehículos con más eventos de sobre-revolución**")
-                top_rpm = df_eventos_rpm.groupby('Movil').size().reset_index(name='Eventos') \
-                    .sort_values('Eventos', ascending=False).head(10)
-                fig_top_rpm = px.bar(
-                    top_rpm.sort_values('Eventos'),
-                    x='Eventos', y='Movil', orientation='h',
-                    text='Eventos', color_discrete_sequence=['#E24B4A']
-                )
-                fig_top_rpm.update_layout(
-                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                    yaxis=dict(showgrid=False, zeroline=False)
-                )
-                st.plotly_chart(fig_top_rpm, use_container_width=True)
+    if claves_desactivadas:
+        with st.expander(f"✅ Ver los {len(claves_desactivadas)} código(s) que se desactivaron desde la última revisión"):
+            st.write(sorted(claves_desactivadas))
 
-            with col_rpm_turno:
-                st.markdown("**Eventos por turno**")
-                eventos_turno_rpm = df_eventos_rpm.groupby('Turno').size().reset_index(name='Eventos')
-                fig_turno_rpm = px.bar(
-                    eventos_turno_rpm, x='Turno', y='Eventos',
-                    text='Eventos', color_discrete_sequence=['#1EA0D7']
-                )
-                fig_turno_rpm.update_layout(
-                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    yaxis=dict(showgrid=False, zeroline=False, visible=False)
-                )
-                st.plotly_chart(fig_turno_rpm, use_container_width=True)
-
-            with st.expander("📋 Ver detalle de eventos de sobre-revolución"):
-                df_show_rpm = df_eventos_rpm[['Movil', 'Placa', 'Ciudad', 'Motor', 'Umbral_RPM', 'RPM_Pico',
-                                               'activeFrom', 'Duracion_Segundos', 'Turno']].copy()
-                df_show_rpm['activeFrom'] = df_show_rpm['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
-                df_show_rpm['Duracion_Segundos'] = df_show_rpm['Duracion_Segundos'].round(0)
-                df_show_rpm = df_show_rpm.rename(columns={
-                    'activeFrom': 'Fecha/Hora', 'Duracion_Segundos': 'Duración (seg)',
-                    'Umbral_RPM': 'Umbral RPM', 'RPM_Pico': 'RPM Pico'
-                }).sort_values('RPM Pico', ascending=False)
-                st.dataframe(
-                    df_show_rpm, use_container_width=True, hide_index=True,
-                    column_config={
-                        "RPM Pico": st.column_config.ProgressColumn(
-                            "RPM Pico", min_value=0, max_value=2500, format="%d RPM"
-                        ),
-                        "Umbral RPM": st.column_config.NumberColumn("Umbral RPM", format="%d RPM"),
-                        "Duración (seg)": st.column_config.NumberColumn("Duración (seg)", format="%d seg"),
-                        "Fecha/Hora": st.column_config.TextColumn("Fecha/Hora", width="medium"),
-                    }
-                )
-                st.download_button(
-                    "⬇️ Descargar Excel (sobre-revolución)",
-                    data=convertir_a_excel(df_show_rpm),
-                    file_name=f"sobre_revolucion_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        else:
-            st.success("✅ No hay eventos de sobre-revolución en el periodo seleccionado.")
-
-    # --- SUB-TAB: EXCESO DE VELOCIDAD ---
-    with sub_vel:
-        if not df_eventos_vel.empty:
-            vehiculos_afectados_vel = df_eventos_vel['id_camion'].nunique()
-            total_eventos_vel = len(df_eventos_vel)
-            velocidad_max_registrada = df_eventos_vel['Velocidad_Maxima'].max()
-            duracion_promedio_vel = df_eventos_vel['Duracion_Segundos'].mean()
-
-            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
-            col_v1.metric("Vehículos con excesos", vehiculos_afectados_vel)
-            col_v2.metric("Eventos totales", total_eventos_vel)
-            col_v3.metric("Velocidad máxima registrada", f"{velocidad_max_registrada:,.0f} km/h")
-            col_v4.metric("Duración promedio", f"{duracion_promedio_vel:,.0f} seg")
-
-            st.markdown("---")
-            col_vel_top, col_vel_localidad = st.columns(2)
-            with col_vel_top:
-                st.markdown("**Top 10 vehículos con más excesos de velocidad**")
-                top_vel = df_eventos_vel.groupby('Movil').size().reset_index(name='Eventos') \
-                    .sort_values('Eventos', ascending=False).head(10)
-                fig_top_vel = px.bar(
-                    top_vel.sort_values('Eventos'),
-                    x='Eventos', y='Movil', orientation='h',
-                    text='Eventos', color_discrete_sequence=['#EF9F27']
-                )
-                fig_top_vel.update_layout(
-                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                    yaxis=dict(showgrid=False, zeroline=False)
-                )
-                st.plotly_chart(fig_top_vel, use_container_width=True)
-
-            with col_vel_localidad:
-                st.markdown("**Top 10 localidades con más excesos**")
-                top_localidad_vel = df_eventos_vel.groupby('Localidad').size().reset_index(name='Eventos') \
-                    .sort_values('Eventos', ascending=False).head(10)
-                fig_localidad_vel = px.bar(
-                    top_localidad_vel.sort_values('Eventos'),
-                    x='Eventos', y='Localidad', orientation='h',
-                    text='Eventos', color_discrete_sequence=['#62A830']
-                )
-                fig_localidad_vel.update_layout(
-                    height=320, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                    yaxis=dict(showgrid=False, zeroline=False)
-                )
-                st.plotly_chart(fig_localidad_vel, use_container_width=True)
-
-            with st.expander("📋 Ver detalle de excesos de velocidad"):
-                df_show_vel = df_eventos_vel[['Movil', 'Placa', 'Ciudad', 'Localidad', 'Limite_Velocidad',
-                                               'Velocidad_Maxima', 'activeFrom', 'Duracion_Segundos', 'Turno']].copy()
-                df_show_vel['activeFrom'] = df_show_vel['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
-                df_show_vel['Duracion_Segundos'] = df_show_vel['Duracion_Segundos'].round(0)
-                df_show_vel = df_show_vel.rename(columns={
-                    'activeFrom': 'Fecha/Hora', 'Duracion_Segundos': 'Duración (seg)',
-                    'Limite_Velocidad': 'Límite (km/h)', 'Velocidad_Maxima': 'Velocidad Máxima (km/h)'
-                }).sort_values('Velocidad Máxima (km/h)', ascending=False)
-                st.dataframe(
-                    df_show_vel, use_container_width=True, hide_index=True,
-                    column_config={
-                        "Velocidad Máxima (km/h)": st.column_config.ProgressColumn(
-                            "Velocidad Máxima (km/h)", min_value=0, max_value=120, format="%d km/h"
-                        ),
-                        "Límite (km/h)": st.column_config.NumberColumn("Límite (km/h)", format="%d km/h"),
-                        "Duración (seg)": st.column_config.NumberColumn("Duración (seg)", format="%d seg"),
-                        "Fecha/Hora": st.column_config.TextColumn("Fecha/Hora", width="medium"),
-                    }
-                )
-                st.download_button(
-                    "⬇️ Descargar Excel (excesos de velocidad)",
-                    data=convertir_a_excel(df_show_vel),
-                    file_name=f"excesos_velocidad_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        else:
-            st.success("✅ No hay registros de exceso de velocidad en el periodo seleccionado. Recuerda que solo se monitorea Bogotá — límite general 50 km/h, y 30 km/h dentro del relleno sanitario.")
-
-# Las pestañas de Temperaturas y Horómetro quedan pendientes.
-# (Avísame cuándo las quieras y las construyo igual que hicimos con Manejo.)
+    guardar_snapshot_codigos(hoja_snapshot, claves_actuales)
