@@ -77,6 +77,8 @@ if 'alertas_altas_previas' not in st.session_state:
     st.session_state.alertas_altas_previas = 0
 if 'ciudades_disponibles' not in st.session_state:
     st.session_state.ciudades_disponibles = ['Todas']
+if 'claves_revolucion_previas' not in st.session_state:
+    st.session_state.claves_revolucion_previas = set()
 
 st.title("🔧 Tablero Operativo de Mantenimiento")
 st.markdown("### Fallas, Comportamiento de Manejo y Salud del Motor")
@@ -389,6 +391,68 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_rpm_diario = df_eventos.groupby(['id_camion', 'Fecha'])['RPM_Pico'].max().reset_index()
     df_rpm_diario = df_rpm_diario.rename(columns={'RPM_Pico': 'RPM_Maximo'})
     return df_eventos, df_rpm_diario
+
+ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
+VENTANA_PTO_MINUTOS = 10
+
+@st.cache_data(ttl=180)
+def cruzar_con_pto(_client, _df_eventos, f_inicio, f_fin, ventana_minutos=VENTANA_PTO_MINUTOS):
+    """Para cada evento de sobre-revolución, revisa si hubo al menos un pulso de PTO activo
+    en una ventana de +/- ventana_minutos alrededor del evento. El PTO llega como un pulso
+    (se prende y apaga rápido, no se sostiene), así que no se puede exigir que esté
+    continuamente activo — solo se busca si apareció al menos una vez cerca en el tiempo."""
+    if _client is None or _df_eventos.empty:
+        return pd.Series(dtype=bool)
+
+    f_inicio_utc = f_inicio.astimezone(timezone.utc)
+    f_fin_utc = f_fin.astimezone(timezone.utc)
+    vehiculos_con_eventos = _df_eventos['id_camion'].unique().tolist()
+
+    llamadas_pto = [
+        ('Get', {
+            'typeName': 'StatusData',
+            'search': {
+                'diagnosticSearch': {'id': ID_DIAGNOSTICO_PTO},
+                'deviceSearch': {'id': id_veh},
+                'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            }
+        })
+        for id_veh in vehiculos_con_eventos
+    ]
+    try:
+        resultados_pto = _client.multi_call(llamadas_pto)
+    except Exception as e:
+        st.warning(f"No se pudo traer el estado de PTO: {e}")
+        return pd.Series(False, index=_df_eventos.index)
+
+    filas_pto = []
+    for id_veh, lecturas in zip(vehiculos_con_eventos, resultados_pto):
+        if lecturas and isinstance(lecturas, list):
+            for l in lecturas:
+                filas_pto.append({'id_camion': id_veh, 'dateTime': l.get('dateTime'), 'data': l.get('data')})
+
+    if not filas_pto:
+        return pd.Series(False, index=_df_eventos.index)
+
+    df_lecturas_pto = pd.DataFrame(filas_pto)
+    df_lecturas_pto['dateTime'] = convertir_a_bogota(df_lecturas_pto['dateTime'])
+    df_lecturas_pto['data'] = pd.to_numeric(df_lecturas_pto['data'], errors='coerce')
+    df_lecturas_pto = df_lecturas_pto[['id_camion', 'dateTime', 'data']].dropna()
+
+    def hubo_pto_cerca(row):
+        if df_lecturas_pto.empty:
+            return False
+        desde = row['activeFrom'] - timedelta(minutes=ventana_minutos)
+        hasta = row['activeTo'] + timedelta(minutes=ventana_minutos)
+        ventana = df_lecturas_pto[
+            (df_lecturas_pto['id_camion'] == row['id_camion']) &
+            (df_lecturas_pto['dateTime'] >= desde) &
+            (df_lecturas_pto['dateTime'] <= hasta)
+        ]
+        return bool((ventana['data'] > 0).any())
+
+    return _df_eventos.apply(hubo_pto_cerca, axis=1)
 
 @st.cache_data(ttl=180)
 def extraer_nivel_vehiculo(_client, id_veh, diagnostico_id, f_inicio, f_fin):
@@ -1029,6 +1093,7 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 # EJECUCIÓN PRINCIPAL
 # =============================================================================
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
+df_eventos_revolucion, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
 
 if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
     ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
@@ -1085,11 +1150,12 @@ if turnos_seleccionados and len(turnos_seleccionados) < 3 and not df_activas.emp
 # =============================================================================
 # TABS
 # =============================================================================
-tab_fallas, tab_alertas, tab_niveles, tab_seguimiento = st.tabs([
+tab_fallas, tab_alertas, tab_niveles, tab_seguimiento, tab_revolucion = st.tabs([
     "🩺 Fallas y Diagnóstico",
     "🚨 Alertas",
     "📉 Niveles",
-    "⏱️ Seguimiento de Códigos"
+    "⏱️ Seguimiento de Códigos",
+    "🏎️ Sobre-Revolución"
 ])
 
 ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
@@ -1563,5 +1629,55 @@ with tab_seguimiento:
     if claves_desactivadas:
         with st.expander(f"✅ Ver los {len(claves_desactivadas)} código(s) que se desactivaron desde la última revisión"):
             st.write(sorted(claves_desactivadas))
+
+# =============================================================================
+# TAB SOBRE-REVOLUCIÓN (RPM alto con vehículo detenido)
+# =============================================================================
+with tab_revolucion:
+    st.subheader("🏎️ Sobre-Revolución")
+    st.caption("Eventos de RPM alto con el vehículo detenido, detectados por las reglas SOBRE REVOLUCIÓN (L9/X12) de Geotab.")
+
+    if not df_eventos_revolucion.empty:
+        claves_actuales_revolucion = set(
+            df_eventos_revolucion['id_camion'].astype(str) + '|' + df_eventos_revolucion['activeFrom'].astype(str)
+        )
+        claves_nuevas_revolucion = claves_actuales_revolucion - st.session_state.claves_revolucion_previas
+        alerta_hay_previas = bool(st.session_state.claves_revolucion_previas)
+        st.session_state.claves_revolucion_previas = claves_actuales_revolucion
+
+        df_show_revolucion = df_eventos_revolucion.sort_values('activeFrom', ascending=False)
+        df_show_revolucion['Con_PTO'] = cruzar_con_pto(client, df_show_revolucion, fecha_inicio, fecha_fin)
+        vehiculos_involucrados = df_show_revolucion['id_camion'].nunique()
+        eventos_totales = len(df_show_revolucion)
+        rpm_maximo_registrado = df_show_revolucion['RPM_Pico'].max()
+
+        col_r1, col_r2, col_r3 = st.columns(3)
+        col_r1.metric("Vehículos involucrados", vehiculos_involucrados)
+        col_r2.metric("Eventos en el periodo", eventos_totales)
+        col_r3.metric("RPM máximo registrado", f"{rpm_maximo_registrado:,.0f}" if pd.notna(rpm_maximo_registrado) else "N/D")
+
+        if claves_nuevas_revolucion and alerta_hay_previas:
+            reproducir_alarma()
+            st.warning(f"🆕 {len(claves_nuevas_revolucion)} evento(s) nuevo(s) de sobre-revolución desde la última actualización.")
+
+        df_tabla_revolucion = df_show_revolucion[[
+            'Movil', 'Placa', 'Ciudad', 'Motor', 'activeFrom', 'Duracion_Segundos', 'RPM_Pico', 'Umbral_RPM', 'Con_PTO'
+        ]].copy()
+        df_tabla_revolucion['Duracion_Min'] = (df_tabla_revolucion['Duracion_Segundos'] / 60).round(1)
+        df_tabla_revolucion['activeFrom'] = df_tabla_revolucion['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
+        df_tabla_revolucion['Con_PTO'] = df_tabla_revolucion['Con_PTO'].map({True: 'Sí', False: 'No'})
+        df_tabla_revolucion = df_tabla_revolucion.drop(columns=['Duracion_Segundos']).rename(columns={
+            'activeFrom': 'Fecha/Hora', 'Duracion_Min': 'Duración (min)', 'RPM_Pico': 'RPM Pico',
+            'Umbral_RPM': 'Umbral RPM', 'Con_PTO': 'Con PTO (±10 min)'
+        })
+        st.dataframe(df_tabla_revolucion, use_container_width=True, hide_index=True)
+        st.download_button(
+            "⬇️ Descargar Excel (sobre-revolución)",
+            data=convertir_a_excel(df_tabla_revolucion),
+            file_name=f"sobre_revolucion_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.success("✅ No hay eventos de sobre-revolución en el periodo seleccionado.")
 
     guardar_snapshot_codigos(hoja_snapshot, claves_actuales)
