@@ -214,7 +214,7 @@ REFERENCIA_MOTOR_POR_MARCA = {
     "kenworth": "ISM 11",
 }
 
-NOMBRE_REGLA_RPM_POR_MOTOR = {'L9': 'SOBRE REVOLUCION (L9)', 'X12': 'SOBRE REVOLUCION (X12)'}
+NOMBRE_REGLA_RPM_POR_MOTOR = {'L9': 'SOBRE REVOLUCIÓN (L9)', 'X12': 'SOBRE REVOLUCIÓN (X12)'}
 LIMITE_VELOCIDAD_POR_CIUDAD = {'Bogotá': 50}
 
 # Límites especiales por localidad/zona (Geotab Zone), independientes del límite de ciudad.

@@ -1,0 +1,40 @@
+name: Alertas a Telegram
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  revisar-y-notificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install mygeotab pandas requests
+
+      - name: Restaurar estado de notificaciones ya enviadas
+        uses: actions/cache/restore@v4
+        with:
+          path: telegram_estado_revolucion.json
+          key: telegram-estado-revolucion-${{ github.run_id }}
+          restore-keys: |
+            telegram-estado-revolucion-
+
+      - run: python telegram_alertas.py
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado de notificaciones para la proxima corrida
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: telegram_estado_revolucion.json
+          key: telegram-estado-revolucion-${{ github.run_id }}
