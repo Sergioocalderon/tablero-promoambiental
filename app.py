@@ -658,6 +658,8 @@ def obtener_zonas(_client):
         st.warning(f"No se pudieron cargar zonas: {e}")
         return []
 
+GRUPOS_RAIZ_NO_CIUDAD = {'tipologia'}  # grupos de nivel raíz que no representan una ciudad (ej. taxonomía de tipo de vehículo)
+
 @st.cache_data(ttl=3600)
 def es_grupo_marca(nombre):
     nombre_l = nombre.strip().lower()
@@ -698,7 +700,7 @@ def obtener_mapa_grupos(_client):
             hijo_id = obtener_id(hijo_raiz)
             hijo_completo = grupos_por_id.get(hijo_id, {})
             nombre = hijo_completo.get('name', '').strip()
-            if es_grupo_marca(nombre):
+            if es_grupo_marca(nombre) or nombre.lower() in GRUPOS_RAIZ_NO_CIUDAD:
                 recorrer(hijo_id, 'Sin ciudad asignada')
             else:
                 ciudad = normalizar_ciudad(nombre)
