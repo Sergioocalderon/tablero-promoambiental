@@ -494,8 +494,9 @@ def extraer_datos_manejo_pto(_client, f_inicio, f_fin, _df_vehiculos):
     return df_eventos
 
 ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
-VENTANA_PTO_MINUTOS = 1  # angosta a proposito: el PTO pulsa ~cada 1s todo el dia, asi que
-# una ventana amplia (ej. 10 min) casi siempre encuentra "algun" pulso por coincidencia.
+VENTANA_PTO_MINUTOS = 3  # ni muy ancha (el PTO pulsa ~cada 1s todo el dia, asi que 10 min
+# encuentra "algun" pulso por pura coincidencia) ni muy angosta (con 1 min se perdio un
+# caso real de prueba: el ultimo pulso de PTO quedo ~2 min antes del evento de RPM).
 
 @st.cache_data(ttl=180)
 def cruzar_con_pto(_client, _df_eventos, f_inicio, f_fin, ventana_minutos=VENTANA_PTO_MINUTOS):

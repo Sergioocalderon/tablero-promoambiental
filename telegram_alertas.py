@@ -108,9 +108,10 @@ def clasificar_criticidad_geotab(falla):
 # ---------------------------------------------------------------------------
 
 ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
-VENTANA_PTO_MINUTOS = 1  # ventana angosta a propósito: el PTO pulsa ~cada 1s todo el día,
-# así que una ventana amplia (ej. 10 min) casi siempre encuentra "algún" pulso por pura
-# coincidencia y deja de ser una confirmación real de que el compactador estaba operando.
+VENTANA_PTO_MINUTOS = 3  # ni muy ancha (el PTO pulsa ~cada 1s todo el dia, asi que 10 min
+# encuentra "algun" pulso por pura coincidencia) ni muy angosta (con 1 min se perdio un
+# caso real de prueba: el ultimo pulso de PTO quedo ~2 min antes de que arrancara el
+# evento de RPM sostenido -- el motor tarda en subir y sostenerse tras activar el PTO).
 
 
 def _filtrar_por_pto_cercano(api, eventos_candidatos, ventana_minutos=VENTANA_PTO_MINUTOS):
