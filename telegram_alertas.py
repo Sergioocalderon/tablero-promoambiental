@@ -66,7 +66,7 @@ def cargar_estado():
     frenar el script -- si esto lanzara una excepcion, guardar_estado() nunca se
     ejecutaria y el mismo estado viejo se re-guardaria corrida tras corrida,
     haciendo que TODO se vuelva a notificar como "nuevo" cada 5 minutos."""
-    default = {"revolucion_notificados": [], "fallas_alta_activas": []}
+    default = {"revolucion_notificados": [], "fallas_alta_activas": [], "ultima_hora_resumen": None}
     if not os.path.exists(ESTADO_PATH):
         return default
     try:
@@ -76,10 +76,13 @@ def cargar_estado():
             print(f"*** Estado en '{ESTADO_PATH}' tiene formato viejo/invalido (no es un dict) -- se ignora. ***")
             return default
         estado = dict(default)
-        for clave in default:
+        for clave in ("revolucion_notificados", "fallas_alta_activas"):
             valor = datos.get(clave)
             if isinstance(valor, list):
                 estado[clave] = valor
+        valor_hora = datos.get("ultima_hora_resumen")
+        if isinstance(valor_hora, str):
+            estado["ultima_hora_resumen"] = valor_hora
         return estado
     except Exception as e:
         print(f"*** No se pudo leer '{ESTADO_PATH}' ({e}) -- se sigue con estado vacio. ***")
@@ -90,6 +93,7 @@ def guardar_estado(estado):
     estado_a_guardar = {
         "revolucion_notificados": estado["revolucion_notificados"][-MAX_CLAVES_GUARDADAS:],
         "fallas_alta_activas": estado["fallas_alta_activas"],
+        "ultima_hora_resumen": estado.get("ultima_hora_resumen"),
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -181,16 +185,17 @@ def _filtrar_por_pto_cercano(api, eventos_candidatos, ventana_minutos=VENTANA_PT
     return confirmados
 
 
-def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_notificadas,
-                               duracion_minima_seg=0, requiere_pto_cercano=False):
+def _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_seg=0, requiere_pto_cercano=False):
+    """Trae ExceptionEvent de una regla en [f_inicio, f_fin) (datetimes con tz UTC) y
+    filtra por duracion minima y, si aplica, por PTO cercano. No dedupea contra
+    notificaciones previas -- eso lo maneja quien llame a esta funcion, segun el caso
+    (alerta individual vs. resumen consolidado por hora)."""
     reglas = api.get('Rule')
     regla = next((r for r in reglas if r.get('name', '').strip().upper() == nombre_regla.strip().upper()), None)
     if not regla:
         print(f"*** No se encontro la regla '{nombre_regla}' ***")
         return []
 
-    f_fin = datetime.now(timezone.utc)
-    f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
     eventos = api.get('ExceptionEvent', search={
         'ruleSearch': {'id': regla['id']},
         'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
@@ -212,17 +217,23 @@ def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_no
         if duracion_seg < duracion_minima_seg:
             continue
 
-        clave = f"{id_veh}|{activeFrom}"
-        if clave in claves_ya_notificadas:
-            continue
-
         candidatos.append({
             'id_veh': id_veh, 'activeFrom': dt_desde, 'activeTo': dt_hasta,
-            'clave': clave, 'duracion_seg': duracion_seg,
+            'clave': f"{id_veh}|{activeFrom}", 'duracion_seg': duracion_seg,
         })
 
     if requiere_pto_cercano:
         candidatos = _filtrar_por_pto_cercano(api, candidatos)
+
+    return candidatos
+
+
+def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_notificadas,
+                               duracion_minima_seg=0, requiere_pto_cercano=False):
+    f_fin = datetime.now(timezone.utc)
+    f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
+    candidatos = _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_seg, requiere_pto_cercano)
+    candidatos = [c for c in candidatos if c['clave'] not in claves_ya_notificadas]
 
     claves_nuevas = []
     for c in candidatos:
@@ -358,7 +369,11 @@ def obtener_catalogos_diagnosticos(api):
     return dic_diag, dic_fm
 
 
-def revisar_fallas_altas(api, claves_activas_previas):
+def _obtener_fallas_alta_activas(api):
+    """Todas las fallas ALTA que Geotab marca activas ahora mismo (una fila por
+    vehiculo+diagnostico+modo de falla, la mas reciente). Se usa tanto para las
+    alertas individuales (revisar_fallas_altas) como para el resumen consolidado
+    por hora -- ahi no interesa si ya se notifico antes, se lista el estado actual."""
     devices = {d['id']: d for d in api.get('Device')}
     dic_diag, dic_fm = obtener_catalogos_diagnosticos(api)
     mapa_grupos = obtener_mapa_grupos(api)
@@ -371,7 +386,7 @@ def revisar_fallas_altas(api, claves_activas_previas):
     })
 
     if not fallas:
-        return set(), []
+        return pd.DataFrame(), devices, dic_diag, dic_fm, mapa_grupos
 
     df = pd.DataFrame(fallas)
     df['id_camion'] = df['device'].apply(lambda x: x['id'] if isinstance(x, dict) else x)
@@ -389,6 +404,31 @@ def revisar_fallas_altas(api, claves_activas_previas):
     activas_alta = activas_alta.sort_values('dateTime').drop_duplicates(
         subset=['id_camion', 'diag_id', 'fm_id'], keep='last'
     )
+    return activas_alta, devices, dic_diag, dic_fm, mapa_grupos
+
+
+def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
+    """Arma los campos de texto de una fila de falla ALTA -- reutilizado por la
+    alerta individual y por el resumen consolidado por hora."""
+    diag_info = dic_diag.get(row['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
+    fm_info = dic_fm.get(row['fm_id'], {'nombre': '', 'codigo': None})
+    vehiculo = devices.get(row['id_camion'], {})
+    nombre_veh = vehiculo.get('name', row['id_camion'])
+    ciudad, tipologia = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+    hora_local = row['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+    spn = diag_info.get('codigo') or '?'
+    fmi = fm_info.get('codigo') or '?'
+    descripcion = diag_info['nombre']
+    if fm_info['nombre']:
+        descripcion += f" — {fm_info['nombre']}"
+    url_busqueda = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+    return nombre_veh, ciudad, tipologia, spn, fmi, descripcion, hora_local, url_busqueda
+
+
+def revisar_fallas_altas(api, claves_activas_previas):
+    activas_alta, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_alta_activas(api)
+    if activas_alta.empty:
+        return set(), []
 
     claves_actuales = set()
     filas_nuevas = []
@@ -400,19 +440,9 @@ def revisar_fallas_altas(api, claves_activas_previas):
         filas_nuevas.append(row)
 
     for row in filas_nuevas:
-        diag_info = dic_diag.get(row['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
-        fm_info = dic_fm.get(row['fm_id'], {'nombre': '', 'codigo': None})
-        vehiculo = devices.get(row['id_camion'], {})
-        nombre_veh = vehiculo.get('name', row['id_camion'])
-        ciudad, tipologia = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
-        hora_local = row['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
-        spn = diag_info.get('codigo') or '?'
-        fmi = fm_info.get('codigo') or '?'
-        descripcion = diag_info['nombre']
-        if fm_info['nombre']:
-            descripcion += f" — {fm_info['nombre']}"
-        url_busqueda = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-
+        nombre_veh, ciudad, tipologia, spn, fmi, descripcion, hora_local, url_busqueda = _texto_falla(
+            row, devices, dic_diag, dic_fm, mapa_grupos
+        )
         texto = (
             f"🚨 FALLA CRÍTICA (ALTA)\n"
             f"Vehículo: {nombre_veh}\n"
@@ -435,6 +465,139 @@ def revisar_fallas_altas(api, claves_activas_previas):
     return claves_actuales, filas_nuevas
 
 
+# ---------------------------------------------------------------------------
+# Resumen consolidado por hora (ademas de las alertas individuales de arriba)
+# ---------------------------------------------------------------------------
+
+MAX_HORAS_CONSOLIDAR = 6  # si el bot estuvo mucho tiempo sin correr, no se manda un
+# mensaje por cada hora perdida (serian decenas de mensajes de golpe) -- se avisa una
+# vez del hueco y se retoma desde las ultimas horas recientes.
+
+LIMITE_TELEGRAM = 3500  # margen bajo el limite real de la API de Telegram (4096
+# caracteres) -- con muchas fallas ALTA activas el resumen puede superarlo facil.
+
+
+def _enviar_por_partes(lineas):
+    """Manda una lista de lineas como uno o mas mensajes de Telegram, partiendo en
+    varios si hace falta para no pasarse del limite de caracteres de la API. Nunca
+    corta una linea a la mitad."""
+    partes = []
+    buffer = ""
+    for linea in lineas:
+        candidato = f"{buffer}\n{linea}" if buffer else linea
+        if len(candidato) > LIMITE_TELEGRAM and buffer:
+            partes.append(buffer)
+            buffer = linea
+        else:
+            buffer = candidato
+    if buffer:
+        partes.append(buffer)
+
+    ok = True
+    total = len(partes)
+    for i, parte in enumerate(partes, 1):
+        prefijo = f"(parte {i}/{total})\n" if total > 1 else ""
+        ok = enviar_telegram(prefijo + parte) and ok
+    return ok
+
+
+def _resumen_eventos_revolucion_hora(api, devices, inicio_utc, fin_utc):
+    """Eventos de sobre-revolucion (las 3 reglas) con activeFrom dentro de
+    [inicio_utc, fin_utc). Se recalcula siempre desde los ExceptionEvent de Geotab --
+    no depende de que claves ya se notificaron individualmente."""
+    fuentes = [
+        (NOMBRE_REGLA_RPM_POR_MOTOR['L9'], 'L9', DURACION_MINIMA_SEG, False),
+        (NOMBRE_REGLA_RPM_POR_MOTOR['X12'], 'X12', DURACION_MINIMA_SEG, False),
+        (NOMBRE_REGLA_PTO, '1300 RPM', DURACION_MINIMA_PTO_SEG, True),
+    ]
+    filas = []
+    for nombre_regla, etiqueta, duracion_minima, requiere_pto in fuentes:
+        candidatos = _obtener_eventos_regla(api, nombre_regla, inicio_utc, fin_utc, duracion_minima, requiere_pto)
+        for c in candidatos:
+            filas.append({
+                'nombre_veh': devices.get(c['id_veh'], {}).get('name', c['id_veh']),
+                'etiqueta': etiqueta,
+                'hora_local': c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%H:%M:%S'),
+                'duracion_seg': c['duracion_seg'],
+            })
+    filas.sort(key=lambda f: f['hora_local'])
+    return filas
+
+
+def _construir_resumen_hora(api, inicio_local, fin_local):
+    devices = {d['id']: d for d in api.get('Device')}
+    inicio_utc = inicio_local.astimezone(timezone.utc)
+    fin_utc = fin_local.astimezone(timezone.utc)
+
+    eventos_revolucion = _resumen_eventos_revolucion_hora(api, devices, inicio_utc, fin_utc)
+    activas_alta, _, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_alta_activas(api)
+
+    lineas = [f"📊 RESUMEN {inicio_local.strftime('%H:%M')}–{fin_local.strftime('%H:%M')} ({inicio_local.strftime('%d/%m/%Y')})"]
+
+    lineas.append(f"\n🏎️ Sobre-revolución en esta hora ({len(eventos_revolucion)}):")
+    if eventos_revolucion:
+        for f in eventos_revolucion:
+            lineas.append(f"  • {f['nombre_veh']} ({f['etiqueta']}) — {f['hora_local']}, {f['duracion_seg']:.0f}s")
+    else:
+        lineas.append("  Sin eventos en esta hora.")
+
+    lineas.append(f"\n🚨 Fallas ALTA activas ahora ({len(activas_alta)}):")
+    if not activas_alta.empty:
+        for _, row in activas_alta.iterrows():
+            nombre_veh, ciudad, _, spn, fmi, descripcion, _, _ = _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos)
+            lineas.append(f"  • {nombre_veh} ({ciudad}) — SPN {spn}/FMI {fmi}: {descripcion}")
+    else:
+        lineas.append("  Sin fallas ALTA activas.")
+
+    return lineas
+
+
+def enviar_resumenes_por_hora(api, estado):
+    """Manda un resumen consolidado por cada hora reloj (Bogota) ya completada desde
+    el ultimo resumen enviado. Como el cron de GitHub Actions no corre exactamente
+    cada 5 min (puede tardar 20-50 min en la practica), esto se detecta por
+    comparacion de horas, no por conteo de corridas -- funciona sin importar cuando
+    exactamente caiga cada ejecucion del workflow."""
+    ahora_local = datetime.now(ZONA_BOGOTA)
+    hora_actual = ahora_local.replace(minute=0, second=0, microsecond=0)
+
+    ultima_str = estado.get('ultima_hora_resumen')
+    if not ultima_str:
+        # Primera vez que corre esta funcion -- no hay una hora de referencia previa
+        # confiable, asi que solo se marca el punto de partida sin mandar nada.
+        estado['ultima_hora_resumen'] = hora_actual.isoformat()
+        return
+
+    try:
+        ultima_hora = datetime.fromisoformat(ultima_str)
+    except ValueError:
+        estado['ultima_hora_resumen'] = hora_actual.isoformat()
+        return
+
+    if ultima_hora >= hora_actual:
+        return  # todavia no se completa una hora nueva desde el ultimo resumen
+
+    horas_pendientes = int((hora_actual - ultima_hora).total_seconds() // 3600)
+    if horas_pendientes > MAX_HORAS_CONSOLIDAR:
+        enviar_telegram(
+            f"⚠️ El resumen por hora estuvo detenido ~{horas_pendientes} horas "
+            f"(desde las {ultima_hora.strftime('%H:%M del %d/%m')}). Se retoma desde "
+            f"las {(hora_actual - timedelta(hours=MAX_HORAS_CONSOLIDAR)).strftime('%H:%M')}."
+        )
+        ultima_hora = hora_actual - timedelta(hours=MAX_HORAS_CONSOLIDAR)
+
+    while ultima_hora < hora_actual:
+        fin_hora = ultima_hora + timedelta(hours=1)
+        try:
+            lineas = _construir_resumen_hora(api, ultima_hora, fin_hora)
+            _enviar_por_partes(lineas)
+            print(f"Resumen por hora enviado: {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
+        except Exception as e:
+            print(f"*** Error armando/enviando el resumen de {ultima_hora.strftime('%H:%M')}: {e} ***")
+        ultima_hora = fin_hora
+        estado['ultima_hora_resumen'] = ultima_hora.isoformat()
+
+
 def main():
     api = conectar_geotab()
     estado = cargar_estado()
@@ -453,6 +616,8 @@ def main():
         claves_fallas_previas = set(estado['fallas_alta_activas'])
         claves_fallas_actuales, _ = revisar_fallas_altas(api, claves_fallas_previas)
         estado['fallas_alta_activas'] = list(claves_fallas_actuales)
+
+        enviar_resumenes_por_hora(api, estado)
     finally:
         guardar_estado(estado)
 
