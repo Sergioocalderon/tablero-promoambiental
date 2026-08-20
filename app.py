@@ -429,7 +429,7 @@ def extraer_datos_manejo_pto(_client, f_inicio, f_fin, _df_vehiculos):
     eventos_todos = [
         {
             'id_camion': (ev.get('device')['id'] if isinstance(ev.get('device'), dict) else ev.get('device')),
-            'Motor': 'Con PTO',
+            'Motor': '1300 RPM',
             'activeFrom': ev.get('activeFrom'),
             'activeTo': ev.get('activeTo'),
         }
@@ -878,7 +878,8 @@ def obtener_catalogos_diagnosticos(_client):
 @st.cache_data(ttl=86400)
 def cargar_diccionario_fallas():
     try:
-        df = pd.read_csv('Diccionario_Fallas.csv')
+        ruta_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Diccionario_Fallas.csv')
+        df = pd.read_csv(ruta_csv)
         df['SPN'] = df['SPN'].astype(int)
         df['FMI'] = df['FMI'].astype(int)
         return df
