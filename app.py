@@ -775,12 +775,12 @@ def obtener_catalogos_diagnosticos(_client):
 @st.cache_data(ttl=86400)
 def cargar_diccionario_fallas():
     try:
-        df = pd.read_csv('diccionario_fallas.csv')
+        df = pd.read_csv('Diccionario_Fallas.csv')
         df['SPN'] = df['SPN'].astype(int)
         df['FMI'] = df['FMI'].astype(int)
         return df
     except FileNotFoundError:
-        st.warning("No se encontró 'diccionario_fallas.csv'.")
+        st.warning("No se encontró 'Diccionario_Fallas.csv'.")
         return pd.DataFrame(columns=['SPN', 'FMI', 'Descripcion', 'Grupo', 'Criticidad', 'Origen_Criticidad', 'Motor_Aplica'])
 
 def clasificar_falla(spn, fmi, referencia_motor, df_diccionario):
@@ -798,6 +798,16 @@ def clasificar_falla(spn, fmi, referencia_motor, df_diccionario):
     fila = generico.iloc[0] if not generico.empty else candidatos.iloc[0]
     grupo = fila['Grupo'] if tiene_columna_grupo and pd.notna(fila['Grupo']) else 'Sin clasificar'
     return fila['Descripcion'], fila['Criticidad'], grupo
+
+def clasificar_criticidad_geotab(row):
+    """Severidad tomada directo de las luces de falla que reporta Geotab (estándar J1939),
+    en vez de depender solo del diccionario manual: ALTA = luz roja o de protección del
+    motor, MEDIA = luz ámbar, BAJA = solo testigo general o ninguna luz activa."""
+    if row.get('redStopLamp') or row.get('protectWarningLamp'):
+        return 'ALTA'
+    if row.get('amberWarningLamp'):
+        return 'MEDIA'
+    return 'BAJA'
 
 def reproducir_alarma():
     sonido_url = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
@@ -1076,15 +1086,19 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
                 df_fallas_resumen = pd.merge(df_fallas, df_vehiculos, on='id_camion', how='left')
                 df_diccionario = cargar_diccionario_fallas()
                 def _clasificar(row):
+                    # La criticidad viene directo de las luces de falla que reporta Geotab
+                    # (más confiable que el diccionario manual); el diccionario solo se usa
+                    # para la descripción y el grupo de sistema, cuando hay coincidencia.
+                    criticidad = clasificar_criticidad_geotab(row)
                     try:
                         spn = int(row['SPN_Geotab'])
                         fmi = int(row['FMI_Geotab'])
                     except (TypeError, ValueError):
-                        return pd.Series({'Descripcion_Falla': row['Codigo'], 'Criticidad': 'BAJA', 'Grupo_Sistema': 'Sin clasificar'})
-                    desc, crit, grupo = clasificar_falla(spn, fmi, row.get('Referencia_Motor'), df_diccionario)
+                        return pd.Series({'Descripcion_Falla': row['Codigo'], 'Criticidad': criticidad, 'Grupo_Sistema': 'Sin clasificar'})
+                    desc, _crit_diccionario, grupo = clasificar_falla(spn, fmi, row.get('Referencia_Motor'), df_diccionario)
                     if desc is None:
-                        return pd.Series({'Descripcion_Falla': row['Codigo'], 'Criticidad': 'BAJA', 'Grupo_Sistema': 'Sin clasificar'})
-                    return pd.Series({'Descripcion_Falla': desc, 'Criticidad': crit, 'Grupo_Sistema': grupo})
+                        return pd.Series({'Descripcion_Falla': row['Codigo'], 'Criticidad': criticidad, 'Grupo_Sistema': 'Sin clasificar'})
+                    return pd.Series({'Descripcion_Falla': desc, 'Criticidad': criticidad, 'Grupo_Sistema': grupo})
                 df_fallas_resumen[['Descripcion_Falla', 'Criticidad', 'Grupo_Sistema']] = df_fallas_resumen.apply(_clasificar, axis=1)
         return df_resumen_viajes, df_temp, df_fallas_resumen, df_vehiculos
     except Exception as e:
@@ -1382,18 +1396,23 @@ with tab_alertas:
                 grupo_ordenado = df_crit[df_crit['id_camion'] == id_camion].sort_values('Fecha_Alerta', ascending=False)
                 fila0 = grupo_ordenado.iloc[0]
 
+                def _spn_fmi(r):
+                    spn = str(int(r['SPN_Geotab'])) if pd.notna(r.get('SPN_Geotab')) else '?'
+                    fmi = str(int(r['FMI_Geotab'])) if pd.notna(r.get('FMI_Geotab')) else '?'
+                    return f"SPN {spn} | FMI {fmi}"
+
                 if 'Grupo_Sistema' in grupo_ordenado.columns:
                     bloques_descripcion = []
                     for sistema, df_sistema in grupo_ordenado.groupby('Grupo_Sistema', sort=False):
                         lineas = "\n".join(
-                            f"   • {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
+                            f"   • [{_spn_fmi(r)}] {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
                             for _, r in df_sistema.iterrows()
                         )
                         bloques_descripcion.append(f"**Sistema: {sistema}**\n{lineas}")
                     descripcion_consolidada = "\n\n".join(bloques_descripcion)
                 else:
                     descripcion_consolidada = "\n".join(
-                        f"{i+1}. {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
+                        f"{i+1}. [{_spn_fmi(r)}] {r['Descripcion_Falla']} ({r['Fecha_Alerta'].strftime('%d/%m %H:%M')}) [{r['Criticidad']}]"
                         for i, (_, r) in enumerate(grupo_ordenado.iterrows())
                     )
 

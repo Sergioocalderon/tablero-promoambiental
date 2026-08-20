@@ -2,10 +2,11 @@
 el tablero (app.py) este abierto. Pensado para correr como job programado
 (ver .github/workflows/alertas-telegram.yml).
 
-Usa un archivo local (ESTADO_PATH) para recordar que eventos ya se notificaron
-y no repetir el mensaje en cada corrida. En GitHub Actions ese archivo se
-persiste entre corridas con actions/cache (no requiere credenciales extra de
-Google Sheets, a diferencia del snapshot que usa app.py).
+Usa un archivo local (ESTADO_PATH) para recordar que ya se notifico y no
+repetir el mensaje en cada corrida. En GitHub Actions ese archivo se persiste
+entre corridas con actions/cache (no requiere credenciales extra de Google
+Sheets, a diferencia del snapshot que usa app.py, que ademas no esta
+configurado actualmente).
 """
 import os
 import json
@@ -17,12 +18,31 @@ import pandas as pd
 import requests
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
+ESTADO_PATH = "telegram_estado.json"
+MAX_CLAVES_GUARDADAS = 5000  # evita que el estado de eventos (append-only) crezca sin limite
 
+# --- Sobre-revolucion sin PTO: la regla no tiene duracion minima propia en Geotab,
+# asi que se filtra aca (picos breves de cambios de marcha no cuentan). ---
 NOMBRE_REGLA_RPM_POR_MOTOR = {'L9': 'SOBRE REVOLUCIÓN (L9)', 'X12': 'SOBRE REVOLUCIÓN (X12)'}
-DURACION_MINIMA_SEG = 60  # filtra picos breves (cambios de marcha) y solo avisa sobre-revoluciones sostenidas
-VENTANA_REVISION_HORAS = 2  # margen hacia atras en cada corrida, por si el cron se atrasa o se salta una ejecucion
-ESTADO_PATH = "telegram_estado_revolucion.json"
-MAX_CLAVES_GUARDADAS = 5000  # evita que el archivo de estado crezca sin limite
+DURACION_MINIMA_SEG = 60
+VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
+
+# --- Sobre-revolucion CON PTO: aunque la regla en Geotab exige RPM > 1300 sostenido
+# 30+ segundos con el PTO activo (corregido el 2026-08-19), los ExceptionEvent que
+# devuelve la API no vienen pre-filtrados por esa duracion -- se filtra aca igual
+# que con las otras reglas (confirmado con datos reales: llegaban eventos de 0-14s). ---
+NOMBRE_REGLA_PTO = 'SOBRE REVOLUCIÓN CON PTO (L9-X12-OM 926-ISF 3.8)'
+DURACION_MINIMA_PTO_SEG = 30
+
+# --- Fallas criticas: severidad tomada directo de las luces que reporta Geotab
+# (mismo criterio que app.py: ALTA = roja o proteccion motor, MEDIA = ambar). ---
+VENTANA_FALLAS_DIAS = 30  # rango amplio para no perder fallas activas de hace tiempo; se filtra por faultState
+
+REFERENCIA_MOTOR_POR_MARCA = {
+    "volkswagen": "ISF 3.8", "volskwagen": "ISF 3.8", "mercedes": "OM926",
+    "international": "L9", "foton": "X12", "kenworth": "ISM 11",
+}
+GRUPOS_RAIZ_NO_CIUDAD = {'tipologia'}
 
 
 def conectar_geotab():
@@ -36,20 +56,25 @@ def conectar_geotab():
     return api
 
 
-def cargar_claves_notificadas():
+def cargar_estado():
+    default = {"revolucion_notificados": [], "fallas_alta_activas": []}
     if not os.path.exists(ESTADO_PATH):
-        return set()
+        return default
     try:
         with open(ESTADO_PATH, "r", encoding="utf-8") as f:
-            return set(json.load(f))
+            datos = json.load(f)
+        return {**default, **datos}
     except (json.JSONDecodeError, OSError):
-        return set()
+        return default
 
 
-def guardar_claves_notificadas(claves):
-    claves_a_guardar = list(claves)[-MAX_CLAVES_GUARDADAS:]
+def guardar_estado(estado):
+    estado_a_guardar = {
+        "revolucion_notificados": estado["revolucion_notificados"][-MAX_CLAVES_GUARDADAS:],
+        "fallas_alta_activas": estado["fallas_alta_activas"],
+    }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
-        json.dump(claves_a_guardar, f)
+        json.dump(estado_a_guardar, f)
 
 
 def enviar_telegram(texto):
@@ -65,76 +90,273 @@ def enviar_telegram(texto):
     return resp.ok
 
 
-def revisar_sobre_revolucion(api, claves_ya_notificadas):
+def clasificar_criticidad_geotab(falla):
+    """Mismo criterio que app.py: ALTA = luz roja o de proteccion del motor,
+    MEDIA = luz ambar, BAJA = solo testigo general o ninguna luz activa."""
+    if falla.get('redStopLamp') or falla.get('protectWarningLamp'):
+        return 'ALTA'
+    if falla.get('amberWarningLamp'):
+        return 'MEDIA'
+    return 'BAJA'
+
+
+# ---------------------------------------------------------------------------
+# Sobre-revolucion (sin PTO y con PTO)
+# ---------------------------------------------------------------------------
+
+def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_notificadas, duracion_minima_seg=0):
+    reglas = api.get('Rule')
+    regla = next((r for r in reglas if r.get('name', '').strip().upper() == nombre_regla.strip().upper()), None)
+    if not regla:
+        print(f"*** No se encontro la regla '{nombre_regla}' ***")
+        return []
+
     f_fin = datetime.now(timezone.utc)
     f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
+    eventos = api.get('ExceptionEvent', search={
+        'ruleSearch': {'id': regla['id']},
+        'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    })
 
-    reglas = api.get('Rule')
+    claves_nuevas = []
+    for ev in (eventos or []):
+        dev = ev.get('device')
+        id_veh = dev['id'] if isinstance(dev, dict) else dev
+        activeFrom = ev.get('activeFrom')
+        activeTo = ev.get('activeTo')
+        if not activeFrom or not activeTo:
+            continue
+
+        dt_desde = pd.to_datetime(activeFrom)
+        dt_hasta = pd.to_datetime(activeTo)
+        duracion_seg = (dt_hasta - dt_desde).total_seconds()
+        if duracion_seg < duracion_minima_seg:
+            continue
+
+        clave = f"{id_veh}|{activeFrom}"
+        if clave in claves_ya_notificadas:
+            continue
+
+        nombre_veh = devices.get(id_veh, {}).get('name', id_veh)
+        hora_local = dt_desde.tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        texto = (
+            f"🏎️ SOBRE-REVOLUCIÓN ({etiqueta})\n"
+            f"Vehículo: {nombre_veh}\n"
+            f"Hora: {hora_local}\n"
+            f"Duración: {duracion_seg:.0f} segundos sostenidos\n"
+            f"Vehículo detenido con RPM alto."
+        )
+        if enviar_telegram(texto):
+            print(f"Notificado: {clave} ({duracion_seg:.0f}s)")
+            claves_nuevas.append(clave)
+
+    return claves_nuevas
+
+
+def revisar_sobre_revolucion(api, claves_ya_notificadas):
     devices = {d['id']: d for d in api.get('Device')}
 
     claves_nuevas = []
     for motor, nombre_regla in NOMBRE_REGLA_RPM_POR_MOTOR.items():
-        regla = next(
-            (r for r in reglas if r.get('name', '').strip().upper() == nombre_regla.strip().upper()), None
+        claves_nuevas += _revisar_regla_revolucion(
+            api, devices, nombre_regla, motor, claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_SEG
         )
-        if not regla:
-            print(f"*** No se encontro la regla '{nombre_regla}' ***")
-            continue
 
-        eventos = api.get('ExceptionEvent', search={
-            'ruleSearch': {'id': regla['id']},
-            'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-            'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        })
-
-        for ev in (eventos or []):
-            dev = ev.get('device')
-            id_veh = dev['id'] if isinstance(dev, dict) else dev
-            activeFrom = ev.get('activeFrom')
-            activeTo = ev.get('activeTo')
-            if not activeFrom or not activeTo:
-                continue
-
-            dt_desde = pd.to_datetime(activeFrom)
-            dt_hasta = pd.to_datetime(activeTo)
-            duracion_seg = (dt_hasta - dt_desde).total_seconds()
-            if duracion_seg < DURACION_MINIMA_SEG:
-                continue
-
-            clave = f"{id_veh}|{activeFrom}"
-            if clave in claves_ya_notificadas:
-                continue
-
-            nombre_veh = devices.get(id_veh, {}).get('name', id_veh)
-            hora_local = dt_desde.tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
-            texto = (
-                f"🏎️ SOBRE-REVOLUCIÓN ({motor})\n"
-                f"Vehículo: {nombre_veh}\n"
-                f"Hora: {hora_local}\n"
-                f"Duración: {duracion_seg:.0f} segundos sostenidos\n"
-                f"Vehículo detenido con RPM alto."
-            )
-            if enviar_telegram(texto):
-                print(f"Notificado: {clave} ({duracion_seg:.0f}s)")
-                claves_nuevas.append(clave)
+    claves_nuevas += _revisar_regla_revolucion(
+        api, devices, NOMBRE_REGLA_PTO, "con PTO", claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_PTO_SEG
+    )
 
     if claves_nuevas:
-        print(f"Total notificados en esta corrida: {len(claves_nuevas)}")
+        print(f"Total sobre-revolucion notificados en esta corrida: {len(claves_nuevas)}")
     else:
         print("Sin eventos nuevos de sobre-revolucion que notificar.")
 
     return claves_nuevas
 
 
+# ---------------------------------------------------------------------------
+# Fallas criticas (ALTA)
+# ---------------------------------------------------------------------------
+
+def es_grupo_marca(nombre):
+    nombre_l = nombre.strip().lower()
+    return any(marca in nombre_l for marca in REFERENCIA_MOTOR_POR_MARCA)
+
+
+def normalizar_ciudad(nombre):
+    n = nombre.upper()
+    if 'BOGOTA' in n or 'BOGOTÁ' in n:
+        return 'Bogotá'
+    if 'CALI' in n:
+        return 'Cali'
+    if 'VALLE' in n:
+        return 'Valle'
+    return nombre.strip()
+
+
+def obtener_mapa_grupos(api):
+    """Recorre la jerarquia de grupos y devuelve, por id de grupo, la ciudad y
+    tipologia (tipo de vehiculo) a las que pertenece -- mismo criterio que
+    app.py (obtener_mapa_grupos/resolver_ciudad_marca), extendido para
+    tambien capturar la tipologia."""
+    grupos = api.get('Group')
+    by_id = {g['id']: g for g in grupos if isinstance(g, dict)}
+    raiz = next((g for g in grupos if g.get('name', '').strip().startswith('*')), None)
+    if not raiz:
+        return {}
+
+    def obtener_id(referencia):
+        return referencia['id'] if isinstance(referencia, dict) else referencia
+
+    mapa = {}
+
+    def recorrer(grupo_id, ciudad_actual, tipologia_actual):
+        grupo_completo = by_id.get(grupo_id)
+        if not grupo_completo:
+            return
+        mapa[grupo_id] = {'nombre': grupo_completo.get('name', ''), 'ciudad': ciudad_actual, 'tipologia': tipologia_actual}
+        for hijo in (grupo_completo.get('children') or []):
+            recorrer(obtener_id(hijo), ciudad_actual, tipologia_actual)
+
+    for hijo_raiz in (raiz.get('children') or []):
+        hijo_id = obtener_id(hijo_raiz)
+        hijo_completo = by_id.get(hijo_id, {})
+        nombre = hijo_completo.get('name', '').strip()
+        if nombre.lower() in GRUPOS_RAIZ_NO_CIUDAD:
+            # Rama de Tipologia: cada subgrupo directo es un tipo de vehiculo distinto
+            for sub in (hijo_completo.get('children') or []):
+                sub_id = obtener_id(sub)
+                sub_completo = by_id.get(sub_id, {})
+                tipo_nombre = sub_completo.get('name', '').strip()
+                recorrer(sub_id, 'Sin ciudad asignada', tipo_nombre)
+        elif es_grupo_marca(nombre):
+            recorrer(hijo_id, 'Sin ciudad asignada', None)
+        else:
+            recorrer(hijo_id, normalizar_ciudad(nombre), None)
+
+    return mapa
+
+
+def resolver_ciudad_tipologia(grupos_vehiculo, mapa_grupos):
+    ciudad = 'Sin ciudad asignada'
+    tipologia = 'Sin tipología asignada'
+    for g in (grupos_vehiculo or []):
+        gid = g['id'] if isinstance(g, dict) else g
+        info = mapa_grupos.get(gid)
+        if not info:
+            continue
+        if info['ciudad'] and ciudad == 'Sin ciudad asignada':
+            ciudad = info['ciudad']
+        if info.get('tipologia') and tipologia == 'Sin tipología asignada':
+            tipologia = info['tipologia']
+    return ciudad, tipologia
+
+
+def obtener_catalogos_diagnosticos(api):
+    dic_diag = {}
+    for d in api.get('Diagnostic'):
+        if isinstance(d, dict) and 'id' in d:
+            dic_diag[d['id']] = {'nombre': d.get('name') or 'Diagnóstico sin nombre', 'codigo': d.get('code')}
+    dic_fm = {}
+    for fm in api.get('FailureMode'):
+        if isinstance(fm, dict) and 'id' in fm:
+            dic_fm[fm['id']] = {'nombre': fm.get('name') or '', 'codigo': fm.get('code')}
+    return dic_diag, dic_fm
+
+
+def revisar_fallas_altas(api, claves_activas_previas):
+    devices = {d['id']: d for d in api.get('Device')}
+    dic_diag, dic_fm = obtener_catalogos_diagnosticos(api)
+    mapa_grupos = obtener_mapa_grupos(api)
+
+    f_fin = datetime.now(timezone.utc)
+    f_inicio = f_fin - timedelta(days=VENTANA_FALLAS_DIAS)
+    fallas = api.get('FaultData', search={
+        'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+    })
+
+    if not fallas:
+        return set(), []
+
+    df = pd.DataFrame(fallas)
+    df['id_camion'] = df['device'].apply(lambda x: x['id'] if isinstance(x, dict) else x)
+    df['diag_id'] = df['diagnostic'].apply(lambda x: x['id'] if isinstance(x, dict) else None)
+    df['fm_id'] = df['failureMode'].apply(lambda x: x['id'] if isinstance(x, dict) else None)
+    df['criticidad'] = df.apply(clasificar_criticidad_geotab, axis=1)
+    df['dateTime'] = pd.to_datetime(df['dateTime'])
+
+    # Solo lo que Geotab marca activo ahora mismo (evita reinventar la logica de
+    # "ultima ocurrencia dentro de una ventana" -- Geotab ya lo sabe con certeza).
+    activas = df[df['faultState'] == 'Active']
+    activas_alta = activas[activas['criticidad'] == 'ALTA']
+
+    # Una fila por combinacion vehiculo+diagnostico+modo de falla (la mas reciente)
+    activas_alta = activas_alta.sort_values('dateTime').drop_duplicates(
+        subset=['id_camion', 'diag_id', 'fm_id'], keep='last'
+    )
+
+    claves_actuales = set()
+    filas_nuevas = []
+    for _, row in activas_alta.iterrows():
+        clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
+        claves_actuales.add(clave)
+        if clave in claves_activas_previas:
+            continue
+        filas_nuevas.append(row)
+
+    for row in filas_nuevas:
+        diag_info = dic_diag.get(row['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
+        fm_info = dic_fm.get(row['fm_id'], {'nombre': '', 'codigo': None})
+        vehiculo = devices.get(row['id_camion'], {})
+        nombre_veh = vehiculo.get('name', row['id_camion'])
+        ciudad, tipologia = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+        hora_local = row['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        spn = diag_info.get('codigo') or '?'
+        fmi = fm_info.get('codigo') or '?'
+        descripcion = diag_info['nombre']
+        if fm_info['nombre']:
+            descripcion += f" — {fm_info['nombre']}"
+        url_busqueda = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
+
+        texto = (
+            f"🚨 FALLA CRÍTICA (ALTA)\n"
+            f"Vehículo: {nombre_veh}\n"
+            f"Ciudad: {ciudad}\n"
+            f"Tipología: {tipologia}\n"
+            f"SPN {spn} | FMI {fmi}\n"
+            f"{descripcion}\n"
+            f"Hora: {hora_local}\n"
+            f"🔍 Buscar causa: {url_busqueda}"
+        )
+        if enviar_telegram(texto):
+            clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
+            print(f"Notificado (falla ALTA): {clave}")
+
+    if not filas_nuevas:
+        print("Sin fallas ALTA nuevas que notificar.")
+    else:
+        print(f"Total fallas ALTA notificadas en esta corrida: {len(filas_nuevas)}")
+
+    return claves_actuales, filas_nuevas
+
+
 def main():
     api = conectar_geotab()
-    claves_ya_notificadas = cargar_claves_notificadas()
-    print(f"Claves ya notificadas cargadas del estado: {len(claves_ya_notificadas)}")
+    estado = cargar_estado()
+    print(f"Estado cargado: {len(estado['revolucion_notificados'])} eventos de revolucion, "
+          f"{len(estado['fallas_alta_activas'])} fallas ALTA activas previas.")
 
-    claves_nuevas = revisar_sobre_revolucion(api, claves_ya_notificadas)
+    claves_revolucion_previas = set(estado['revolucion_notificados'])
+    claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
+    estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
 
-    claves_ya_notificadas.update(claves_nuevas)
-    guardar_claves_notificadas(claves_ya_notificadas)
+    claves_fallas_previas = set(estado['fallas_alta_activas'])
+    claves_fallas_actuales, _ = revisar_fallas_altas(api, claves_fallas_previas)
+    estado['fallas_alta_activas'] = list(claves_fallas_actuales)
+
+    guardar_estado(estado)
 
 
 if __name__ == "__main__":

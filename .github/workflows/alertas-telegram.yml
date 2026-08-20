@@ -18,10 +18,10 @@ jobs:
       - name: Restaurar estado de notificaciones ya enviadas
         uses: actions/cache/restore@v4
         with:
-          path: telegram_estado_revolucion.json
-          key: telegram-estado-revolucion-${{ github.run_id }}
+          path: telegram_estado.json
+          key: telegram-estado-${{ github.run_id }}
           restore-keys: |
-            telegram-estado-revolucion-
+            telegram-estado-
 
       - run: python telegram_alertas.py
         env:
@@ -36,5 +36,5 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: telegram_estado_revolucion.json
-          key: telegram-estado-revolucion-${{ github.run_id }}
+          path: telegram_estado.json
+          key: telegram-estado-${{ github.run_id }}
