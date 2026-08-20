@@ -60,14 +60,29 @@ def conectar_geotab():
 
 
 def cargar_estado():
+    """Nunca debe lanzar una excepcion: si el archivo de estado no existe, esta
+    corrupto, o quedo en un formato viejo incompatible (ej. una lista en vez de un
+    dict, de una version anterior del script), se sigue con estado vacio en vez de
+    frenar el script -- si esto lanzara una excepcion, guardar_estado() nunca se
+    ejecutaria y el mismo estado viejo se re-guardaria corrida tras corrida,
+    haciendo que TODO se vuelva a notificar como "nuevo" cada 5 minutos."""
     default = {"revolucion_notificados": [], "fallas_alta_activas": []}
     if not os.path.exists(ESTADO_PATH):
         return default
     try:
         with open(ESTADO_PATH, "r", encoding="utf-8") as f:
             datos = json.load(f)
-        return {**default, **datos}
-    except (json.JSONDecodeError, OSError):
+        if not isinstance(datos, dict):
+            print(f"*** Estado en '{ESTADO_PATH}' tiene formato viejo/invalido (no es un dict) -- se ignora. ***")
+            return default
+        estado = dict(default)
+        for clave in default:
+            valor = datos.get(clave)
+            if isinstance(valor, list):
+                estado[clave] = valor
+        return estado
+    except Exception as e:
+        print(f"*** No se pudo leer '{ESTADO_PATH}' ({e}) -- se sigue con estado vacio. ***")
         return default
 
 
@@ -426,15 +441,20 @@ def main():
     print(f"Estado cargado: {len(estado['revolucion_notificados'])} eventos de revolucion, "
           f"{len(estado['fallas_alta_activas'])} fallas ALTA activas previas.")
 
-    claves_revolucion_previas = set(estado['revolucion_notificados'])
-    claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
-    estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
+    # Se guarda el estado pase lo que pase (incluso si algo falla a mitad de camino),
+    # para no volver a notificar lo que ya se envio en esta misma corrida. Sin esto,
+    # una excepcion a mitad de camino deja el estado desactualizado y TODO se vuelve a
+    # notificar en la siguiente corrida (5 min despues), y en la siguiente, indefinidamente.
+    try:
+        claves_revolucion_previas = set(estado['revolucion_notificados'])
+        claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
+        estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
 
-    claves_fallas_previas = set(estado['fallas_alta_activas'])
-    claves_fallas_actuales, _ = revisar_fallas_altas(api, claves_fallas_previas)
-    estado['fallas_alta_activas'] = list(claves_fallas_actuales)
-
-    guardar_estado(estado)
+        claves_fallas_previas = set(estado['fallas_alta_activas'])
+        claves_fallas_actuales, _ = revisar_fallas_altas(api, claves_fallas_previas)
+        estado['fallas_alta_activas'] = list(claves_fallas_actuales)
+    finally:
+        guardar_estado(estado)
 
 
 if __name__ == "__main__":
