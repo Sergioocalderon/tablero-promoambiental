@@ -1,0 +1,208 @@
+{
+  "activeFrom": "2026-06-22 20:27:30.772000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar perdida de presión de aceite con los siguientes criterios; \nLimite de temperatura de aceite; 107 °C\nPresión menor; 12 PSI\nRpm menor; 750\nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aW3Nmy-ktfEuvrdkya4z0yg",
+              "unitOfMeasure": "UnitOfMeasureRevolutionsPerMinuteId"
+            },
+            "id": "az3jvLW4OAkiVnFmUdF4Czw"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "RPM",
+        "value": 750,
+        "id": "a0QfWyG1CbEySgoQXj-SPTA"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticEngineOilTemperatureID",
+                  "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+                },
+                "id": "a5j8nyqOLGUafuemiXP98EA"
+              }
+            ],
+            "conditionType": "IsValueMoreThan",
+            "sequence": "0000000000000000",
+            "unit": "C",
+            "value": 107,
+            "id": "aDzcZF8Hy1UWbZku4Uuy5-w"
+          },
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticOilPressureId",
+                  "unitOfMeasure": "UnitOfMeasurePascalsId"
+                },
+                "id": "a6GKswJ4hK0ensxGnA_0Tvw"
+              }
+            ],
+            "conditionType": "IsValueLessThan",
+            "sequence": "0000000000000001",
+            "unit": "Pa",
+            "value": 103421,
+            "id": "aN5-p5pLh80SMGqcI-sIHcA"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000001",
+        "id": "alGppuGSddkitgyygShMV-A"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000002",
+        "value": 1,
+        "id": "a3HoTBsiPXkC3hoCZuFKmBA"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "a5_xD0PAlKUKzDnVJjDHxwQ"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aERb2iNyOEECbwY2kPqgvnQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aguZubc7EdkuiFlLT_Emrjg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticOilPressureId"
+      },
+      "id": "aloW1tTLngka1zFclqdR0Yg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticOilPressureId"
+      },
+      "id": "afhkHhaw__UucuO9I31XuXQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineOilTemperatureID"
+      },
+      "id": "auinZl1BVWUy7kYd3YPn5EQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineOilTemperatureID"
+      },
+      "id": "a95FoQIBZPEyPBeLYkQzS6w"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aNmMIisx-4U-6D6HpF9Tq1A"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "an8CyNXHsH0GHwwkLwh-ZNQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aQdXmoYc1IUeIsdtisbOgJg"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "an8CyNXHsH0GHwwkLwh-ZNQ",
+  "name": "Presión de aceite en Ralenti (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "0000000000002d16"
+}

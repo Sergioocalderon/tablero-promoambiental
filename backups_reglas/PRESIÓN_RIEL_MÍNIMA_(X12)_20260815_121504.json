@@ -1,0 +1,107 @@
+{
+  "activeFrom": "2026-06-30 03:57:03.222000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar presión mínima de la bomba de elevación ; \n- Presión Riel Mínima ; 69 KPA - (10 PSI)\n- Ignición; Encendido \nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aZJwiLj7zfEqx4WUpANUtmQ",
+              "unitOfMeasure": "UnitOfMeasurePascalsId"
+            },
+            "id": "azSIZnKv5xkaq5xXHLtzOlg"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "Pa",
+        "value": 690,
+        "id": "a88wr86pg1ESXRXTZOpagiQ"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000001",
+        "value": 1,
+        "id": "acyVhjMD5K0Cb85Xa796R9w"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "akc1NSqw8i0-LQ14ytV4zxQ"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "ar3wI-FHNekW2RVPMSlJx7g"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "a7Oh5X_UfJ0WHsSyD7K5H0Q"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "ar3wI-FHNekW2RVPMSlJx7g"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "aP8avyX_R_EKKrMp3jmdffQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "ar3wI-FHNekW2RVPMSlJx7g"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aFtRNM1qWwEygDnvT0lqRYw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "ar3wI-FHNekW2RVPMSlJx7g"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "ajbIRr1eaykWCRwNS_-nBRg"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "ar3wI-FHNekW2RVPMSlJx7g",
+  "name": "PRESIÓN RIEL MÍNIMA (X12)",
+  "groups": [
+    {
+      "id": "b2C8C"
+    }
+  ],
+  "version": "0000000000002d36"
+}

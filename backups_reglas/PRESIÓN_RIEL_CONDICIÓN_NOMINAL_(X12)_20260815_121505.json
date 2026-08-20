@@ -1,0 +1,107 @@
+{
+  "activeFrom": "2026-06-30 04:14:27.824000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar presión mínima del riel durante operación ; \n- Presión Riel Nominal; 179 KPA - (26 PSI)\n- Ignición; Encendido \nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aZJwiLj7zfEqx4WUpANUtmQ",
+              "unitOfMeasure": "UnitOfMeasurePascalsId"
+            },
+            "id": "aPhYVN-oxT0mFRyxMrdvqeg"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "Pa",
+        "value": 179,
+        "id": "a8dvyEaZj7Uej9Lhc2OIGTg"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000001",
+        "value": 1,
+        "id": "a5OjJQ9oBNUCC2ig_UFiGxQ"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "a78B8lD2klE2qG81m4gbNcg"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "azRNohv9xcEiX69AaixfKzA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "a_oEXUqnS4Ey-66OHz5skfQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "azRNohv9xcEiX69AaixfKzA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "aay1bNxiaU0mGp7PYqt-aRQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "azRNohv9xcEiX69AaixfKzA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "apG8Io9npXE6P4REhpcRLXw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "azRNohv9xcEiX69AaixfKzA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "afHwpTBSuz0iG1NUP6U_2YA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "azRNohv9xcEiX69AaixfKzA",
+  "name": "PRESIÓN RIEL CONDICIÓN NOMINAL (X12)",
+  "groups": [
+    {
+      "id": "b2C03"
+    }
+  ],
+  "version": "0000000000002d3a"
+}

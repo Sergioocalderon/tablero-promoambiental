@@ -1,0 +1,113 @@
+{
+  "activeFrom": "2026-06-22 20:27:57.890000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar presión mínima del riel durante operación ; \n- Presión Riel Nominal; 483 KPA - (70 PSI)\n- Ignición; Encendido \nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aZJwiLj7zfEqx4WUpANUtmQ",
+              "unitOfMeasure": "UnitOfMeasurePascalsId"
+            },
+            "id": "aM5PQPKWhNkmVCet6pbavTg"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "Pa",
+        "value": 483,
+        "id": "aCWuE03ODb0inXLD1eLgEsg"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000001",
+        "value": 1,
+        "id": "aKO_7vQimb0msJqfpABbM7Q"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "ag1gIPNcnB0u7jap9zVpOmw"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "apkERHqaiBUW-AbqarMmQlw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "aw5KBkOHOMUSG3Sudo0soRw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "apkERHqaiBUW-AbqarMmQlw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "aeG6lsZdOB0q8uwd69gSMwQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "apkERHqaiBUW-AbqarMmQlw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aYJtip8VtqkumvfVkFCN4VQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "apkERHqaiBUW-AbqarMmQlw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "asIiaTejEe0a4CGRiVu2iUg"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "apkERHqaiBUW-AbqarMmQlw",
+  "name": "Presión Riel Condición Nominal (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "0000000000002d17"
+}

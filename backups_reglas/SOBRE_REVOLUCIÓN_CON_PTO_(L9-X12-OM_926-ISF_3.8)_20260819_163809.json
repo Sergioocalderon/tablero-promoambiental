@@ -1,0 +1,136 @@
+{
+  "activeFrom": "2026-08-13 05:55:50.460000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar sobre revolución con toma fuerza activo con los siguientes criterios:\n\n- RPM  para funcionamiento Hidráulico;  1100 RPM max.\n- PTO activo; SI\n- Velocidad min; 0,1 km/h\n\nSi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aW3Nmy-ktfEuvrdkya4z0yg",
+              "unitOfMeasure": "UnitOfMeasureRevolutionsPerMinuteId"
+            },
+            "id": "aSbPhqwKkvkCyTcpRLnk3gA"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000000",
+        "unit": "RPM",
+        "value": 1100,
+        "id": "anv4TREZEhUiGC0PV9w-r4g"
+      },
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "DiagnosticPowerTakeoffEngagedId",
+              "unitOfMeasure": "UnitOfMeasureNoneId"
+            },
+            "id": "aqHg9vO6-tk69v-i8pL82wA"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000001",
+        "value": 0,
+        "id": "a8mhdknro4kmpIvoUNIoeOw"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "af5z5t7IeTU-Mok4ISfe7oQ"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aPub2ENImtkq4lNaKDikBxg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aHV5gr28Hxk2HLz0Yca10ng"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "a-yS1-Br0U0q-3YTZOms7Kg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aUPwC3MwCLUaU8UZ-mlvOpA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aRowVAqEyfkWlRNW0D_1czA",
+  "name": "SOBRE REVOLUCIÓN CON PTO (L9-X12-OM 926-ISF 3.8)",
+  "groups": [
+    {
+      "id": "b2C8C"
+    },
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    },
+    {
+      "id": "b2C8E"
+    },
+    {
+      "id": "b2C8F"
+    },
+    {
+      "id": "b2D07"
+    }
+  ],
+  "version": "00000000000033c7"
+}

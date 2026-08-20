@@ -1,0 +1,113 @@
+{
+  "activeFrom": "2026-06-22 20:31:07.398000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar temperatura mínima del motor; \nLimite de temperatura de motor Mínima; 71 °C\nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "DiagnosticEngineOilTemperatureID",
+              "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+            },
+            "id": "a3qfth_ugEkGNkF3vZjMDhw"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "C",
+        "value": 71,
+        "id": "apgaE-dn98EeW7Vp1Cob7nQ"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000001",
+        "value": 1,
+        "id": "aDCdbD-rYpEybBbThwbeExQ"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "aCBcmKU5-iE2MGd_dLAAzpA"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "a5pqV9nLv5kW6Vrno0yQ_Hw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineOilTemperatureID"
+      },
+      "id": "arg-I0B0LokO-HQfmGJnTUg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "a5pqV9nLv5kW6Vrno0yQ_Hw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineOilTemperatureID"
+      },
+      "id": "aUp5-jNeR4EWHVTca8G3WMg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "a5pqV9nLv5kW6Vrno0yQ_Hw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "akr7jb4sK20e75e_jFCbB7A"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "a5pqV9nLv5kW6Vrno0yQ_Hw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "a6M97esSjVkauAs7UdWqEhA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "a5pqV9nLv5kW6Vrno0yQ_Hw",
+  "name": "TEMPERATURA DE MOTOR MÍNIMA (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "00000000000034f6"
+}

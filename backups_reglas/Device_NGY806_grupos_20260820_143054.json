@@ -1,0 +1,304 @@
+{
+  "isContinuousConnectEnabled": false,
+  "obdAlertEnabled": false,
+  "listenOnlyModeReason": "ListenOnlyModeReasonNoneId",
+  "auxWarningSpeed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "enableAuxWarning": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "enableControlExternalRelay": false,
+  "externalDeviceShutDownDelay": 60,
+  "immobilizeArming": 30,
+  "immobilizeUnit": false,
+  "isAuxIgnTrigger": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "isAuxInverted": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "accelerationWarningThreshold": 22,
+  "accelerometerThresholdWarningFactor": 0,
+  "brakingWarningThreshold": -34,
+  "corneringWarningThreshold": 26,
+  "enableBeepOnDangerousDriving": false,
+  "enableBeepOnRpm": false,
+  "engineHourOffset": 0,
+  "isActiveTrackingEnabled": false,
+  "forceActiveTracking": true,
+  "isDriverSeatbeltWarningOn": false,
+  "isPassengerSeatbeltWarningOn": false,
+  "isReverseDetectOn": false,
+  "isIoxConnectionEnabled": true,
+  "odometerFactor": 1,
+  "odometerOffset": 0,
+  "rpmValue": 3500,
+  "seatbeltWarningSpeed": 10,
+  "activeFrom": "2026-07-19 15:38:53.080000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "disableBuzzer": false,
+  "enableBeepOnIdle": false,
+  "enableSpeedWarning": false,
+  "engineType": "EngineTypeGenericId",
+  "idleMinutes": 3,
+  "isSpeedIndicator": false,
+  "minAccidentSpeed": 4,
+  "speedingOff": 90,
+  "speedingOn": 100,
+  "goTalkLanguage": "Spanish",
+  "fuelTankCapacity": 0,
+  "wifiHotspotLimits": [
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 52.36
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 8.97
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 15.64
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 11.04
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 7.36
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 8.91
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 8.63
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 5.18
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 147.2
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 20.79
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 7.36
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 11.5
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 18.4
+    },
+    {
+      "name": "Upto 2 GB",
+      "maxUsageBytes": "000000007d000000",
+      "fee": 8.97
+    }
+  ],
+  "autoGroups": [],
+  "customParameters": [
+    {
+      "bytes": "QA==",
+      "description": "Enable Engine Snapshot",
+      "isEnabled": true,
+      "offset": 164
+    },
+    {
+      "bytes": "Ag==",
+      "description": "High Res RPM allowed Error = 2 rpm",
+      "isEnabled": true,
+      "offset": 168
+    },
+    {
+      "bytes": "Ag==",
+      "description": "Disable Accelerometer Record Limit",
+      "isEnabled": true,
+      "offset": 65
+    },
+    {
+      "bytes": "AQ==",
+      "description": "Enable Engine Retarder Selection",
+      "isEnabled": true,
+      "offset": 166
+    },
+    {
+      "bytes": "Ag==",
+      "description": "High Res Accelerometer",
+      "isEnabled": true,
+      "offset": 78
+    },
+    {
+      "bytes": "CA==",
+      "description": "Enable Gps Altitude Logging",
+      "isEnabled": true,
+      "offset": 181
+    },
+    {
+      "bytes": "EA==",
+      "description": "Reset Driver ID at Ignition Off",
+      "isEnabled": true,
+      "offset": 65
+    },
+    {
+      "bytes": "Ag==",
+      "description": "Use Aux Config For IOX",
+      "isEnabled": true,
+      "offset": 66
+    },
+    {
+      "bytes": "Dw==",
+      "description": "GND-Batt Config for Aux 4-IOX",
+      "isEnabled": true,
+      "offset": 48
+    },
+    {
+      "bytes": "CA==",
+      "description": "Relaxed GPS Fix Requirements",
+      "isEnabled": true,
+      "offset": 63
+    },
+    {
+      "bytes": "BA==",
+      "description": "Enable Engine Load",
+      "isEnabled": true,
+      "offset": 165
+    },
+    {
+      "bytes": "Aw==",
+      "description": "GoTalk min Volume level=3",
+      "isEnabled": true,
+      "offset": 175
+    },
+    {
+      "bytes": "QA==",
+      "description": "Reset GPS If Too Many Invalid",
+      "isEnabled": true,
+      "offset": 11
+    },
+    {
+      "bytes": "AA==",
+      "description": "Enable Driver Violation Alarm Duration",
+      "isEnabled": true,
+      "offset": 182
+    }
+  ],
+  "protobufCustomParameters": [],
+  "enableMustReprogram": false,
+  "engineVehicleIdentificationNumber": "JAANLR88ET7101339",
+  "ensureHotStart": true,
+  "gpsOffDelay": 240,
+  "licensePlate": "NGY806",
+  "licenseState": "",
+  "major": 45,
+  "minor": 50,
+  "parameterVersion": 3,
+  "pinDevice": true,
+  "vehicleIdentificationNumber": "JAANLR88ET7101339",
+  "vinInfoMake": "Isuzu",
+  "vinInfoModel": "N Series / ELF / NLR 4x2",
+  "vinInfoYear": "2026",
+  "vinInfoVehicleType": 14,
+  "parameterVersionOnDevice": 3,
+  "comment": "",
+  "groups": [
+    {
+      "id": "GroupVehicleId"
+    },
+    {
+      "id": "GroupDieselId"
+    },
+    {
+      "id": "b2D03"
+    },
+    {
+      "id": "b2D5E"
+    }
+  ],
+  "timeZoneId": "America/Bogota",
+  "deviceFlags": {
+    "activeFeatures": [
+      "GoActive"
+    ],
+    "isActiveTrackingAllowed": true,
+    "isContinuousConnectAllowed": false,
+    "isEngineAllowed": true,
+    "isGarminAllowed": true,
+    "isHOSAllowed": true,
+    "isIridiumAllowed": true,
+    "isOdometerAllowed": true,
+    "isTripDetailAllowed": true,
+    "isUIAllowed": true,
+    "isVINAllowed": true,
+    "ratePlans": []
+  },
+  "deviceType": "GO9",
+  "supportsEngineHours": true,
+  "id": "b5E9",
+  "ignoreDownloadsUntil": "0001-01-01 00:00:00+00:00",
+  "maxSecondsBetweenLogs": 200,
+  "name": "11007-NGY806",
+  "productId": 120,
+  "serialNumber": "G9FD8S95375K",
+  "timeToDownload": "1.00:00:00",
+  "workTime": "WorkTimeStandardHoursId",
+  "devicePlans": [
+    "Unknown"
+  ],
+  "devicePlanBillingInfo": [
+    {
+      "billingLevel": 35,
+      "devicePlanName": "GO"
+    }
+  ],
+  "customProperties": [],
+  "mediaFiles": []
+}

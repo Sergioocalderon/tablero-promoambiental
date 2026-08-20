@@ -1,0 +1,122 @@
+{
+  "activeFrom": "2026-08-14 20:35:10.827000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar sobre revolución del motor; \n- Mayor RPM; 2100\n- Tiempo Mayor; 10 seg\nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "aW3Nmy-ktfEuvrdkya4z0yg",
+                  "unitOfMeasure": "UnitOfMeasureRevolutionsPerMinuteId"
+                },
+                "id": "ajcWrHD8RS0ebIFRMDCVVaA"
+              }
+            ],
+            "conditionType": "IsValueMoreThan",
+            "sequence": "0000000000000000",
+            "unit": "RPM",
+            "value": 2100,
+            "id": "a6cpBN2f0BEujulJ_zOw3Rw"
+          }
+        ],
+        "conditionType": "DurationLongerThan",
+        "sequence": "0000000000000000",
+        "unit": "s",
+        "value": 10,
+        "id": "aUv6mO3p0BkOP_ZitbvYE-Q"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000001",
+        "value": 1,
+        "id": "aJLNPsd4LdUKH-ZH-8LurFg"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "ambuOQBwb_0u96nfaJhU67w"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "acry6Gx7QB02zAD3xnj4jAw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aig7l8su-H0CDioMz6i9V_g"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "acry6Gx7QB02zAD3xnj4jAw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aSTrHi8BDBEu1CZKD-9ERKg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "acry6Gx7QB02zAD3xnj4jAw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "ajmJQ4GSwQkapD_HRqGQarQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "acry6Gx7QB02zAD3xnj4jAw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aVMBJYXzhMEieysURg2dq6w"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "acry6Gx7QB02zAD3xnj4jAw",
+  "name": "SOBRE REVOLUCIÓN (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "00000000000034fd"
+}

@@ -1,0 +1,184 @@
+{
+  "activeFrom": "2026-08-18 15:09:34.932000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar sobre revoluciona miento en ralentí con toma fuerza activo con los siguientes criterios; \n- RPM min para funcionamiento hidráulico; 750\n- RPM max para funciona Hidráulico;  1100\n- PTO activo; SI\n- Velocidad min; 0,1 \nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "Speed",
+            "sequence": "0000000000000000",
+            "id": "acQx_TqHdzkmjhUMM65LqZA"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "km/h",
+        "value": 1,
+        "id": "aVbhhWHz970OweyM5OMRvVw"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticPowerTakeoffEngagedId",
+                  "unitOfMeasure": "UnitOfMeasureNoneId"
+                },
+                "id": "aawO-fn03y0Oieq_IuqqAqQ"
+              }
+            ],
+            "conditionType": "IsValueMoreThan",
+            "sequence": "0000000000000000",
+            "value": 1,
+            "id": "ak16ljZpl40GqOxcq_OeQAw"
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "conditionType": "FilterStatusDataByDiagnostic",
+                    "sequence": "0000000000000000",
+                    "diagnostic": {
+                      "id": "aW3Nmy-ktfEuvrdkya4z0yg",
+                      "unitOfMeasure": "UnitOfMeasureRevolutionsPerMinuteId"
+                    },
+                    "id": "aaCVj7DToOkqbNaqjniwuqQ"
+                  }
+                ],
+                "conditionType": "IsValueMoreThan",
+                "sequence": "0000000000000000",
+                "unit": "RPM",
+                "value": 1500,
+                "id": "aq36t6s1IZUKi5dovRlH2jw"
+              },
+              {
+                "conditionType": "Ignition",
+                "sequence": "0000000000000001",
+                "value": 1,
+                "id": "aviRSzmXi7EuvxjBgaCxFmw"
+              }
+            ],
+            "conditionType": "And",
+            "sequence": "0000000000000001",
+            "id": "aGS5vJ3I9_0W8AUykHAbtuQ"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000001",
+        "id": "aETvLNKPzrkiRrnX_jHNCbA"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "a7Wz8ahNBeE6QZrVWpbM7hw"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aDuOcjBaOikWXIKTvqIg93Q"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "ahXUzFmOSbkeHwokZvGJ-Pw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aDuOcjBaOikWXIKTvqIg93Q"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aASvCtByI4Uitj6ZYWFPC7Q"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aDuOcjBaOikWXIKTvqIg93Q"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aGILo_Amw6U6U18vPkiswXA"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aDuOcjBaOikWXIKTvqIg93Q"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aPe7SS8q73EC4NZ_lPf0hCg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aDuOcjBaOikWXIKTvqIg93Q"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "a0eqef9iDz0-BWNDfWDElZA"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aDuOcjBaOikWXIKTvqIg93Q"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aAwS-DG81WkW-ZwhCOkMHeA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aDuOcjBaOikWXIKTvqIg93Q",
+  "name": "Alerta en revoluciones altas con PTO (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "0000000000003503"
+}

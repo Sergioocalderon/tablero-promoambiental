@@ -1,0 +1,129 @@
+{
+  "activeFrom": "2026-08-15 14:04:37.382000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar sobre revoluciona miento en ralentí con toma fuerza activo con los siguientes criterios; \n- RPM min para funcionamiento hidráulico; 700\n- RPM max para funciona Hidráulico;  1100\n- PTO activo; SI\n- Velocidad min; 0,1 \nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "Ignition",
+            "sequence": "0000000000000000",
+            "value": 1,
+            "id": "aLdsP1vG7oUS3pf1ar03vZw"
+          },
+          {
+            "children": [
+              {
+                "conditionType": "Speed",
+                "sequence": "0000000000000000",
+                "id": "aU329gYnoM0uXV8rMSXD7Rg"
+              }
+            ],
+            "conditionType": "IsValueLessThan",
+            "sequence": "0000000000000001",
+            "unit": "km/h",
+            "value": 1,
+            "id": "afr24Q0YG2U2fnpknQVT1SQ"
+          },
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticPowerTakeoffEngagedId",
+                  "unitOfMeasure": "UnitOfMeasureNoneId"
+                },
+                "id": "a59qjrc_ZtUCwIAWUwiFSzQ"
+              }
+            ],
+            "conditionType": "IsValueLessThan",
+            "sequence": "0000000000000002",
+            "value": 1,
+            "id": "anoydKEKnkkGXQbGbviQiwA"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000000",
+        "id": "aOxZW6O97HEyHn_lCS5vcsA"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 300,
+    "id": "aFR94TSShl0i19NI2QHpmVQ"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "arC1QUFFRUkCq4S7Fq6Ma4A"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aMrKDnyilaU-RIbRW64oFHg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aSC_C4Zh4OkyBDEAsHvY30w"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "azPQvuJ4BVEGTZOwTQyQA8A"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "awawRu3cOREKWenqrdrIuUQ",
+  "name": "Ralentí Excesivo Sin PTO",
+  "groups": [
+    {
+      "id": "b2C8C"
+    }
+  ],
+  "version": "00000000000034ed"
+}

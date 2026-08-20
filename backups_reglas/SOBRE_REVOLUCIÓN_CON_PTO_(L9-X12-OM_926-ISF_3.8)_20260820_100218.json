@@ -1,0 +1,160 @@
+{
+  "activeFrom": "2026-08-20 14:57:04.727000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar sobre revolución con toma fuerza activo con los siguientes criterios:\n\n- RPM  para funcionamiento Hidráulico;  1300 RPM max.\n- PTO activo; SI\n- Velocidad min; 0,1 km/h\n\nSi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "Speed",
+                "sequence": "0000000000000000",
+                "id": "acZ8tyilMO0iic-jHX0qbEg"
+              }
+            ],
+            "conditionType": "IsValueLessThan",
+            "sequence": "0000000000000000",
+            "unit": "km/h",
+            "value": 1,
+            "id": "aVsoSnUZg00a6tNpPUuDiGg"
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "conditionType": "FilterStatusDataByDiagnostic",
+                    "sequence": "0000000000000000",
+                    "diagnostic": {
+                      "id": "aW3Nmy-ktfEuvrdkya4z0yg",
+                      "unitOfMeasure": "UnitOfMeasureRevolutionsPerMinuteId"
+                    },
+                    "id": "aIaK1org9WkexBiB_AA9Lhw"
+                  }
+                ],
+                "conditionType": "IsValueMoreThan",
+                "sequence": "0000000000000000",
+                "unit": "RPM",
+                "value": 1300,
+                "id": "addPnoajP50CP6JNijzRqIw"
+              },
+              {
+                "children": [
+                  {
+                    "conditionType": "FilterStatusDataByDiagnostic",
+                    "sequence": "0000000000000000",
+                    "diagnostic": {
+                      "id": "DiagnosticPowerTakeoffEngagedId",
+                      "unitOfMeasure": "UnitOfMeasureNoneId"
+                    },
+                    "id": "acx4eer9ZbUWHvg-c8C0jZA"
+                  }
+                ],
+                "conditionType": "IsValueMoreThan",
+                "sequence": "0000000000000001",
+                "value": 0,
+                "id": "aJ4PTKIJNJEq6wjh6rqWUxw"
+              }
+            ],
+            "conditionType": "And",
+            "sequence": "0000000000000001",
+            "id": "ad9xGZ0ZbqE6GVXJ4Bq4vJA"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000000",
+        "id": "aNdLLacogCEShppGQ-i58ww"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 30,
+    "id": "akt8YWFuZLUqJrH0Y9BB9lg"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aPub2ENImtkq4lNaKDikBxg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aHV5gr28Hxk2HLz0Yca10ng"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "a-yS1-Br0U0q-3YTZOms7Kg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aRowVAqEyfkWlRNW0D_1czA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aW3Nmy-ktfEuvrdkya4z0yg"
+      },
+      "id": "aUPwC3MwCLUaU8UZ-mlvOpA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aRowVAqEyfkWlRNW0D_1czA",
+  "name": "SOBRE REVOLUCIÓN CON PTO (L9-X12-OM 926-ISF 3.8)",
+  "groups": [
+    {
+      "id": "b2C8C"
+    },
+    {
+      "id": "b2C93"
+    },
+    {
+      "id": "b2C8E"
+    },
+    {
+      "id": "b2C8F"
+    },
+    {
+      "id": "b2D07"
+    }
+  ],
+  "version": "000000000000351b"
+}

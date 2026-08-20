@@ -1,0 +1,122 @@
+{
+  "activeFrom": "2026-08-20 18:39:05.993000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar recalentamiento de motor (L9) \nMáxima Temperatura; 107 °C",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticEngineOilTemperatureID",
+                  "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+                },
+                "id": "a44NIix6YUUuT-rnctlLjIw"
+              }
+            ],
+            "conditionType": "IsValueMoreThan",
+            "sequence": "0000000000000000",
+            "unit": "C",
+            "value": 109,
+            "id": "alI1ZUkUgPkmRnlC5T2ynDg"
+          },
+          {
+            "conditionType": "Ignition",
+            "sequence": "0000000000000001",
+            "value": 1,
+            "id": "a1iPHXlNCm0q3qWmuxozhHQ"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000000",
+        "id": "aOj1G3okGcUinfTC4cGOyCA"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 180,
+    "id": "ae0iEIn__IEWppAaOJjQGWg"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aTR3hAzTS0UKE2GtG0tTIfQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "ajO8CjZ9Fc0m_p_JWfvX_DQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aTR3hAzTS0UKE2GtG0tTIfQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineOilTemperatureID"
+      },
+      "id": "aikJdPs-VtUWAM1CCotW1Dg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aTR3hAzTS0UKE2GtG0tTIfQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineOilTemperatureID"
+      },
+      "id": "av1I3Cu-rmk2yQiRZmq3S-A"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aTR3hAzTS0UKE2GtG0tTIfQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "ahAotW_jriEe4btP_f8fYYg"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aTR3hAzTS0UKE2GtG0tTIfQ",
+  "name": "TEMPERATURA DE MOTOR MÁXIMA (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "0000000000003521"
+}

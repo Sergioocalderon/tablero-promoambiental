@@ -1,0 +1,113 @@
+{
+  "activeFrom": "2026-06-22 20:28:23.406000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar presión mínima del riel durante el arranque ; \n- Presión Riel mínima; 105 KPA - (15 PSI)\n- Ignición; Encendido \nsi cumple los requisitos realizara la notificación. ",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aZJwiLj7zfEqx4WUpANUtmQ",
+              "unitOfMeasure": "UnitOfMeasurePascalsId"
+            },
+            "id": "axCg1AbRqI0WSOrsHXpAOfw"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "Pa",
+        "value": 10500000,
+        "id": "a4jZlXWA790ua0KQaG43I1A"
+      },
+      {
+        "conditionType": "Ignition",
+        "sequence": "0000000000000001",
+        "value": 1,
+        "id": "aObSBzsxnXE21nSdQw7IyIA"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "aeVRpiFC0QkWzgxHGonwmDg"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aI6ZIqao4wkK7G7WzCtPzjg"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "a-tZWwH62Z0us2L37P3h6oQ"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aI6ZIqao4wkK7G7WzCtPzjg"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aZJwiLj7zfEqx4WUpANUtmQ"
+      },
+      "id": "aczpCXVSooki3F5I4zI2PBg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aI6ZIqao4wkK7G7WzCtPzjg"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aI6bKr8dWWU-ABmGqoUjX2A"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aI6ZIqao4wkK7G7WzCtPzjg"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aLWGreUSD70OIL_pjNihI6A"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aI6ZIqao4wkK7G7WzCtPzjg",
+  "name": "Presión Riel En Arranque (L9)",
+  "groups": [
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2C93"
+    }
+  ],
+  "version": "00000000000034e7"
+}

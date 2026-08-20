@@ -3,3 +3,7 @@
 *.xlsx
 ~$*.xlsx
 telegram_estado.json
+__pycache__/
+reportes/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
