@@ -392,6 +392,106 @@ def extraer_datos_manejo(_client, f_inicio, f_fin, _df_vehiculos):
     df_rpm_diario = df_rpm_diario.rename(columns={'RPM_Pico': 'RPM_Maximo'})
     return df_eventos, df_rpm_diario
 
+NOMBRE_REGLA_RPM_CON_PTO = 'SOBRE REVOLUCIÓN CON PTO (L9-X12-OM 926-ISF 3.8)'
+UMBRAL_RPM_CON_PTO = 1300
+
+@st.cache_data(ttl=180)
+def extraer_datos_manejo_pto(_client, f_inicio, f_fin, _df_vehiculos):
+    """Eventos de la regla que combina RPM alto CON PTO activo (corregida en Geotab el
+    2026-08-19: 1300 RPM sostenido 30s). A diferencia de extraer_datos_manejo, esta regla
+    aplica a varios modelos de motor a la vez, así que no se filtra por Referencia_Motor —
+    se usa el alcance de vehículos que ya trae la propia regla en Geotab. El PTO ya es
+    parte de la condición de la regla, así que Con_PTO siempre es True aquí."""
+    if _client is None or _df_vehiculos.empty:
+        return pd.DataFrame()
+    f_inicio_utc = f_inicio.astimezone(timezone.utc)
+    f_fin_utc = f_fin.astimezone(timezone.utc)
+    try:
+        todas_reglas = _client.get('Rule')
+        regla = next(
+            (r for r in todas_reglas if r.get('name', '').strip().upper() == NOMBRE_REGLA_RPM_CON_PTO.strip().upper()),
+            None
+        )
+        if not regla:
+            st.warning(f"No se encontró la regla '{NOMBRE_REGLA_RPM_CON_PTO}'.")
+            return pd.DataFrame()
+        eventos_raw = _client.get('ExceptionEvent', search={
+            'ruleSearch': {'id': regla['id']},
+            'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        })
+    except Exception as e:
+        st.warning(f"No se pudieron traer eventos de sobre-revolución con PTO: {e}")
+        return pd.DataFrame()
+
+    eventos_todos = [
+        {
+            'id_camion': (ev.get('device')['id'] if isinstance(ev.get('device'), dict) else ev.get('device')),
+            'Motor': 'Con PTO',
+            'activeFrom': ev.get('activeFrom'),
+            'activeTo': ev.get('activeTo'),
+        }
+        for ev in (eventos_raw or [])
+    ]
+    if not eventos_todos:
+        return pd.DataFrame()
+
+    df_eventos = pd.DataFrame(eventos_todos)
+    df_eventos['activeFrom'] = convertir_a_bogota(df_eventos['activeFrom'])
+    df_eventos['activeTo'] = convertir_a_bogota(df_eventos['activeTo'])
+    df_eventos['Fecha'] = df_eventos['activeFrom'].dt.date
+    df_eventos['Hora_Bogota'] = df_eventos['activeFrom']
+    df_eventos['Turno'] = df_eventos['Hora_Bogota'].apply(clasificar_turno)
+    df_eventos['Duracion_Segundos'] = (df_eventos['activeTo'] - df_eventos['activeFrom']).dt.total_seconds()
+    df_eventos['Umbral_RPM'] = UMBRAL_RPM_CON_PTO
+    df_eventos['Con_PTO'] = True
+    df_eventos = pd.merge(df_eventos, _df_vehiculos, on='id_camion', how='left')
+
+    vehiculos_con_eventos_rpm = df_eventos['id_camion'].unique().tolist()
+    df_lecturas_rpm = pd.DataFrame()
+    if vehiculos_con_eventos_rpm:
+        llamadas_rpm = [
+            ('Get', {
+                'typeName': 'StatusData',
+                'search': {
+                    'diagnosticSearch': {'id': ID_DIAGNOSTICO_RPM_MOTOR},
+                    'deviceSearch': {'id': id_veh},
+                    'fromDate': f_inicio_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    'toDate': f_fin_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                }
+            })
+            for id_veh in vehiculos_con_eventos_rpm
+        ]
+        try:
+            resultados_rpm = _client.multi_call(llamadas_rpm)
+        except Exception as e:
+            st.warning(f"No se pudieron traer lecturas de RPM (con PTO): {e}")
+            resultados_rpm = []
+        filas_rpm = []
+        for id_veh, lecturas in zip(vehiculos_con_eventos_rpm, resultados_rpm):
+            if lecturas and isinstance(lecturas, list):
+                for l in lecturas:
+                    filas_rpm.append({'id_camion': id_veh, 'dateTime': l.get('dateTime'), 'data': l.get('data')})
+        if filas_rpm:
+            df_lecturas_rpm = pd.DataFrame(filas_rpm)
+            df_lecturas_rpm['dateTime'] = convertir_a_bogota(df_lecturas_rpm['dateTime'])
+            df_lecturas_rpm['data'] = pd.to_numeric(df_lecturas_rpm['data'], errors='coerce')
+            df_lecturas_rpm = df_lecturas_rpm[['id_camion', 'dateTime', 'data']].dropna()
+
+    def obtener_pico_evento(row):
+        if df_lecturas_rpm.empty:
+            return None
+        desde = row['activeFrom'] - timedelta(seconds=30)
+        hasta = row['activeTo'] + timedelta(seconds=30)
+        ventana = df_lecturas_rpm[
+            (df_lecturas_rpm['id_camion'] == row['id_camion']) &
+            (df_lecturas_rpm['dateTime'] >= desde) &
+            (df_lecturas_rpm['dateTime'] <= hasta)
+        ]
+        return ventana['data'].max() if not ventana.empty else None
+    df_eventos['RPM_Pico'] = df_eventos.apply(obtener_pico_evento, axis=1)
+    return df_eventos
+
 ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
 VENTANA_PTO_MINUTOS = 10
 
@@ -1110,6 +1210,9 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 # =============================================================================
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
 df_eventos_revolucion, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+df_eventos_revolucion_pto = extraer_datos_manejo_pto(client, fecha_inicio, fecha_fin, df_vehiculos_global)
+if not df_eventos_revolucion_pto.empty:
+    df_eventos_revolucion = pd.concat([df_eventos_revolucion, df_eventos_revolucion_pto], ignore_index=True)
 
 if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
     ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
@@ -1656,7 +1759,10 @@ with tab_seguimiento:
 # =============================================================================
 with tab_revolucion:
     st.subheader("🏎️ Sobre-Revolución")
-    st.caption("Eventos de RPM alto con el vehículo detenido, detectados por las reglas SOBRE REVOLUCIÓN (L9/X12) de Geotab.")
+    st.caption(
+        "Eventos de RPM alto con el vehículo detenido: reglas SOBRE REVOLUCIÓN (L9/X12) de Geotab, "
+        "más SOBRE REVOLUCIÓN CON PTO (1300 RPM sostenido 30s con el PTO activo)."
+    )
 
     if not df_eventos_revolucion.empty:
         claves_actuales_revolucion = set(
@@ -1667,7 +1773,16 @@ with tab_revolucion:
         st.session_state.claves_revolucion_previas = claves_actuales_revolucion
 
         df_show_revolucion = df_eventos_revolucion.sort_values('activeFrom', ascending=False)
-        df_show_revolucion['Con_PTO'] = cruzar_con_pto(client, df_show_revolucion, fecha_inicio, fecha_fin)
+        if 'Con_PTO' not in df_show_revolucion.columns:
+            df_show_revolucion['Con_PTO'] = False
+        df_show_revolucion['Con_PTO'] = df_show_revolucion['Con_PTO'].fillna(False)
+        # La regla "Con PTO" ya exige PTO activo en su condición (dato certero); para las
+        # demás (L9/X12, sin PTO en la condición) se estima cruzando con pulsos de PTO cercanos.
+        mascara_sin_pto_en_regla = df_show_revolucion['Motor'] != 'Con PTO'
+        if mascara_sin_pto_en_regla.any():
+            df_show_revolucion.loc[mascara_sin_pto_en_regla, 'Con_PTO'] = cruzar_con_pto(
+                client, df_show_revolucion[mascara_sin_pto_en_regla], fecha_inicio, fecha_fin
+            )
         vehiculos_involucrados = df_show_revolucion['id_camion'].nunique()
         eventos_totales = len(df_show_revolucion)
         rpm_maximo_registrado = df_show_revolucion['RPM_Pico'].max()
@@ -1689,7 +1804,7 @@ with tab_revolucion:
         df_tabla_revolucion['Con_PTO'] = df_tabla_revolucion['Con_PTO'].map({True: 'Sí', False: 'No'})
         df_tabla_revolucion = df_tabla_revolucion.drop(columns=['Duracion_Segundos']).rename(columns={
             'activeFrom': 'Fecha/Hora', 'Duracion_Min': 'Duración (min)', 'RPM_Pico': 'RPM Pico',
-            'Umbral_RPM': 'Umbral RPM', 'Con_PTO': 'Con PTO (±10 min)'
+            'Umbral_RPM': 'Umbral RPM', 'Con_PTO': 'Con PTO'
         })
         st.dataframe(df_tabla_revolucion, use_container_width=True, hide_index=True)
         st.download_button(
