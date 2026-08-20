@@ -397,11 +397,13 @@ UMBRAL_RPM_CON_PTO = 1300
 
 @st.cache_data(ttl=180)
 def extraer_datos_manejo_pto(_client, f_inicio, f_fin, _df_vehiculos):
-    """Eventos de la regla que combina RPM alto CON PTO activo (corregida en Geotab el
-    2026-08-19: 1300 RPM sostenido 30s). A diferencia de extraer_datos_manejo, esta regla
-    aplica a varios modelos de motor a la vez, así que no se filtra por Referencia_Motor —
-    se usa el alcance de vehículos que ya trae la propia regla en Geotab. El PTO ya es
-    parte de la condición de la regla, así que Con_PTO siempre es True aquí."""
+    """Eventos de la regla de RPM alto sostenido con vehículo detenido, con umbral más
+    bajo (corregida en Geotab el 2026-08-20: 1300 RPM + velocidad < 1 km/h, sostenido 30s).
+    A diferencia de extraer_datos_manejo, esta regla aplica a varios modelos de motor a la
+    vez, así que no se filtra por Referencia_Motor — se usa el alcance de vehículos que ya
+    trae la propia regla en Geotab. El PTO YA NO es parte de la condición de la regla (se
+    confirmó que el diagnóstico de PTO es un pulso — exigirlo sostenido 30s casi nunca se
+    cumplía), así que Con_PTO se sigue estimando con cruzar_con_pto como en las demás."""
     if _client is None or _df_vehiculos.empty:
         return pd.DataFrame()
     f_inicio_utc = f_inicio.astimezone(timezone.utc)
@@ -444,7 +446,6 @@ def extraer_datos_manejo_pto(_client, f_inicio, f_fin, _df_vehiculos):
     df_eventos['Turno'] = df_eventos['Hora_Bogota'].apply(clasificar_turno)
     df_eventos['Duracion_Segundos'] = (df_eventos['activeTo'] - df_eventos['activeFrom']).dt.total_seconds()
     df_eventos['Umbral_RPM'] = UMBRAL_RPM_CON_PTO
-    df_eventos['Con_PTO'] = True
     df_eventos = pd.merge(df_eventos, _df_vehiculos, on='id_camion', how='left')
 
     vehiculos_con_eventos_rpm = df_eventos['id_camion'].unique().tolist()
@@ -493,7 +494,8 @@ def extraer_datos_manejo_pto(_client, f_inicio, f_fin, _df_vehiculos):
     return df_eventos
 
 ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
-VENTANA_PTO_MINUTOS = 10
+VENTANA_PTO_MINUTOS = 1  # angosta a proposito: el PTO pulsa ~cada 1s todo el dia, asi que
+# una ventana amplia (ej. 10 min) casi siempre encuentra "algun" pulso por coincidencia.
 
 @st.cache_data(ttl=180)
 def cruzar_con_pto(_client, _df_eventos, f_inicio, f_fin, ventana_minutos=VENTANA_PTO_MINUTOS):
@@ -1761,7 +1763,7 @@ with tab_revolucion:
     st.subheader("🏎️ Sobre-Revolución")
     st.caption(
         "Eventos de RPM alto con el vehículo detenido: reglas SOBRE REVOLUCIÓN (L9/X12) de Geotab, "
-        "más SOBRE REVOLUCIÓN CON PTO (1300 RPM sostenido 30s con el PTO activo)."
+        "más SOBRE REVOLUCIÓN CON PTO (1300 RPM sostenido 30s, vehículo detenido; la columna \"Con PTO\" es estimada por cercanía)."
     )
 
     if not df_eventos_revolucion.empty:
@@ -1775,14 +1777,10 @@ with tab_revolucion:
         df_show_revolucion = df_eventos_revolucion.sort_values('activeFrom', ascending=False)
         if 'Con_PTO' not in df_show_revolucion.columns:
             df_show_revolucion['Con_PTO'] = False
-        df_show_revolucion['Con_PTO'] = df_show_revolucion['Con_PTO'].fillna(False)
-        # La regla "Con PTO" ya exige PTO activo en su condición (dato certero); para las
-        # demás (L9/X12, sin PTO en la condición) se estima cruzando con pulsos de PTO cercanos.
-        mascara_sin_pto_en_regla = df_show_revolucion['Motor'] != 'Con PTO'
-        if mascara_sin_pto_en_regla.any():
-            df_show_revolucion.loc[mascara_sin_pto_en_regla, 'Con_PTO'] = cruzar_con_pto(
-                client, df_show_revolucion[mascara_sin_pto_en_regla], fecha_inicio, fecha_fin
-            )
+        # Ninguna de las reglas exige PTO dentro de su condición (se confirmó que el
+        # diagnóstico de PTO es un pulso — exigirlo sostenido casi nunca se cumple), así
+        # que Con_PTO siempre se estima cruzando con pulsos de PTO cercanos (±10 min).
+        df_show_revolucion['Con_PTO'] = cruzar_con_pto(client, df_show_revolucion, fecha_inicio, fecha_fin)
         vehiculos_involucrados = df_show_revolucion['id_camion'].nunique()
         eventos_totales = len(df_show_revolucion)
         rpm_maximo_registrado = df_show_revolucion['RPM_Pico'].max()

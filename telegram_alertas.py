@@ -27,10 +27,13 @@ NOMBRE_REGLA_RPM_POR_MOTOR = {'L9': 'SOBRE REVOLUCIÓN (L9)', 'X12': 'SOBRE REVO
 DURACION_MINIMA_SEG = 60
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
-# --- Sobre-revolucion CON PTO: aunque la regla en Geotab exige RPM > 1300 sostenido
-# 30+ segundos con el PTO activo (corregido el 2026-08-19), los ExceptionEvent que
-# devuelve la API no vienen pre-filtrados por esa duracion -- se filtra aca igual
-# que con las otras reglas (confirmado con datos reales: llegaban eventos de 0-14s). ---
+# --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
+# diciendo "CON PTO" pero ya NO exige PTO en la condicion -- se confirmo con datos reales
+# que el diagnostico de PTO es un pulso (mediana ~1.1s entre cambios), asi que exigirlo
+# sostenido 30s casi nunca se cumplia. Ahora solo exige RPM > 1300 + velocidad < 1 km/h
+# sostenido 30s (corregido el 2026-08-20); el PTO se puede confirmar aparte si hace falta.
+# Los ExceptionEvent tampoco vienen pre-filtrados por duracion -- se filtra aca igual
+# que con las otras reglas. ---
 NOMBRE_REGLA_PTO = 'SOBRE REVOLUCIÓN CON PTO (L9-X12-OM 926-ISF 3.8)'
 DURACION_MINIMA_PTO_SEG = 30
 
@@ -101,10 +104,69 @@ def clasificar_criticidad_geotab(falla):
 
 
 # ---------------------------------------------------------------------------
-# Sobre-revolucion (sin PTO y con PTO)
+# Sobre-revolucion (umbral general y umbral bajo 1300 RPM)
 # ---------------------------------------------------------------------------
 
-def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_notificadas, duracion_minima_seg=0):
+ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
+VENTANA_PTO_MINUTOS = 1  # ventana angosta a propósito: el PTO pulsa ~cada 1s todo el día,
+# así que una ventana amplia (ej. 10 min) casi siempre encuentra "algún" pulso por pura
+# coincidencia y deja de ser una confirmación real de que el compactador estaba operando.
+
+
+def _filtrar_por_pto_cercano(api, eventos_candidatos, ventana_minutos=VENTANA_PTO_MINUTOS):
+    """De una lista de eventos (dicts con id_veh, activeFrom, activeTo -- datetimes),
+    devuelve solo los que tienen al menos un pulso de PTO=1 en +/- ventana_minutos.
+    El PTO es un pulso (mediana ~1.1s entre cambios, confirmado con datos reales), asi
+    que no se puede exigir dentro de la condicion de la Regla -- se confirma aca aparte.
+    Si falla la consulta, no se notifica nada (mejor omitir que generar ruido)."""
+    if not eventos_candidatos:
+        return []
+
+    vehiculos = list({e['id_veh'] for e in eventos_candidatos})
+    desde_global = min(e['activeFrom'] for e in eventos_candidatos) - timedelta(minutes=ventana_minutos)
+    hasta_global = max(e['activeTo'] for e in eventos_candidatos) + timedelta(minutes=ventana_minutos)
+
+    llamadas = [
+        ('Get', {
+            'typeName': 'StatusData',
+            'search': {
+                'diagnosticSearch': {'id': ID_DIAGNOSTICO_PTO},
+                'deviceSearch': {'id': id_veh},
+                'fromDate': desde_global.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'toDate': hasta_global.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            }
+        })
+        for id_veh in vehiculos
+    ]
+    try:
+        resultados = api.multi_call(llamadas)
+    except Exception as e:
+        print(f"*** No se pudo consultar PTO para confirmar eventos de 1300 RPM: {e} ***")
+        return []
+
+    pulsos_por_vehiculo = {}
+    for id_veh, lecturas in zip(vehiculos, resultados):
+        pulsos = []
+        for l in (lecturas or []):
+            try:
+                if float(l.get('data') or 0) > 0:
+                    pulsos.append(pd.to_datetime(l['dateTime']))
+            except (TypeError, ValueError):
+                continue
+        pulsos_por_vehiculo[id_veh] = pulsos
+
+    confirmados = []
+    for e in eventos_candidatos:
+        desde = e['activeFrom'] - timedelta(minutes=ventana_minutos)
+        hasta = e['activeTo'] + timedelta(minutes=ventana_minutos)
+        pulsos = pulsos_por_vehiculo.get(e['id_veh'], [])
+        if any(desde <= p <= hasta for p in pulsos):
+            confirmados.append(e)
+    return confirmados
+
+
+def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_notificadas,
+                               duracion_minima_seg=0, requiere_pto_cercano=False):
     reglas = api.get('Rule')
     regla = next((r for r in reglas if r.get('name', '').strip().upper() == nombre_regla.strip().upper()), None)
     if not regla:
@@ -119,7 +181,7 @@ def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_no
         'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     })
 
-    claves_nuevas = []
+    candidatos = []
     for ev in (eventos or []):
         dev = ev.get('device')
         id_veh = dev['id'] if isinstance(dev, dict) else dev
@@ -138,18 +200,29 @@ def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_no
         if clave in claves_ya_notificadas:
             continue
 
-        nombre_veh = devices.get(id_veh, {}).get('name', id_veh)
-        hora_local = dt_desde.tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        candidatos.append({
+            'id_veh': id_veh, 'activeFrom': dt_desde, 'activeTo': dt_hasta,
+            'clave': clave, 'duracion_seg': duracion_seg,
+        })
+
+    if requiere_pto_cercano:
+        candidatos = _filtrar_por_pto_cercano(api, candidatos)
+
+    claves_nuevas = []
+    for c in candidatos:
+        nombre_veh = devices.get(c['id_veh'], {}).get('name', c['id_veh'])
+        hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
         texto = (
             f"🏎️ SOBRE-REVOLUCIÓN ({etiqueta})\n"
             f"Vehículo: {nombre_veh}\n"
             f"Hora: {hora_local}\n"
-            f"Duración: {duracion_seg:.0f} segundos sostenidos\n"
+            f"Duración: {c['duracion_seg']:.0f} segundos sostenidos\n"
             f"Vehículo detenido con RPM alto."
+            + (f"\nPTO activo cerca (±{VENTANA_PTO_MINUTOS} min)." if requiere_pto_cercano else "")
         )
         if enviar_telegram(texto):
-            print(f"Notificado: {clave} ({duracion_seg:.0f}s)")
-            claves_nuevas.append(clave)
+            print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s)")
+            claves_nuevas.append(c['clave'])
 
     return claves_nuevas
 
@@ -163,8 +236,12 @@ def revisar_sobre_revolucion(api, claves_ya_notificadas):
             api, devices, nombre_regla, motor, claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_SEG
         )
 
+    # Umbral bajo (1300 RPM): sin PTO en la condicion de la regla (es un pulso, no se
+    # puede exigir sostenido), asi que se confirma aparte -- solo se notifica si hubo
+    # un pulso de PTO cerca, para no generar ruido con ralenti alto sin compactador.
     claves_nuevas += _revisar_regla_revolucion(
-        api, devices, NOMBRE_REGLA_PTO, "con PTO", claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_PTO_SEG
+        api, devices, NOMBRE_REGLA_PTO, "1300 RPM", claves_ya_notificadas,
+        duracion_minima_seg=DURACION_MINIMA_PTO_SEG, requiere_pto_cercano=True
     )
 
     if claves_nuevas:
