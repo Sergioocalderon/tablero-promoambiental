@@ -1213,10 +1213,10 @@ def extraer_datos_completos(_client, f_inicio, f_fin):
 # EJECUCIÓN PRINCIPAL
 # =============================================================================
 df_operativo, df_temperatura, df_fallas, df_vehiculos_global = extraer_datos_completos(client, fecha_inicio, fecha_fin)
-df_eventos_revolucion, df_rpm_diario = extraer_datos_manejo(client, fecha_inicio, fecha_fin, df_vehiculos_global)
-df_eventos_revolucion_pto = extraer_datos_manejo_pto(client, fecha_inicio, fecha_fin, df_vehiculos_global)
-if not df_eventos_revolucion_pto.empty:
-    df_eventos_revolucion = pd.concat([df_eventos_revolucion, df_eventos_revolucion_pto], ignore_index=True)
+# Solo se muestra la regla SOBRE REVOLUCIÓN CON PTO (vehículo detenido, compactando).
+# La de L9/X12 (RPM alto en recorrido, sin exigir vehículo detenido) es una regla
+# distinta con otro propósito y se dejó fuera del tablero a propósito.
+df_eventos_revolucion = extraer_datos_manejo_pto(client, fecha_inicio, fecha_fin, df_vehiculos_global)
 
 if not df_vehiculos_global.empty and 'Ciudad' in df_vehiculos_global.columns:
     ciudades_reales = sorted(df_vehiculos_global['Ciudad'].unique())
@@ -1278,7 +1278,7 @@ tab_fallas, tab_alertas, tab_niveles, tab_seguimiento, tab_revolucion = st.tabs(
     "🚨 Alertas",
     "📉 Niveles",
     "⏱️ Seguimiento de Códigos",
-    "🏎️ Sobre-Revolución"
+    "🏎️ Sobre-Revolución con PTO"
 ])
 
 ORDEN_CRITICIDAD = ['ALTA', 'MEDIA', 'BAJA']
@@ -1762,10 +1762,10 @@ with tab_seguimiento:
 # TAB SOBRE-REVOLUCIÓN (RPM alto con vehículo detenido)
 # =============================================================================
 with tab_revolucion:
-    st.subheader("🏎️ Sobre-Revolución")
+    st.subheader("🏎️ Sobre-Revolución con PTO")
     st.caption(
-        "Eventos de RPM alto con el vehículo detenido: reglas SOBRE REVOLUCIÓN (L9/X12) de Geotab, "
-        "más SOBRE REVOLUCIÓN CON PTO (1300 RPM sostenido 30s, vehículo detenido; la columna \"Con PTO\" es estimada por cercanía)."
+        "Regla SOBRE REVOLUCIÓN CON PTO de Geotab: RPM > 1300 sostenido 30s con el vehículo detenido "
+        "(compactando). La columna \"Con PTO\" es estimada por cercanía con pulsos reales de PTO."
     )
 
     if not df_eventos_revolucion.empty:

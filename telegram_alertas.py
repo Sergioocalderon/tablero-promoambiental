@@ -296,7 +296,8 @@ def normalizar_ciudad(nombre):
         return 'Cali'
     if 'VALLE' in n:
         return 'Valle'
-    return nombre.strip()
+    return nombre.strip().title()  # ej. "SER AMBIENTAL" -> "Ser Ambiental", para que
+    # quede parejo con Bogotá/Cali/Valle como encabezado de ciudad en el resumen
 
 
 def obtener_mapa_grupos(api):
@@ -355,6 +356,19 @@ def resolver_ciudad_tipologia(grupos_vehiculo, mapa_grupos):
         if info.get('tipologia') and tipologia == 'Sin tipología asignada':
             tipologia = info['tipologia']
     return ciudad, tipologia
+
+
+def resolver_marca(grupos_vehiculo, mapa_grupos):
+    """Busca entre los grupos del vehiculo cual es el grupo de marca (International,
+    Foton, Mercedes, Volkswagen, Kenworth) y devuelve su nombre. Se usa para mostrar la
+    marca real del vehiculo en vez del codigo de motor (L9/X12), que no dice nada por
+    si solo a alguien reaccionando sin el tablero."""
+    for g in (grupos_vehiculo or []):
+        gid = g['id'] if isinstance(g, dict) else g
+        info = mapa_grupos.get(gid)
+        if info and es_grupo_marca(info['nombre']):
+            return info['nombre'].strip().title()
+    return None
 
 
 def obtener_catalogos_diagnosticos(api):
@@ -476,6 +490,10 @@ MAX_HORAS_CONSOLIDAR = 6  # si el bot estuvo mucho tiempo sin correr, no se mand
 LIMITE_TELEGRAM = 3500  # margen bajo el limite real de la API de Telegram (4096
 # caracteres) -- con muchas fallas ALTA activas el resumen puede superarlo facil.
 
+TOP_N_RESUMEN = 8  # cuantos vehiculos se listan en detalle por seccion antes de
+# resumir el resto en una sola linea -- la regla de PTO sola puede generar 15-20
+# eventos/hora, listar cada uno hacia el mensaje larguisimo e ilegible.
+
 
 def _enviar_por_partes(lineas):
     """Manda una lista de lineas como uno o mas mensajes de Telegram, partiendo en
@@ -501,7 +519,63 @@ def _enviar_por_partes(lineas):
     return ok
 
 
-def _resumen_eventos_revolucion_hora(api, devices, inicio_utc, fin_utc):
+ID_DIAGNOSTICO_RPM_MOTOR = 'aW3Nmy-ktfEuvrdkya4z0yg'  # Engine Speed (RPM) -- mismo id que usa app.py
+VENTANA_RPM_SEGUNDOS = 30  # margen alrededor del evento para capturar el pico real
+# (el ExceptionEvent marca cuando la condicion se sostuvo, pero el pico de RPM puede
+# caer un poco antes/despues del activeFrom/activeTo exactos), igual que app.py.
+
+
+def _agregar_rpm_pico(api, eventos_candidatos, ventana_segundos=VENTANA_RPM_SEGUNDOS):
+    """Agrega 'rpm_pico' (float o None) a cada evento (dict con id_veh, activeFrom,
+    activeTo), consultando StatusData del diagnostico de RPM en +/-ventana_segundos.
+    Si falla la consulta, deja rpm_pico=None en todos en vez de frenar el resumen."""
+    if not eventos_candidatos:
+        return eventos_candidatos
+
+    vehiculos = list({e['id_veh'] for e in eventos_candidatos})
+    desde_global = min(e['activeFrom'] for e in eventos_candidatos) - timedelta(seconds=ventana_segundos)
+    hasta_global = max(e['activeTo'] for e in eventos_candidatos) + timedelta(seconds=ventana_segundos)
+
+    llamadas = [
+        ('Get', {
+            'typeName': 'StatusData',
+            'search': {
+                'diagnosticSearch': {'id': ID_DIAGNOSTICO_RPM_MOTOR},
+                'deviceSearch': {'id': id_veh},
+                'fromDate': desde_global.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'toDate': hasta_global.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            }
+        })
+        for id_veh in vehiculos
+    ]
+    try:
+        resultados = api.multi_call(llamadas)
+    except Exception as e:
+        print(f"*** No se pudo consultar RPM para el resumen de sobre-revolucion: {e} ***")
+        for ev in eventos_candidatos:
+            ev['rpm_pico'] = None
+        return eventos_candidatos
+
+    lecturas_por_vehiculo = {}
+    for id_veh, lecturas in zip(vehiculos, resultados):
+        puntos = []
+        for l in (lecturas or []):
+            try:
+                puntos.append((pd.to_datetime(l['dateTime']), float(l.get('data'))))
+            except (TypeError, ValueError):
+                continue
+        lecturas_por_vehiculo[id_veh] = puntos
+
+    for e in eventos_candidatos:
+        desde = e['activeFrom'] - timedelta(seconds=ventana_segundos)
+        hasta = e['activeTo'] + timedelta(seconds=ventana_segundos)
+        valores = [v for (t, v) in lecturas_por_vehiculo.get(e['id_veh'], []) if desde <= t <= hasta]
+        e['rpm_pico'] = max(valores) if valores else None
+
+    return eventos_candidatos
+
+
+def _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_utc):
     """Eventos de sobre-revolucion (las 3 reglas) con activeFrom dentro de
     [inicio_utc, fin_utc). Se recalcula siempre desde los ExceptionEvent de Geotab --
     no depende de que claves ya se notificaron individualmente."""
@@ -513,43 +587,126 @@ def _resumen_eventos_revolucion_hora(api, devices, inicio_utc, fin_utc):
     filas = []
     for nombre_regla, etiqueta, duracion_minima, requiere_pto in fuentes:
         candidatos = _obtener_eventos_regla(api, nombre_regla, inicio_utc, fin_utc, duracion_minima, requiere_pto)
+        _agregar_rpm_pico(api, candidatos)
         for c in candidatos:
+            vehiculo = devices.get(c['id_veh'], {})
+            ciudad, _ = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+            marca = resolver_marca(vehiculo.get('groups'), mapa_grupos)
             filas.append({
-                'nombre_veh': devices.get(c['id_veh'], {}).get('name', c['id_veh']),
+                'nombre_veh': vehiculo.get('name', c['id_veh']),
+                'ciudad': ciudad,
                 'etiqueta': etiqueta,
+                'marca': marca or etiqueta,
                 'hora_local': c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%H:%M:%S'),
                 'duracion_seg': c['duracion_seg'],
+                'rpm_pico': c.get('rpm_pico'),
             })
     filas.sort(key=lambda f: f['hora_local'])
     return filas
 
 
+def _agrupar_por_ciudad(items, clave_ciudad=lambda x: x['ciudad']):
+    """Agrupa una lista en un dict {ciudad: [items]}, ordenado por cantidad de items
+    descendente y con 'Sin ciudad asignada' siempre al final (si aparece)."""
+    grupos = {}
+    for item in items:
+        grupos.setdefault(clave_ciudad(item), []).append(item)
+    ciudades = [c for c in grupos if c != 'Sin ciudad asignada']
+    ciudades.sort(key=lambda c: -len(grupos[c]))
+    if 'Sin ciudad asignada' in grupos:
+        ciudades.append('Sin ciudad asignada')
+    return [(c, grupos[c]) for c in ciudades]
+
+
 def _construir_resumen_hora(api, inicio_local, fin_local):
     devices = {d['id']: d for d in api.get('Device')}
+    mapa_grupos = obtener_mapa_grupos(api)
     inicio_utc = inicio_local.astimezone(timezone.utc)
     fin_utc = fin_local.astimezone(timezone.utc)
 
-    eventos_revolucion = _resumen_eventos_revolucion_hora(api, devices, inicio_utc, fin_utc)
-    activas_alta, _, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_alta_activas(api)
+    eventos_revolucion = _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_utc)
+    activas_alta, _, dic_diag, dic_fm, _ = _obtener_fallas_alta_activas(api)
 
-    lineas = [f"📊 RESUMEN {inicio_local.strftime('%H:%M')}–{fin_local.strftime('%H:%M')} ({inicio_local.strftime('%d/%m/%Y')})"]
+    encabezado = f"📊 RESUMEN {inicio_local.strftime('%H:%M')}–{fin_local.strftime('%H:%M')} ({inicio_local.strftime('%d/%m/%Y')})"
 
-    lineas.append(f"\n🏎️ Sobre-revolución en esta hora ({len(eventos_revolucion)}):")
+    # Se arman DOS mensajes separados (sobre-revolucion / fallas) en vez de uno solo --
+    # asi cada uno queda completo y legible por si mismo aunque _enviar_por_partes tenga
+    # que dividirlo por longitud; un solo mensaje largo se puede partir a la mitad de
+    # una ciudad o un vehiculo, lo cual es mas confuso de leer.
+    # Las secciones van organizadas por ciudad (no una lista plana) -- con operacion en
+    # varias ciudades, revisar todo mezclado obliga a leer la lista entera para
+    # encontrar lo propio. Dentro de cada ciudad, agrupado por vehiculo (no una linea
+    # por evento) y sin truncar: el usuario necesita el dato completo para poder
+    # reaccionar sin el tablero.
+    lineas_revolucion = [encabezado]
+    lineas_revolucion.append(f"\n🏎️ Sobre-revolución en esta hora ({len(eventos_revolucion)} eventos):")
+    lineas_revolucion.append(
+        f"  L9 = {NOMBRE_REGLA_RPM_POR_MOTOR['L9']} | X12 = {NOMBRE_REGLA_RPM_POR_MOTOR['X12']} | "
+        f"1300 RPM = {NOMBRE_REGLA_PTO}"
+    )
     if eventos_revolucion:
-        for f in eventos_revolucion:
-            lineas.append(f"  • {f['nombre_veh']} ({f['etiqueta']}) — {f['hora_local']}, {f['duracion_seg']:.0f}s")
+        for ciudad, eventos_ciudad in _agrupar_por_ciudad(eventos_revolucion):
+            lineas_revolucion.append(f"  {ciudad}:")
+            por_vehiculo = {}
+            for f in eventos_ciudad:
+                por_vehiculo.setdefault(f['nombre_veh'], []).append(f)
+            for nombre_veh, eventos_veh in sorted(por_vehiculo.items(), key=lambda kv: -len(kv[1])):
+                # La marca es la misma para todos los eventos del vehiculo -- va en el
+                # encabezado, no repetida en cada linea.
+                marca = eventos_veh[0]['marca']
+                lineas_revolucion.append(f"    {nombre_veh} ({marca}, {len(eventos_veh)} evento(s)):")
+                for e in sorted(eventos_veh, key=lambda x: x['hora_local']):
+                    rpm = f", pico {e['rpm_pico']:.0f} RPM" if e.get('rpm_pico') is not None else ""
+                    lineas_revolucion.append(f"      • {e['hora_local']} — {e['duracion_seg']:.0f}s{rpm}")
     else:
-        lineas.append("  Sin eventos en esta hora.")
+        lineas_revolucion.append("  Sin eventos en esta hora.")
 
-    lineas.append(f"\n🚨 Fallas ALTA activas ahora ({len(activas_alta)}):")
-    if not activas_alta.empty:
-        for _, row in activas_alta.iterrows():
-            nombre_veh, ciudad, _, spn, fmi, descripcion, _, _ = _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos)
-            lineas.append(f"  • {nombre_veh} ({ciudad}) — SPN {spn}/FMI {fmi}: {descripcion}")
+    # Separado en dos bloques -- si el codigo acaba de salir hay que poder reaccionar
+    # sin el tablero (hora + SPN/FMI + descripcion completos), pero una falla que lleva
+    # semanas activa no debe repetirse con el mismo detalle cada hora ni desaparecer del
+    # resumen -- se resume por vehiculo.
+    nuevas = activas_alta[
+        (activas_alta['dateTime'] >= inicio_utc) & (activas_alta['dateTime'] < fin_utc)
+    ] if not activas_alta.empty else activas_alta
+    persistentes = activas_alta[activas_alta['dateTime'] < inicio_utc] if not activas_alta.empty else activas_alta
+
+    lineas_fallas = [encabezado]
+    lineas_fallas.append(f"\n🆕 Fallas ALTA nuevas esta hora ({len(nuevas)}):")
+    if not nuevas.empty:
+        filas_nuevas = []
+        for _, row in nuevas.sort_values('dateTime', ascending=False).iterrows():
+            nombre_veh, ciudad, _, spn, fmi, descripcion, hora_local, _ = _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos)
+            filas_nuevas.append({'ciudad': ciudad, 'texto': f"    • {nombre_veh} — {hora_local}: SPN {spn}/FMI {fmi} {descripcion}"})
+        for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_nuevas):
+            lineas_fallas.append(f"  {ciudad}:")
+            lineas_fallas.extend(f['texto'] for f in filas_ciudad)
     else:
-        lineas.append("  Sin fallas ALTA activas.")
+        lineas_fallas.append("  Ninguna.")
 
-    return lineas
+    lineas_fallas.append(
+        f"\n⏳ Fallas ALTA persistentes sin resolver "
+        f"({len(persistentes)} en {persistentes['id_camion'].nunique() if not persistentes.empty else 0} vehículos):"
+    )
+    if not persistentes.empty:
+        ahora_utc = datetime.now(timezone.utc)
+        filas_persistentes = []
+        for _, grupo in persistentes.groupby('id_camion'):
+            fila_mas_vieja = grupo.sort_values('dateTime', ascending=True).iloc[0]
+            nombre_veh, ciudad, _, _, _, _, _, _ = _texto_falla(fila_mas_vieja, devices, dic_diag, dic_fm, mapa_grupos)
+            dias_activa = (ahora_utc - fila_mas_vieja['dateTime']).days
+            filas_persistentes.append({
+                'ciudad': ciudad,
+                'n_codigos': len(grupo),
+                'texto': f"    • {nombre_veh}: {len(grupo)} código(s), la más vieja lleva {dias_activa} día(s) activa",
+            })
+        for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_persistentes):
+            lineas_fallas.append(f"  {ciudad}:")
+            for f in sorted(filas_ciudad, key=lambda x: -x['n_codigos']):
+                lineas_fallas.append(f['texto'])
+    else:
+        lineas_fallas.append("  Ninguna.")
+
+    return lineas_revolucion, lineas_fallas
 
 
 def enviar_resumenes_por_hora(api, estado):
@@ -589,9 +746,10 @@ def enviar_resumenes_por_hora(api, estado):
     while ultima_hora < hora_actual:
         fin_hora = ultima_hora + timedelta(hours=1)
         try:
-            lineas = _construir_resumen_hora(api, ultima_hora, fin_hora)
-            _enviar_por_partes(lineas)
-            print(f"Resumen por hora enviado: {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
+            lineas_revolucion, lineas_fallas = _construir_resumen_hora(api, ultima_hora, fin_hora)
+            _enviar_por_partes(lineas_revolucion)
+            _enviar_por_partes(lineas_fallas)
+            print(f"Resumen por hora enviado (2 mensajes): {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
         except Exception as e:
             print(f"*** Error armando/enviando el resumen de {ultima_hora.strftime('%H:%M')}: {e} ***")
         ultima_hora = fin_hora
