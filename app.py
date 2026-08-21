@@ -1796,6 +1796,33 @@ with tab_revolucion:
             reproducir_alarma()
             st.warning(f"🆕 {len(claves_nuevas_revolucion)} evento(s) nuevo(s) de sobre-revolución desde la última actualización.")
 
+        resumen_veh_revolucion = df_show_revolucion.groupby(['Movil', 'Placa']).agg(
+            Eventos=('Con_PTO', 'count'),
+            Eventos_Con_PTO=('Con_PTO', 'sum'),
+        ).reset_index()
+        resumen_veh_revolucion['Eventos_Con_PTO'] = resumen_veh_revolucion['Eventos_Con_PTO'].astype(int)
+
+        col_top1, col_top2 = st.columns(2)
+        with col_top1:
+            st.markdown("**🔝 Top 5 — más eventos de sobre-revolución**")
+            top_eventos = resumen_veh_revolucion.sort_values('Eventos', ascending=False).head(5)
+            st.dataframe(
+                top_eventos[['Movil', 'Placa', 'Eventos']],
+                use_container_width=True, hide_index=True
+            )
+        with col_top2:
+            st.markdown("**🔝 Top 5 — más eventos con PTO accionado**")
+            top_pto = resumen_veh_revolucion[resumen_veh_revolucion['Eventos_Con_PTO'] > 0].sort_values(
+                'Eventos_Con_PTO', ascending=False
+            ).head(5)
+            if not top_pto.empty:
+                st.dataframe(
+                    top_pto[['Movil', 'Placa', 'Eventos_Con_PTO']].rename(columns={'Eventos_Con_PTO': 'Eventos con PTO'}),
+                    use_container_width=True, hide_index=True
+                )
+            else:
+                st.caption("Ningún evento del periodo tuvo PTO detectado cerca.")
+
         df_tabla_revolucion = df_show_revolucion[[
             'Movil', 'Placa', 'Ciudad', 'Motor', 'activeFrom', 'Duracion_Segundos', 'RPM_Pico', 'Umbral_RPM', 'Con_PTO'
         ]].copy()
