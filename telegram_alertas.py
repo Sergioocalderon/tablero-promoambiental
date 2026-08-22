@@ -21,10 +21,6 @@ ZONA_BOGOTA = ZoneInfo("America/Bogota")
 ESTADO_PATH = "telegram_estado.json"
 MAX_CLAVES_GUARDADAS = 5000  # evita que el estado de eventos (append-only) crezca sin limite
 
-# --- Sobre-revolucion sin PTO: la regla no tiene duracion minima propia en Geotab,
-# asi que se filtra aca (picos breves de cambios de marcha no cuentan). ---
-NOMBRE_REGLA_RPM_POR_MOTOR = {'L9': 'SOBRE REVOLUCIÓN (L9)', 'X12': 'SOBRE REVOLUCIÓN (X12)'}
-DURACION_MINIMA_SEG = 60
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -308,11 +304,13 @@ def _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_s
     return candidatos
 
 
-def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_notificadas,
-                               duracion_minima_seg=0, requiere_pto_cercano=False):
+def _revisar_regla_revolucion(api, devices, nombre_regla, claves_ya_notificadas, duracion_minima_seg):
+    """Siempre exige PTO activo cerca (±VENTANA_PTO_MINUTOS) -- la regla de 1300 RPM no
+    lo trae en su condicion (el PTO es un pulso, no se puede exigir sostenido), asi que
+    se confirma aca aparte, para no generar ruido con ralenti alto sin compactador."""
     f_fin = datetime.now(timezone.utc)
     f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
-    candidatos = _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_seg, requiere_pto_cercano)
+    candidatos = _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_seg, requiere_pto_cercano=True)
     candidatos = [c for c in candidatos if c['clave'] not in claves_ya_notificadas]
 
     claves_nuevas = []
@@ -320,12 +318,11 @@ def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_no
         nombre_veh = devices.get(c['id_veh'], {}).get('name', c['id_veh'])
         hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
         texto = (
-            f"🏎️ SOBRE-REVOLUCIÓN ({etiqueta})\n"
+            f"🏎️ SOBRE-REVOLUCIÓN CON PTO ACTIVO\n"
             f"Vehículo: {nombre_veh}\n"
             f"Hora: {hora_local}\n"
             f"Duración: {c['duracion_seg']:.0f} segundos sostenidos\n"
-            f"Vehículo detenido con RPM alto."
-            + (f"\nPTO activo cerca (±{VENTANA_PTO_MINUTOS} min)." if requiere_pto_cercano else "")
+            f"Vehículo detenido con RPM alto, PTO activo cerca (±{VENTANA_PTO_MINUTOS} min)."
         )
         if enviar_telegram(texto):
             print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s)")
@@ -335,20 +332,13 @@ def _revisar_regla_revolucion(api, devices, nombre_regla, etiqueta, claves_ya_no
 
 
 def revisar_sobre_revolucion(api, claves_ya_notificadas):
+    """Solo la regla SOBRE REVOLUCIÓN CON PTO -- la de L9/X12 (RPM alto en recorrido,
+    sin exigir vehiculo detenido) mide algo distinto y se dejo fuera de las alertas
+    individuales, igual que ya se hizo en el tablero (app.py)."""
     devices = {d['id']: d for d in api.get('Device')}
 
-    claves_nuevas = []
-    for motor, nombre_regla in NOMBRE_REGLA_RPM_POR_MOTOR.items():
-        claves_nuevas += _revisar_regla_revolucion(
-            api, devices, nombre_regla, motor, claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_SEG
-        )
-
-    # Umbral bajo (1300 RPM): sin PTO en la condicion de la regla (es un pulso, no se
-    # puede exigir sostenido), asi que se confirma aparte -- solo se notifica si hubo
-    # un pulso de PTO cerca, para no generar ruido con ralenti alto sin compactador.
-    claves_nuevas += _revisar_regla_revolucion(
-        api, devices, NOMBRE_REGLA_PTO, "1300 RPM", claves_ya_notificadas,
-        duracion_minima_seg=DURACION_MINIMA_PTO_SEG, requiere_pto_cercano=True
+    claves_nuevas = _revisar_regla_revolucion(
+        api, devices, NOMBRE_REGLA_PTO, claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_PTO_SEG
     )
 
     if claves_nuevas:
@@ -656,31 +646,29 @@ def _agregar_rpm_pico(api, eventos_candidatos, ventana_segundos=VENTANA_RPM_SEGU
 
 
 def _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_utc):
-    """Eventos de sobre-revolucion (las 3 reglas) con activeFrom dentro de
-    [inicio_utc, fin_utc). Se recalcula siempre desde los ExceptionEvent de Geotab --
-    no depende de que claves ya se notificaron individualmente."""
-    fuentes = [
-        (NOMBRE_REGLA_RPM_POR_MOTOR['L9'], 'L9', DURACION_MINIMA_SEG, False),
-        (NOMBRE_REGLA_RPM_POR_MOTOR['X12'], 'X12', DURACION_MINIMA_SEG, False),
-        (NOMBRE_REGLA_PTO, '1300 RPM', DURACION_MINIMA_PTO_SEG, True),
-    ]
+    """Eventos de SOBRE REVOLUCIÓN CON PTO (unica regla que interesa por ahora; la de
+    L9/X12 mide algo distinto -- RPM alto en recorrido, sin exigir vehiculo detenido --
+    y se dejo fuera, igual que en las alertas individuales y en el tablero) con
+    activeFrom dentro de [inicio_utc, fin_utc). Se recalcula siempre desde los
+    ExceptionEvent de Geotab -- no depende de que claves ya se notificaron
+    individualmente."""
+    candidatos = _obtener_eventos_regla(
+        api, NOMBRE_REGLA_PTO, inicio_utc, fin_utc, DURACION_MINIMA_PTO_SEG, requiere_pto_cercano=True
+    )
+    _agregar_rpm_pico(api, candidatos)
     filas = []
-    for nombre_regla, etiqueta, duracion_minima, requiere_pto in fuentes:
-        candidatos = _obtener_eventos_regla(api, nombre_regla, inicio_utc, fin_utc, duracion_minima, requiere_pto)
-        _agregar_rpm_pico(api, candidatos)
-        for c in candidatos:
-            vehiculo = devices.get(c['id_veh'], {})
-            ciudad, _ = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
-            marca = resolver_marca(vehiculo.get('groups'), mapa_grupos)
-            filas.append({
-                'nombre_veh': vehiculo.get('name', c['id_veh']),
-                'ciudad': ciudad,
-                'etiqueta': etiqueta,
-                'marca': marca or etiqueta,
-                'hora_local': c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%H:%M:%S'),
-                'duracion_seg': c['duracion_seg'],
-                'rpm_pico': c.get('rpm_pico'),
-            })
+    for c in candidatos:
+        vehiculo = devices.get(c['id_veh'], {})
+        ciudad, _ = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+        marca = resolver_marca(vehiculo.get('groups'), mapa_grupos)
+        filas.append({
+            'nombre_veh': vehiculo.get('name', c['id_veh']),
+            'ciudad': ciudad,
+            'marca': marca or '1300 RPM',
+            'hora_local': c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%H:%M:%S'),
+            'duracion_seg': c['duracion_seg'],
+            'rpm_pico': c.get('rpm_pico'),
+        })
     filas.sort(key=lambda f: f['hora_local'])
     return filas
 
@@ -719,11 +707,8 @@ def _construir_resumen_hora(api, inicio_local, fin_local):
     # por evento) y sin truncar: el usuario necesita el dato completo para poder
     # reaccionar sin el tablero.
     lineas_revolucion = [encabezado]
-    lineas_revolucion.append(f"\n🏎️ Sobre-revolución en esta hora ({len(eventos_revolucion)} eventos):")
-    lineas_revolucion.append(
-        f"  L9 = {NOMBRE_REGLA_RPM_POR_MOTOR['L9']} | X12 = {NOMBRE_REGLA_RPM_POR_MOTOR['X12']} | "
-        f"1300 RPM = {NOMBRE_REGLA_PTO}"
-    )
+    lineas_revolucion.append(f"\n🏎️ Sobre-revolución con PTO activo en esta hora ({len(eventos_revolucion)} eventos):")
+    lineas_revolucion.append(f"  Regla: {NOMBRE_REGLA_PTO}")
     if eventos_revolucion:
         for ciudad, eventos_ciudad in _agrupar_por_ciudad(eventos_revolucion):
             lineas_revolucion.append(f"  {ciudad}:")
