@@ -75,7 +75,7 @@ def cargar_estado():
     ejecutaria y el mismo estado viejo se re-guardaria corrida tras corrida,
     haciendo que TODO se vuelva a notificar como "nuevo" cada 5 minutos."""
     default = {
-        "revolucion_notificados": [], "fallas_alta_activas": [], "ultima_hora_resumen": None,
+        "revolucion_notificados": [], "fallas_activas": [], "ultima_hora_resumen": None,
         "ultimo_update_id_procesado": None, "suscriptores": [], "ultimo_turno_fin": None,
     }
     if not os.path.exists(ESTADO_PATH):
@@ -87,7 +87,7 @@ def cargar_estado():
             print(f"*** Estado en '{ESTADO_PATH}' tiene formato viejo/invalido (no es un dict) -- se ignora. ***")
             return default
         estado = dict(default)
-        for clave in ("revolucion_notificados", "fallas_alta_activas", "suscriptores"):
+        for clave in ("revolucion_notificados", "fallas_activas", "suscriptores"):
             valor = datos.get(clave)
             if isinstance(valor, list):
                 estado[clave] = valor
@@ -107,7 +107,7 @@ def cargar_estado():
 def guardar_estado(estado):
     estado_a_guardar = {
         "revolucion_notificados": estado["revolucion_notificados"][-MAX_CLAVES_GUARDADAS:],
-        "fallas_alta_activas": estado["fallas_alta_activas"],
+        "fallas_activas": estado["fallas_activas"],
         "ultima_hora_resumen": estado.get("ultima_hora_resumen"),
         "ultimo_update_id_procesado": estado.get("ultimo_update_id_procesado"),
         "suscriptores": estado.get("suscriptores", []),
@@ -544,10 +544,10 @@ def obtener_catalogos_diagnosticos(api):
 
 def _obtener_fallas_activas(api):
     """Todas las fallas activas ahora mismo (cualquier criticidad), una fila por
-    vehiculo+diagnostico+modo de falla (la mas reciente). Base comun para
-    _obtener_fallas_alta_activas (solo ALTA, usada por las alertas y el resumen por
-    hora) y para el reporte PDF completo (todas las criticidades, ver
-    generar_pdf_reporte_fallas)."""
+    vehiculo+diagnostico+modo de falla (la mas reciente). Base comun para las alertas
+    individuales, el resumen por hora y el reporte PDF -- todos usan cualquier
+    criticidad (ALTA/MEDIA/BAJA), para que coincida con lo que se ve directo en
+    Geotab en vez de solo una parte."""
     devices = {d['id']: d for d in api.get('Device')}
     dic_diag, dic_fm = obtener_catalogos_diagnosticos(api)
     mapa_grupos = obtener_mapa_grupos(api)
@@ -569,14 +569,18 @@ def _obtener_fallas_activas(api):
     df['criticidad'] = df.apply(clasificar_criticidad_geotab, axis=1)
     df['dateTime'] = pd.to_datetime(df['dateTime'])
 
-    # Solo lo que Geotab marca activo ahora mismo (evita reinventar la logica de
-    # "ultima ocurrencia dentro de una ventana" -- Geotab ya lo sabe con certeza).
-    activas = df[df['faultState'] == 'Active']
-
-    # Una fila por combinacion vehiculo+diagnostico+modo de falla (la mas reciente)
-    activas = activas.sort_values('dateTime').drop_duplicates(
+    # Primero el registro MAS RECIENTE por vehiculo+diagnostico+modo de falla (sin
+    # importar su faultState), y RECIEN AHI se filtra por 'Active'. Si se filtrara por
+    # 'Active' antes de dedupear (como estaba antes), un codigo que ya se resolvio --su
+    # ultimo registro real es faultState=None/Inactive-- podia seguir viendose "activo"
+    # mientras existiera, dentro de VENTANA_FALLAS_DIAS, CUALQUIER registro viejo en
+    # 'Active': muchos diagnosticos aca pulsan Active -> None en segundos y vuelven a
+    # aparecer dias despues, asi que ese orden mostraba fallas "activas hace semanas"
+    # que en Geotab ya estaban resueltas (confirmado con datos reales del vehiculo 1151).
+    df = df.sort_values('dateTime').drop_duplicates(
         subset=['id_camion', 'diag_id', 'fm_id'], keep='last'
     )
+    activas = df[df['faultState'] == 'Active']
 
     if CIUDAD_FILTRO and not activas.empty:
         def _ciudad_del_vehiculo(id_camion):
@@ -587,19 +591,9 @@ def _obtener_fallas_activas(api):
     return activas, devices, dic_diag, dic_fm, mapa_grupos
 
 
-def _obtener_fallas_alta_activas(api):
-    """Solo las fallas ALTA de _obtener_fallas_activas -- usado por las alertas
-    individuales (revisar_fallas_altas) y el resumen consolidado por hora, donde no
-    interesa si ya se notifico antes, se lista el estado actual."""
-    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
-    if not activas.empty:
-        activas = activas[activas['criticidad'] == 'ALTA']
-    return activas, devices, dic_diag, dic_fm, mapa_grupos
-
-
 def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
-    """Arma los campos de texto de una fila de falla ALTA -- reutilizado por la
-    alerta individual y por el resumen consolidado por hora."""
+    """Arma los campos de texto de una fila de falla (cualquier criticidad) --
+    reutilizado por la alerta individual y por el resumen consolidado por hora."""
     diag_info = dic_diag.get(row['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
     fm_info = dic_fm.get(row['fm_id'], {'nombre': '', 'codigo': None})
     vehiculo = devices.get(row['id_camion'], {})
@@ -615,14 +609,20 @@ def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
     return nombre_veh, ciudad, tipologia, spn, fmi, descripcion, hora_local, url_busqueda
 
 
-def revisar_fallas_altas(api, claves_activas_previas):
-    activas_alta, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_alta_activas(api)
-    if activas_alta.empty:
+EMOJI_POR_CRITICIDAD = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': 'ℹ️'}
+
+
+def revisar_fallas_activas(api, claves_activas_previas):
+    """Alerta individual por cada falla nueva, de CUALQUIER criticidad (antes solo
+    ALTA) -- para que lo que llega a Telegram coincida con lo que se ve en Geotab en
+    vez de ser solo un subconjunto."""
+    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
+    if activas.empty:
         return set(), []
 
     claves_actuales = set()
     filas_nuevas = []
-    for _, row in activas_alta.iterrows():
+    for _, row in activas.iterrows():
         clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
         claves_actuales.add(clave)
         if clave in claves_activas_previas:
@@ -633,8 +633,9 @@ def revisar_fallas_altas(api, claves_activas_previas):
         nombre_veh, ciudad, tipologia, spn, fmi, descripcion, hora_local, url_busqueda = _texto_falla(
             row, devices, dic_diag, dic_fm, mapa_grupos
         )
+        emoji = EMOJI_POR_CRITICIDAD.get(row['criticidad'], '🔧')
         texto = (
-            f"🚨 FALLA CRÍTICA (ALTA)\n"
+            f"{emoji} FALLA ACTIVA ({row['criticidad']})\n"
             f"Vehículo: {nombre_veh}\n"
             f"Ciudad: {ciudad}\n"
             f"Tipología: {tipologia}\n"
@@ -645,12 +646,12 @@ def revisar_fallas_altas(api, claves_activas_previas):
         )
         if enviar_telegram(texto):
             clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
-            print(f"Notificado (falla ALTA): {clave}")
+            print(f"Notificado (falla {row['criticidad']}): {clave}")
 
     if not filas_nuevas:
-        print("Sin fallas ALTA nuevas que notificar.")
+        print("Sin fallas nuevas que notificar.")
     else:
-        print(f"Total fallas ALTA notificadas en esta corrida: {len(filas_nuevas)}")
+        print(f"Total fallas notificadas en esta corrida: {len(filas_nuevas)}")
 
     return claves_actuales, filas_nuevas
 
@@ -896,18 +897,18 @@ def _limites_turno(momento_local):
     raise ValueError(f"No se pudo determinar el turno para {momento_local}")  # no deberia pasar
 
 
-def _construir_texto_persistentes(api, inicio_turno, nombre_turno):
+def _construir_texto_persistentes(api, desde, etiqueta):
     """Lista compacta (una linea por vehiculo, no el detalle completo) de las fallas
-    que ya estaban activas ANTES de que empezara este turno y siguen activas ahora --
-    para no perder el rastro de lo que lleva dias sin resolverse, ya que el PDF del
-    turno solo trae lo nuevo. Mismo criterio que el bloque persistentes del resumen
-    por hora, pero con todas las criticidades (no solo ALTA)."""
+    que ya estaban activas ANTES de 'desde' y siguen activas ahora -- para no perder
+    el rastro de lo que lleva dias sin resolverse, ya que el PDF del periodo (turno u
+    hora) solo trae lo nuevo. Cualquier criticidad (no solo ALTA). 'etiqueta' es texto
+    libre para el encabezado (ej. 'turno R2' o 'antes de las 14:00')."""
     activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
     if activas.empty:
         return []
 
-    inicio_turno_utc = inicio_turno.astimezone(timezone.utc)
-    persistentes = activas[activas['dateTime'] < inicio_turno_utc]
+    desde_utc = desde.astimezone(timezone.utc)
+    persistentes = activas[activas['dateTime'] < desde_utc]
     if persistentes.empty:
         return []
 
@@ -917,13 +918,17 @@ def _construir_texto_persistentes(api, inicio_turno, nombre_turno):
         fila_mas_vieja = grupo.sort_values('dateTime', ascending=True).iloc[0]
         nombre_veh, ciudad, _, _, _, _, _, _ = _texto_falla(fila_mas_vieja, devices, dic_diag, dic_fm, mapa_grupos)
         dias_activa = (ahora_utc - fila_mas_vieja['dateTime']).days
+        conteo_criticidad = grupo['criticidad'].value_counts().to_dict()
+        resumen_criticidad = ', '.join(
+            f"{n} {c}" for c, n in sorted(conteo_criticidad.items(), key=lambda kv: -ORDEN_CRITICIDAD.get(kv[0], 0))
+        )
         filas_persistentes.append({
             'ciudad': ciudad, 'n_codigos': len(grupo),
-            'texto': f"  • {nombre_veh}: {len(grupo)} código(s), la más vieja lleva {dias_activa} día(s) activa",
+            'texto': f"  • {nombre_veh}: {len(grupo)} código(s) ({resumen_criticidad}), la más vieja lleva {dias_activa} día(s) activa",
         })
 
     lineas = [
-        f"⏳ Fallas persistentes sin resolver (turno {nombre_turno}) — "
+        f"⏳ Fallas persistentes sin resolver ({etiqueta}) — "
         f"{len(persistentes)} en {persistentes['id_camion'].nunique()} vehículos:"
     ]
     for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_persistentes):
@@ -931,6 +936,38 @@ def _construir_texto_persistentes(api, inicio_turno, nombre_turno):
         for f in sorted(filas_ciudad, key=lambda x: -x['n_codigos']):
             lineas.append(f['texto'])
     return lineas
+
+
+def _enviar_reporte_fallas(api, desde_local, hasta_local, nombre_archivo, caption, etiqueta_persistentes):
+    """Genera y manda el PDF de fallas nuevas en [desde_local, hasta_local) -- silencio
+    (no manda nada) si dio 0 -- mas el resumen de texto de las persistentes (activas
+    desde antes de desde_local). Mismo patron para el resumen por hora y el reporte de
+    fin de turno, asi ambos quedan cortos y faciles de revisar (el PDF trae solo lo
+    nuevo, ya agrupado por ciudad/criticidad/sistema; el texto no repite el detalle de
+    lo que ya se reporto antes, solo la cuenta de lo que sigue sin resolver)."""
+    ruta_pdf = None
+    try:
+        ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+        n_fallas = generar_pdf_reporte_fallas(api, ruta_pdf, desde_local=desde_local, hasta_local=hasta_local)
+        if n_fallas == 0:
+            print(f"{caption}: sin fallas nuevas, no se manda nada.")
+        else:
+            for chat_id in _chat_ids_destino():
+                _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
+            print(f"{caption}: PDF enviado ({n_fallas} fallas).")
+    except Exception as e:
+        print(f"*** No se pudo generar/enviar el PDF ({caption}): {e} ***")
+    finally:
+        if ruta_pdf and os.path.exists(ruta_pdf):
+            os.remove(ruta_pdf)
+
+    try:
+        lineas_persistentes = _construir_texto_persistentes(api, desde_local, etiqueta_persistentes)
+        if lineas_persistentes:
+            _enviar_por_partes(lineas_persistentes)
+            print(f"Resumen de persistentes ({etiqueta_persistentes}) enviado.")
+    except Exception as e:
+        print(f"*** No se pudo armar/enviar el resumen de persistentes ({etiqueta_persistentes}): {e} ***")
 
 
 def enviar_resumenes_por_turno(api, estado):
@@ -971,33 +1008,9 @@ def enviar_resumenes_por_turno(api, estado):
 
     while ultimo_turno_fin < inicio_turno_actual:
         nombre_turno, inicio_turno, fin_turno = _limites_turno(ultimo_turno_fin)
-        ruta_pdf = None
-        try:
-            ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
-            n_fallas = generar_pdf_reporte_fallas(api, ruta_pdf, desde_local=inicio_turno, hasta_local=fin_turno)
-            # Si no hubo fallas nuevas, no vale la pena mandar el PDF -- silencio es la
-            # mejor senal de que no paso nada en ese turno.
-            if n_fallas == 0:
-                print(f"Turno {nombre_turno} ({inicio_turno.strftime('%d/%m %H:%M')}-{fin_turno.strftime('%H:%M')}): sin fallas nuevas, no se manda nada.")
-            else:
-                nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
-                caption = f"📄 Fallas nuevas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
-                for chat_id in _chat_ids_destino():
-                    _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
-                print(f"Reporte de turno {nombre_turno} enviado.")
-        except Exception as e:
-            print(f"*** No se pudo generar/enviar el reporte del turno {nombre_turno}: {e} ***")
-        finally:
-            if ruta_pdf and os.path.exists(ruta_pdf):
-                os.remove(ruta_pdf)
-
-        try:
-            lineas_persistentes = _construir_texto_persistentes(api, inicio_turno, nombre_turno)
-            if lineas_persistentes:
-                _enviar_por_partes(lineas_persistentes)
-                print(f"Resumen de persistentes del turno {nombre_turno} enviado.")
-        except Exception as e:
-            print(f"*** No se pudo armar/enviar el resumen de persistentes del turno {nombre_turno}: {e} ***")
+        nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
+        caption = f"📄 Fallas nuevas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
+        _enviar_reporte_fallas(api, inicio_turno, fin_turno, nombre_archivo, caption, f"turno {nombre_turno}")
 
         ultimo_turno_fin = fin_turno
         estado['ultimo_turno_fin'] = ultimo_turno_fin.isoformat()
@@ -1142,32 +1155,31 @@ def _agrupar_por_ciudad(items, clave_ciudad=lambda x: x['ciudad']):
     return [(c, grupos[c]) for c in ciudades]
 
 
-def _construir_resumen_hora(api, inicio_local, fin_local):
+def _construir_resumen_revolucion_hora(api, inicio_local, fin_local):
+    """Resumen de texto de sobre-revolucion con PTO de la hora [inicio_local, fin_local).
+    Las fallas NO van aca -- desde que se ampliaron a cualquier criticidad (no solo
+    ALTA) el texto se volvia largo y dificil de leer rapido en el celular; van en un
+    PDF aparte (ver _enviar_reporte_fallas), con el mismo agrupado por
+    ciudad/criticidad/sistema que ya usa /reporte y el reporte de turno."""
     devices = {d['id']: d for d in api.get('Device')}
     mapa_grupos = obtener_mapa_grupos(api)
     inicio_utc = inicio_local.astimezone(timezone.utc)
     fin_utc = fin_local.astimezone(timezone.utc)
 
     eventos_revolucion = _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_utc)
-    activas_alta, _, dic_diag, dic_fm, _ = _obtener_fallas_alta_activas(api)
 
     encabezado = f"📊 RESUMEN {inicio_local.strftime('%H:%M')}–{fin_local.strftime('%H:%M')} ({inicio_local.strftime('%d/%m/%Y')})"
 
-    # Se arman DOS mensajes separados (sobre-revolucion / fallas) en vez de uno solo --
-    # asi cada uno queda completo y legible por si mismo aunque _enviar_por_partes tenga
-    # que dividirlo por longitud; un solo mensaje largo se puede partir a la mitad de
-    # una ciudad o un vehiculo, lo cual es mas confuso de leer.
-    # Las secciones van organizadas por ciudad (no una lista plana) -- con operacion en
-    # varias ciudades, revisar todo mezclado obliga a leer la lista entera para
-    # encontrar lo propio. Dentro de cada ciudad, agrupado por vehiculo (no una linea
-    # por evento) y sin truncar: el usuario necesita el dato completo para poder
-    # reaccionar sin el tablero.
-    lineas_revolucion = [encabezado]
-    lineas_revolucion.append(f"\n🏎️ Sobre-revolución con PTO activo en esta hora ({len(eventos_revolucion)} eventos):")
-    lineas_revolucion.append(f"  Regla: {NOMBRE_REGLA_PTO}")
+    # Organizado por ciudad (no una lista plana) -- con operacion en varias ciudades,
+    # revisar todo mezclado obliga a leer la lista entera para encontrar lo propio.
+    # Dentro de cada ciudad, agrupado por vehiculo (no una linea por evento) y sin
+    # truncar: el usuario necesita el dato completo para poder reaccionar sin el tablero.
+    lineas = [encabezado]
+    lineas.append(f"\n🏎️ Sobre-revolución con PTO activo en esta hora ({len(eventos_revolucion)} eventos):")
+    lineas.append(f"  Regla: {NOMBRE_REGLA_PTO}")
     if eventos_revolucion:
         for ciudad, eventos_ciudad in _agrupar_por_ciudad(eventos_revolucion):
-            lineas_revolucion.append(f"  {ciudad}:")
+            lineas.append(f"  {ciudad}:")
             por_vehiculo = {}
             for f in eventos_ciudad:
                 por_vehiculo.setdefault(f['nombre_veh'], []).append(f)
@@ -1175,59 +1187,14 @@ def _construir_resumen_hora(api, inicio_local, fin_local):
                 # La marca es la misma para todos los eventos del vehiculo -- va en el
                 # encabezado, no repetida en cada linea.
                 marca = eventos_veh[0]['marca']
-                lineas_revolucion.append(f"    {nombre_veh} ({marca}, {len(eventos_veh)} evento(s)):")
+                lineas.append(f"    {nombre_veh} ({marca}, {len(eventos_veh)} evento(s)):")
                 for e in sorted(eventos_veh, key=lambda x: x['hora_local']):
                     rpm = f", pico {e['rpm_pico']:.0f} RPM" if e.get('rpm_pico') is not None else ""
-                    lineas_revolucion.append(f"      • {e['hora_local']} — {e['duracion_seg']:.0f}s{rpm}")
+                    lineas.append(f"      • {e['hora_local']} — {e['duracion_seg']:.0f}s{rpm}")
     else:
-        lineas_revolucion.append("  Sin eventos en esta hora.")
+        lineas.append("  Sin eventos en esta hora.")
 
-    # Separado en dos bloques -- si el codigo acaba de salir hay que poder reaccionar
-    # sin el tablero (hora + SPN/FMI + descripcion completos), pero una falla que lleva
-    # semanas activa no debe repetirse con el mismo detalle cada hora ni desaparecer del
-    # resumen -- se resume por vehiculo.
-    nuevas = activas_alta[
-        (activas_alta['dateTime'] >= inicio_utc) & (activas_alta['dateTime'] < fin_utc)
-    ] if not activas_alta.empty else activas_alta
-    persistentes = activas_alta[activas_alta['dateTime'] < inicio_utc] if not activas_alta.empty else activas_alta
-
-    lineas_fallas = [encabezado]
-    lineas_fallas.append(f"\n🆕 Fallas ALTA nuevas esta hora ({len(nuevas)}):")
-    if not nuevas.empty:
-        filas_nuevas = []
-        for _, row in nuevas.sort_values('dateTime', ascending=False).iterrows():
-            nombre_veh, ciudad, _, spn, fmi, descripcion, hora_local, _ = _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos)
-            filas_nuevas.append({'ciudad': ciudad, 'texto': f"    • {nombre_veh} — {hora_local}: SPN {spn}/FMI {fmi} {descripcion}"})
-        for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_nuevas):
-            lineas_fallas.append(f"  {ciudad}:")
-            lineas_fallas.extend(f['texto'] for f in filas_ciudad)
-    else:
-        lineas_fallas.append("  Ninguna.")
-
-    lineas_fallas.append(
-        f"\n⏳ Fallas ALTA persistentes sin resolver "
-        f"({len(persistentes)} en {persistentes['id_camion'].nunique() if not persistentes.empty else 0} vehículos):"
-    )
-    if not persistentes.empty:
-        ahora_utc = datetime.now(timezone.utc)
-        filas_persistentes = []
-        for _, grupo in persistentes.groupby('id_camion'):
-            fila_mas_vieja = grupo.sort_values('dateTime', ascending=True).iloc[0]
-            nombre_veh, ciudad, _, _, _, _, _, _ = _texto_falla(fila_mas_vieja, devices, dic_diag, dic_fm, mapa_grupos)
-            dias_activa = (ahora_utc - fila_mas_vieja['dateTime']).days
-            filas_persistentes.append({
-                'ciudad': ciudad,
-                'n_codigos': len(grupo),
-                'texto': f"    • {nombre_veh}: {len(grupo)} código(s), la más vieja lleva {dias_activa} día(s) activa",
-            })
-        for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_persistentes):
-            lineas_fallas.append(f"  {ciudad}:")
-            for f in sorted(filas_ciudad, key=lambda x: -x['n_codigos']):
-                lineas_fallas.append(f['texto'])
-    else:
-        lineas_fallas.append("  Ninguna.")
-
-    return lineas_revolucion, lineas_fallas
+    return lineas
 
 
 def enviar_resumenes_por_hora(api, estado):
@@ -1267,12 +1234,16 @@ def enviar_resumenes_por_hora(api, estado):
     while ultima_hora < hora_actual:
         fin_hora = ultima_hora + timedelta(hours=1)
         try:
-            lineas_revolucion, lineas_fallas = _construir_resumen_hora(api, ultima_hora, fin_hora)
+            lineas_revolucion = _construir_resumen_revolucion_hora(api, ultima_hora, fin_hora)
             _enviar_por_partes(lineas_revolucion)
-            _enviar_por_partes(lineas_fallas)
-            print(f"Resumen por hora enviado (2 mensajes): {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
         except Exception as e:
-            print(f"*** Error armando/enviando el resumen de {ultima_hora.strftime('%H:%M')}: {e} ***")
+            print(f"*** Error armando/enviando el resumen de revolucion de {ultima_hora.strftime('%H:%M')}: {e} ***")
+
+        nombre_archivo = f"fallas_{ultima_hora.strftime('%Y%m%d_%H%M')}.pdf"
+        caption = f"📄 Fallas nuevas — {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')} ({ultima_hora.strftime('%d/%m/%Y')})"
+        _enviar_reporte_fallas(api, ultima_hora, fin_hora, nombre_archivo, caption, f"antes de las {ultima_hora.strftime('%H:%M')}")
+
+        print(f"Resumen por hora procesado: {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
         ultima_hora = fin_hora
         estado['ultima_hora_resumen'] = ultima_hora.isoformat()
 
@@ -1281,7 +1252,7 @@ def main():
     api = conectar_geotab()
     estado = cargar_estado()
     print(f"Estado cargado: {len(estado['revolucion_notificados'])} eventos de revolucion, "
-          f"{len(estado['fallas_alta_activas'])} fallas ALTA activas previas.")
+          f"{len(estado['fallas_activas'])} fallas activas previas.")
 
     # Se guarda el estado pase lo que pase (incluso si algo falla a mitad de camino),
     # para no volver a notificar lo que ya se envio en esta misma corrida. Sin esto,
@@ -1296,9 +1267,9 @@ def main():
         claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
         estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
 
-        claves_fallas_previas = set(estado['fallas_alta_activas'])
-        claves_fallas_actuales, _ = revisar_fallas_altas(api, claves_fallas_previas)
-        estado['fallas_alta_activas'] = list(claves_fallas_actuales)
+        claves_fallas_previas = set(estado['fallas_activas'])
+        claves_fallas_actuales, _ = revisar_fallas_activas(api, claves_fallas_previas)
+        estado['fallas_activas'] = list(claves_fallas_actuales)
 
         enviar_resumenes_por_hora(api, estado)
         enviar_resumenes_por_turno(api, estado)
