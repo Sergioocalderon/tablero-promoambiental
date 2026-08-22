@@ -66,7 +66,10 @@ def cargar_estado():
     frenar el script -- si esto lanzara una excepcion, guardar_estado() nunca se
     ejecutaria y el mismo estado viejo se re-guardaria corrida tras corrida,
     haciendo que TODO se vuelva a notificar como "nuevo" cada 5 minutos."""
-    default = {"revolucion_notificados": [], "fallas_alta_activas": [], "ultima_hora_resumen": None}
+    default = {
+        "revolucion_notificados": [], "fallas_alta_activas": [], "ultima_hora_resumen": None,
+        "ultimo_update_id_procesado": None,
+    }
     if not os.path.exists(ESTADO_PATH):
         return default
     try:
@@ -83,6 +86,9 @@ def cargar_estado():
         valor_hora = datos.get("ultima_hora_resumen")
         if isinstance(valor_hora, str):
             estado["ultima_hora_resumen"] = valor_hora
+        valor_update_id = datos.get("ultimo_update_id_procesado")
+        if isinstance(valor_update_id, int):
+            estado["ultimo_update_id_procesado"] = valor_update_id
         return estado
     except Exception as e:
         print(f"*** No se pudo leer '{ESTADO_PATH}' ({e}) -- se sigue con estado vacio. ***")
@@ -94,6 +100,7 @@ def guardar_estado(estado):
         "revolucion_notificados": estado["revolucion_notificados"][-MAX_CLAVES_GUARDADAS:],
         "fallas_alta_activas": estado["fallas_alta_activas"],
         "ultima_hora_resumen": estado.get("ultima_hora_resumen"),
+        "ultimo_update_id_procesado": estado.get("ultimo_update_id_procesado"),
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -119,6 +126,55 @@ def enviar_telegram(texto):
         else:
             print(f"*** Error enviando a Telegram (chat_id={chat_id}): {resp.status_code} {resp.text} ***")
     return ok_alguno
+
+
+TEXTO_BIENVENIDA = (
+    "👋 ¡Hola! Este es el bot de alertas de Promoambiental.\n\n"
+    "Vas a recibir automáticamente:\n"
+    "🏎️ Alertas de sobre-revolución del motor\n"
+    "🚨 Fallas críticas (ALTA) apenas se activen\n"
+    "📊 Un resumen consolidado cada hora\n\n"
+    "No necesitas hacer nada más -- ya quedaste suscrito. Para dejar de recibir "
+    "mensajes, avisa a quien administra el bot para que te quite del listado."
+)
+
+
+def responder_mensajes_nuevos(estado):
+    """Revisa (via getUpdates) si alguien le escribio /start al bot y le responde con
+    un mensaje de bienvenida -- sin esto, quien escribe /start no recibe ninguna
+    confirmacion de que quedo conectado (asi paso con Samuel: escribio pero no le
+    salio nada). Usa el offset guardado en el estado para no re-procesar ni
+    re-responder los mismos mensajes en cada corrida del cron (cada 5 min); nunca
+    lanza una excepcion que frene el resto del script."""
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    params = {"timeout": 0}
+    offset = estado.get("ultimo_update_id_procesado")
+    if offset is not None:
+        params["offset"] = offset + 1
+    try:
+        resp = requests.get(f"https://api.telegram.org/bot{token}/getUpdates", params=params, timeout=15)
+        resp.raise_for_status()
+        actualizaciones = resp.json().get("result", [])
+    except Exception as e:
+        print(f"*** No se pudieron revisar mensajes entrantes de Telegram: {e} ***")
+        return
+
+    for act in actualizaciones:
+        estado["ultimo_update_id_procesado"] = act["update_id"]
+        mensaje = act.get("message") or {}
+        texto = (mensaje.get("text") or "").strip()
+        chat_id = mensaje.get("chat", {}).get("id")
+        if chat_id is None or not texto.startswith("/start"):
+            continue
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": TEXTO_BIENVENIDA},
+                timeout=15,
+            )
+            print(f"Bienvenida enviada a chat_id={chat_id}")
+        except Exception as e:
+            print(f"*** No se pudo enviar bienvenida a chat_id={chat_id}: {e} ***")
 
 
 def clasificar_criticidad_geotab(falla):
@@ -776,6 +832,8 @@ def main():
     # una excepcion a mitad de camino deja el estado desactualizado y TODO se vuelve a
     # notificar en la siguiente corrida (5 min despues), y en la siguiente, indefinidamente.
     try:
+        responder_mensajes_nuevos(estado)
+
         claves_revolucion_previas = set(estado['revolucion_notificados'])
         claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
         estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
