@@ -28,6 +28,11 @@ ZONA_BOGOTA = ZoneInfo("America/Bogota")
 ESTADO_PATH = "telegram_estado.json"
 MAX_CLAVES_GUARDADAS = 5000  # evita que el estado de eventos (append-only) crezca sin limite
 
+# Filtro temporal a una sola ciudad -- ya se esta rodando a nivel nacional, pero por
+# ahora el seguimiento (Telegram) solo se quiere en Bogota mientras se mejora el
+# proceso; poner en None reactiva todas las ciudades sin tocar nada mas del codigo.
+CIUDAD_FILTRO = 'Bogotá'
+
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -337,7 +342,7 @@ def _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_s
     return candidatos
 
 
-def _revisar_regla_revolucion(api, devices, nombre_regla, claves_ya_notificadas, duracion_minima_seg):
+def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya_notificadas, duracion_minima_seg):
     """Siempre exige PTO activo cerca (±VENTANA_PTO_MINUTOS) -- la regla de 1300 RPM no
     lo trae en su condicion (el PTO es un pulso, no se puede exigir sostenido), asi que
     se confirma aca aparte, para no generar ruido con ralenti alto sin compactador."""
@@ -345,6 +350,11 @@ def _revisar_regla_revolucion(api, devices, nombre_regla, claves_ya_notificadas,
     f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
     candidatos = _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_seg, requiere_pto_cercano=True)
     candidatos = [c for c in candidatos if c['clave'] not in claves_ya_notificadas]
+    if CIUDAD_FILTRO:
+        candidatos = [
+            c for c in candidatos
+            if resolver_ciudad_tipologia(devices.get(c['id_veh'], {}).get('groups'), mapa_grupos)[0] == CIUDAD_FILTRO
+        ]
 
     claves_nuevas = []
     for c in candidatos:
@@ -369,9 +379,10 @@ def revisar_sobre_revolucion(api, claves_ya_notificadas):
     sin exigir vehiculo detenido) mide algo distinto y se dejo fuera de las alertas
     individuales, igual que ya se hizo en el tablero (app.py)."""
     devices = {d['id']: d for d in api.get('Device')}
+    mapa_grupos = obtener_mapa_grupos(api)
 
     claves_nuevas = _revisar_regla_revolucion(
-        api, devices, NOMBRE_REGLA_PTO, claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_PTO_SEG
+        api, devices, mapa_grupos, NOMBRE_REGLA_PTO, claves_ya_notificadas, duracion_minima_seg=DURACION_MINIMA_PTO_SEG
     )
 
     if claves_nuevas:
@@ -521,6 +532,13 @@ def _obtener_fallas_activas(api):
     activas = activas.sort_values('dateTime').drop_duplicates(
         subset=['id_camion', 'diag_id', 'fm_id'], keep='last'
     )
+
+    if CIUDAD_FILTRO and not activas.empty:
+        def _ciudad_del_vehiculo(id_camion):
+            ciudad, _ = resolver_ciudad_tipologia(devices.get(id_camion, {}).get('groups'), mapa_grupos)
+            return ciudad
+        activas = activas[activas['id_camion'].apply(_ciudad_del_vehiculo) == CIUDAD_FILTRO]
+
     return activas, devices, dic_diag, dic_fm, mapa_grupos
 
 
@@ -793,6 +811,43 @@ def _limites_turno(momento_local):
     raise ValueError(f"No se pudo determinar el turno para {momento_local}")  # no deberia pasar
 
 
+def _construir_texto_persistentes(api, inicio_turno, nombre_turno):
+    """Lista compacta (una linea por vehiculo, no el detalle completo) de las fallas
+    que ya estaban activas ANTES de que empezara este turno y siguen activas ahora --
+    para no perder el rastro de lo que lleva dias sin resolverse, ya que el PDF del
+    turno solo trae lo nuevo. Mismo criterio que el bloque persistentes del resumen
+    por hora, pero con todas las criticidades (no solo ALTA)."""
+    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
+    if activas.empty:
+        return []
+
+    inicio_turno_utc = inicio_turno.astimezone(timezone.utc)
+    persistentes = activas[activas['dateTime'] < inicio_turno_utc]
+    if persistentes.empty:
+        return []
+
+    ahora_utc = datetime.now(timezone.utc)
+    filas_persistentes = []
+    for _, grupo in persistentes.groupby('id_camion'):
+        fila_mas_vieja = grupo.sort_values('dateTime', ascending=True).iloc[0]
+        nombre_veh, ciudad, _, _, _, _, _, _ = _texto_falla(fila_mas_vieja, devices, dic_diag, dic_fm, mapa_grupos)
+        dias_activa = (ahora_utc - fila_mas_vieja['dateTime']).days
+        filas_persistentes.append({
+            'ciudad': ciudad, 'n_codigos': len(grupo),
+            'texto': f"  • {nombre_veh}: {len(grupo)} código(s), la más vieja lleva {dias_activa} día(s) activa",
+        })
+
+    lineas = [
+        f"⏳ Fallas persistentes sin resolver (turno {nombre_turno}) — "
+        f"{len(persistentes)} en {persistentes['id_camion'].nunique()} vehículos:"
+    ]
+    for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_persistentes):
+        lineas.append(f"{ciudad}:")
+        for f in sorted(filas_ciudad, key=lambda x: -x['n_codigos']):
+            lineas.append(f['texto'])
+    return lineas
+
+
 def enviar_resumenes_por_turno(api, estado):
     """Manda un PDF cada vez que se completa un turno (R1 termina 13h, R2 21h, R3 5h
     del dia siguiente), con SOLO las fallas que aparecieron nuevas durante ese turno
@@ -850,6 +905,15 @@ def enviar_resumenes_por_turno(api, estado):
         finally:
             if ruta_pdf and os.path.exists(ruta_pdf):
                 os.remove(ruta_pdf)
+
+        try:
+            lineas_persistentes = _construir_texto_persistentes(api, inicio_turno, nombre_turno)
+            if lineas_persistentes:
+                _enviar_por_partes(lineas_persistentes)
+                print(f"Resumen de persistentes del turno {nombre_turno} enviado.")
+        except Exception as e:
+            print(f"*** No se pudo armar/enviar el resumen de persistentes del turno {nombre_turno}: {e} ***")
+
         ultimo_turno_fin = fin_turno
         estado['ultimo_turno_fin'] = ultimo_turno_fin.isoformat()
 
@@ -965,6 +1029,8 @@ def _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_
     for c in candidatos:
         vehiculo = devices.get(c['id_veh'], {})
         ciudad, _ = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+        if CIUDAD_FILTRO and ciudad != CIUDAD_FILTRO:
+            continue
         marca = resolver_marca(vehiculo.get('groups'), mapa_grupos)
         filas.append({
             'nombre_veh': vehiculo.get('name', c['id_veh']),
