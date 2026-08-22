@@ -10,12 +10,19 @@ configurado actualmente).
 """
 import os
 import json
+import tempfile
 from datetime import datetime, timedelta, timezone
+from xml.sax.saxutils import escape as escapar_xml
 from zoneinfo import ZoneInfo
 
 import mygeotab
 import pandas as pd
 import requests
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 ZONA_BOGOTA = ZoneInfo("America/Bogota")
 ESTADO_PATH = "telegram_estado.json"
@@ -64,7 +71,7 @@ def cargar_estado():
     haciendo que TODO se vuelva a notificar como "nuevo" cada 5 minutos."""
     default = {
         "revolucion_notificados": [], "fallas_alta_activas": [], "ultima_hora_resumen": None,
-        "ultimo_update_id_procesado": None, "suscriptores": [],
+        "ultimo_update_id_procesado": None, "suscriptores": [], "ultimo_turno_fin": None,
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -79,9 +86,10 @@ def cargar_estado():
             valor = datos.get(clave)
             if isinstance(valor, list):
                 estado[clave] = valor
-        valor_hora = datos.get("ultima_hora_resumen")
-        if isinstance(valor_hora, str):
-            estado["ultima_hora_resumen"] = valor_hora
+        for clave in ("ultima_hora_resumen", "ultimo_turno_fin"):
+            valor = datos.get(clave)
+            if isinstance(valor, str):
+                estado[clave] = valor
         valor_update_id = datos.get("ultimo_update_id_procesado")
         if isinstance(valor_update_id, int):
             estado["ultimo_update_id_procesado"] = valor_update_id
@@ -98,6 +106,7 @@ def guardar_estado(estado):
         "ultima_hora_resumen": estado.get("ultima_hora_resumen"),
         "ultimo_update_id_procesado": estado.get("ultimo_update_id_procesado"),
         "suscriptores": estado.get("suscriptores", []),
+        "ultimo_turno_fin": estado.get("ultimo_turno_fin"),
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -109,19 +118,23 @@ def guardar_estado(estado):
 _CHAT_IDS_SUSCRITOS = []
 
 
-def enviar_telegram(texto):
-    """TELEGRAM_CHAT_ID puede traer un solo chat_id o varios separados por coma
-    (ej. '111111,222222'), mas los que se auto-suscribieron escribiendole /start al
-    bot (ver _CHAT_IDS_SUSCRITOS/responder_mensajes_nuevos) -- mismo mensaje a todos
-    sin necesitar que compartan un grupo. Devuelve True si se le pudo mandar a al
-    menos uno -- si se exigiera que le llegue a TODOS, un solo destinatario con
-    problemas (bloqueo el bot, chat_id invalido) haria que el evento se reintente sin
-    parar."""
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
+def _chat_ids_destino():
+    """Lista final de chat_id a los que se manda cada alerta: los fijos en
+    TELEGRAM_CHAT_ID (separados por coma, ej. '111111,222222') mas los que se
+    auto-suscribieron escribiendole /start al bot (ver
+    _CHAT_IDS_SUSCRITOS/responder_mensajes_nuevos), sin duplicados."""
     chat_ids_fijos = [c.strip() for c in os.environ["TELEGRAM_CHAT_ID"].split(",") if c.strip()]
-    chat_ids = list(dict.fromkeys(chat_ids_fijos + _CHAT_IDS_SUSCRITOS))  # sin duplicados, preserva orden
+    return list(dict.fromkeys(chat_ids_fijos + _CHAT_IDS_SUSCRITOS))
+
+
+def enviar_telegram(texto):
+    """Manda el mismo mensaje a todos los chat_id de _chat_ids_destino(), sin
+    necesitar que compartan un grupo. Devuelve True si se le pudo mandar a al menos
+    uno -- si se exigiera que le llegue a TODOS, un solo destinatario con problemas
+    (bloqueo el bot, chat_id invalido) haria que el evento se reintente sin parar."""
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
     ok_alguno = False
-    for chat_id in chat_ids:
+    for chat_id in _chat_ids_destino():
         resp = requests.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
             json={"chat_id": chat_id, "text": texto},
@@ -145,13 +158,17 @@ TEXTO_BIENVENIDA = (
 )
 
 
-def responder_mensajes_nuevos(estado):
-    """Revisa (via getUpdates) si alguien le escribio /start al bot, lo agrega a la
-    lista de suscriptores (estado['suscriptores']) y le responde con un mensaje de
-    bienvenida -- asi queda recibiendo alertas de una vez, sin que un admin tenga que
-    actualizar el secret TELEGRAM_CHAT_ID a mano. Usa el offset guardado en el estado
-    para no re-procesar ni re-responder los mismos mensajes en cada corrida del cron
-    (cada 5 min); nunca lanza una excepcion que frene el resto del script."""
+def responder_mensajes_nuevos(api, estado):
+    """Revisa (via getUpdates) mensajes nuevos que le hayan escrito al bot y
+    responde segun el comando:
+    - /start: agrega el chat_id a la lista de suscriptores (estado['suscriptores'])
+      y manda un mensaje de bienvenida -- asi queda recibiendo alertas de una vez,
+      sin que un admin tenga que actualizar el secret TELEGRAM_CHAT_ID a mano.
+    - /reporte: genera al vuelo un PDF con todas las fallas activas (cualquier
+      criticidad) y se lo manda a quien lo pidio.
+    Usa el offset guardado en el estado para no re-procesar ni re-responder los
+    mismos mensajes en cada corrida del cron (cada 5 min); nunca lanza una
+    excepcion que frene el resto del script."""
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     params = {"timeout": 0}
     offset = estado.get("ultimo_update_id_procesado")
@@ -171,21 +188,37 @@ def responder_mensajes_nuevos(estado):
         mensaje = act.get("message") or {}
         texto = (mensaje.get("text") or "").strip()
         chat_id = mensaje.get("chat", {}).get("id")
-        if chat_id is None or not texto.startswith("/start"):
+        if chat_id is None:
             continue
-        chat_id_str = str(chat_id)
-        if chat_id_str not in estado["suscriptores"]:
-            estado["suscriptores"].append(chat_id_str)
-            print(f"Nuevo suscriptor agregado: chat_id={chat_id_str}")
-        try:
-            requests.post(
-                f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat_id, "text": TEXTO_BIENVENIDA},
-                timeout=15,
-            )
-            print(f"Bienvenida enviada a chat_id={chat_id}")
-        except Exception as e:
-            print(f"*** No se pudo enviar bienvenida a chat_id={chat_id}: {e} ***")
+
+        if texto.startswith("/start"):
+            chat_id_str = str(chat_id)
+            if chat_id_str not in estado["suscriptores"]:
+                estado["suscriptores"].append(chat_id_str)
+                print(f"Nuevo suscriptor agregado: chat_id={chat_id_str}")
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": TEXTO_BIENVENIDA},
+                    timeout=15,
+                )
+                print(f"Bienvenida enviada a chat_id={chat_id}")
+            except Exception as e:
+                print(f"*** No se pudo enviar bienvenida a chat_id={chat_id}: {e} ***")
+
+        elif texto.startswith("/reporte"):
+            ruta_pdf = None
+            try:
+                ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+                generar_pdf_reporte_fallas(api, ruta_pdf)
+                nombre_archivo = f"reporte_fallas_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
+                _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, "📄 Reporte de fallas activas")
+                print(f"Reporte PDF enviado a chat_id={chat_id}")
+            except Exception as e:
+                print(f"*** No se pudo generar/enviar el reporte PDF a chat_id={chat_id}: {e} ***")
+            finally:
+                if ruta_pdf and os.path.exists(ruta_pdf):
+                    os.remove(ruta_pdf)
 
 
 def clasificar_criticidad_geotab(falla):
@@ -453,11 +486,12 @@ def obtener_catalogos_diagnosticos(api):
     return dic_diag, dic_fm
 
 
-def _obtener_fallas_alta_activas(api):
-    """Todas las fallas ALTA que Geotab marca activas ahora mismo (una fila por
-    vehiculo+diagnostico+modo de falla, la mas reciente). Se usa tanto para las
-    alertas individuales (revisar_fallas_altas) como para el resumen consolidado
-    por hora -- ahi no interesa si ya se notifico antes, se lista el estado actual."""
+def _obtener_fallas_activas(api):
+    """Todas las fallas activas ahora mismo (cualquier criticidad), una fila por
+    vehiculo+diagnostico+modo de falla (la mas reciente). Base comun para
+    _obtener_fallas_alta_activas (solo ALTA, usada por las alertas y el resumen por
+    hora) y para el reporte PDF completo (todas las criticidades, ver
+    generar_pdf_reporte_fallas)."""
     devices = {d['id']: d for d in api.get('Device')}
     dic_diag, dic_fm = obtener_catalogos_diagnosticos(api)
     mapa_grupos = obtener_mapa_grupos(api)
@@ -482,13 +516,22 @@ def _obtener_fallas_alta_activas(api):
     # Solo lo que Geotab marca activo ahora mismo (evita reinventar la logica de
     # "ultima ocurrencia dentro de una ventana" -- Geotab ya lo sabe con certeza).
     activas = df[df['faultState'] == 'Active']
-    activas_alta = activas[activas['criticidad'] == 'ALTA']
 
     # Una fila por combinacion vehiculo+diagnostico+modo de falla (la mas reciente)
-    activas_alta = activas_alta.sort_values('dateTime').drop_duplicates(
+    activas = activas.sort_values('dateTime').drop_duplicates(
         subset=['id_camion', 'diag_id', 'fm_id'], keep='last'
     )
-    return activas_alta, devices, dic_diag, dic_fm, mapa_grupos
+    return activas, devices, dic_diag, dic_fm, mapa_grupos
+
+
+def _obtener_fallas_alta_activas(api):
+    """Solo las fallas ALTA de _obtener_fallas_activas -- usado por las alertas
+    individuales (revisar_fallas_altas) y el resumen consolidado por hora, donde no
+    interesa si ya se notifico antes, se lista el estado actual."""
+    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
+    if not activas.empty:
+        activas = activas[activas['criticidad'] == 'ALTA']
+    return activas, devices, dic_diag, dic_fm, mapa_grupos
 
 
 def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
@@ -547,6 +590,268 @@ def revisar_fallas_altas(api, claves_activas_previas):
         print(f"Total fallas ALTA notificadas en esta corrida: {len(filas_nuevas)}")
 
     return claves_actuales, filas_nuevas
+
+
+# ---------------------------------------------------------------------------
+# Reporte PDF de fallas activas, bajo demanda (comando /reporte en Telegram)
+# ---------------------------------------------------------------------------
+
+ORDEN_CRITICIDAD = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
+COLOR_POR_CRITICIDAD = {
+    'ALTA': colors.HexColor('#ED7D31'), 'MEDIA': colors.HexColor('#FFC000'), 'BAJA': colors.HexColor('#A9D18E'),
+}
+COLOR_TITULO_PDF = colors.HexColor('#1F4E79')
+COLOR_CIUDAD_PDF = colors.HexColor('#0B5345')
+COLOR_DESTACADO = colors.HexColor('#C00000')
+
+# Coincidencia por palabra dentro del NOMBRE que ya da Geotab para el diagnostico --
+# sin diccionario propio de codigos: son las categorias que mas urgen por riesgo de
+# accidente (frenado / control de direccion), asi que se resaltan para que no se
+# pierdan entre el resto de fallas de un vehiculo.
+PALABRAS_CLAVE_DESTACADAS = ['abs', 'neumático', 'neumatico', 'llanta']
+
+
+def _es_falla_destacada(nombre_diagnostico):
+    nombre_l = (nombre_diagnostico or '').lower()
+    return any(palabra in nombre_l for palabra in PALABRAS_CLAVE_DESTACADAS)
+
+
+def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=None):
+    """Genera un PDF con fallas activas (cualquier criticidad), agrupadas por ciudad
+    y luego por criticidad -- mismo espiritu que el reporte de Google Sheets del
+    usuario, pero usando directo el nombre/codigo/criticidad que da Geotab (sin el
+    diccionario manual de 1000+ codigos), para no mantener esa misma informacion
+    duplicada en dos lugares distintos.
+
+    Sin desde_local/hasta_local: TODAS las fallas activas ahora mismo (usado por
+    /reporte). Con ambos: solo las que aparecieron dentro de ese rango (usado por el
+    reporte automatico de fin de turno -- ahi interesa lo nuevo del turno, no repetir
+    el backlog completo cada vez, que es lo que lo volvia larguisimo)."""
+    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
+    if desde_local is not None and hasta_local is not None and not activas.empty:
+        desde_utc = desde_local.astimezone(timezone.utc)
+        hasta_utc = hasta_local.astimezone(timezone.utc)
+        activas = activas[(activas['dateTime'] >= desde_utc) & (activas['dateTime'] < hasta_utc)]
+
+    estilos = getSampleStyleSheet()
+    estilo_celda = ParagraphStyle('celda', parent=estilos['Normal'], fontSize=8, leading=11)
+    estilo_seccion = ParagraphStyle('seccion', parent=estilos['Heading3'], textColor=colors.white, spaceAfter=0, spaceBefore=0)
+
+    if desde_local is not None and hasta_local is not None:
+        subtitulo = (
+            f"Fallas nuevas entre {desde_local.strftime('%H:%M')} y {hasta_local.strftime('%H:%M')} del "
+            f"{desde_local.strftime('%d/%m/%Y')} — criterio de criticidad de Geotab (luces del vehículo)"
+        )
+    else:
+        subtitulo = f"Generado el {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M')} — fuente: criterio de criticidad de Geotab (luces del vehículo)"
+
+    elementos = [
+        Paragraph("Seguimiento de Fallas", estilos['Title']),
+        Paragraph(subtitulo, estilos['Normal']),
+        Spacer(1, 0.5 * cm),
+    ]
+
+    if activas.empty:
+        elementos.append(Paragraph("No hay fallas activas en este momento.", estilos['Normal']))
+    else:
+        por_vehiculo = {}
+        for _, fila in activas.iterrows():
+            por_vehiculo.setdefault(fila['id_camion'], []).append(fila)
+
+        filas_reporte = []
+        for id_camion, filas in por_vehiculo.items():
+            vehiculo = devices.get(id_camion, {})
+            ciudad, _ = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+            marca = resolver_marca(vehiculo.get('groups'), mapa_grupos) or 'Sin marca'
+            marca_l = marca.lower()
+            referencia_motor = next(
+                (v for k, v in REFERENCIA_MOTOR_POR_MARCA.items() if k in marca_l), 'Desconocido'
+            )
+            vin = vehiculo.get('engineVehicleIdentificationNumber') or ''
+            n_motor = vin[-6:] if vin else 'Sin registrar'
+
+            items = []
+            for fila in sorted(filas, key=lambda f: f['dateTime'], reverse=True):
+                diag_info = dic_diag.get(fila['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
+                fm_info = dic_fm.get(fila['fm_id'], {'nombre': '', 'codigo': None})
+                items.append({
+                    'spn': diag_info.get('codigo') or '?',
+                    'fmi': fm_info.get('codigo') or '?',
+                    'nombre': diag_info['nombre'],
+                    'criticidad': fila['criticidad'],
+                    'hora': fila['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S'),
+                    'destacado': _es_falla_destacada(diag_info['nombre']),
+                })
+
+            criticidad_max = max(items, key=lambda it: ORDEN_CRITICIDAD.get(it['criticidad'], 0))['criticidad']
+            filas_reporte.append({
+                'ciudad': ciudad, 'criticidad': criticidad_max,
+                'movil': vehiculo.get('name', id_camion), 'marca': marca,
+                'referencia_motor': referencia_motor, 'n_motor': n_motor, 'items': items,
+            })
+
+        ciudades = sorted(
+            {f['ciudad'] for f in filas_reporte},
+            key=lambda c: (c == 'Sin ciudad asignada', c)
+        )
+        for ciudad in ciudades:
+            filas_ciudad = [f for f in filas_reporte if f['ciudad'] == ciudad]
+            elementos.append(Spacer(1, 0.3 * cm))
+            tabla_ciudad = Table(
+                [[Paragraph(f"{ciudad}  (Total vehículos: {len(filas_ciudad)})", estilo_seccion)]],
+                colWidths=[24 * cm]
+            )
+            tabla_ciudad.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), COLOR_CIUDAD_PDF), ('LEFTPADDING', (0, 0), (-1, -1), 6)]))
+            elementos.append(tabla_ciudad)
+
+            for criticidad in ('ALTA', 'MEDIA', 'BAJA'):
+                filas_nivel = [f for f in filas_ciudad if f['criticidad'] == criticidad]
+                if not filas_nivel:
+                    continue
+
+                tabla_nivel = Table(
+                    [[Paragraph(f"{criticidad}  (Cantidad: {len(filas_nivel)})", estilo_seccion)]],
+                    colWidths=[24 * cm]
+                )
+                tabla_nivel.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), COLOR_POR_CRITICIDAD[criticidad]), ('LEFTPADDING', (0, 0), (-1, -1), 6)]))
+                elementos.append(tabla_nivel)
+
+                encabezado = ['Móvil', 'Marca', 'Ref. Motor', 'N° Motor', 'Fallas activas']
+                datos_tabla = [encabezado]
+                for f in filas_nivel:
+                    partes_detalle = []
+                    for idx, it in enumerate(f['items'], 1):
+                        # Mayuscula ANTES de escapar entidades XML (si se aplicara despues,
+                        # ".upper()" corrompe entidades como "&amp;" -> "&AMP;").
+                        nombre = it['nombre'].upper() if it['destacado'] else it['nombre']
+                        linea = f"{idx}. SPN {it['spn']}/FMI {it['fmi']} — {escapar_xml(nombre)} [{it['criticidad']}] — {it['hora']}"
+                        if it['destacado']:
+                            linea = f"<font color='#C00000'><b>{linea}</b></font>"
+                        partes_detalle.append(linea)
+                    detalle = Paragraph("<br/>".join(partes_detalle), estilo_celda)
+                    datos_tabla.append([
+                        f['movil'], f['marca'], f['referencia_motor'], f['n_motor'], detalle
+                    ])
+
+                tabla = Table(datos_tabla, colWidths=[3.5 * cm, 3.5 * cm, 2.5 * cm, 2.8 * cm, 11.7 * cm], repeatRows=1)
+                tabla.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E7E6E6')),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ]))
+                elementos.append(tabla)
+                elementos.append(Spacer(1, 0.2 * cm))
+
+    doc = SimpleDocTemplate(
+        ruta_salida, pagesize=landscape(letter),
+        leftMargin=1 * cm, rightMargin=1 * cm, topMargin=1 * cm, bottomMargin=1 * cm,
+    )
+    doc.build(elementos)
+    return len(activas)  # cuantas fallas quedaron incluidas -- para que el llamador
+    # decida si vale la pena mandar el PDF (ej. el reporte de turno no manda nada si
+    # dio 0, en vez de intentar detectarlo leyendo el PDF ya comprimido)
+
+
+def _enviar_documento_telegram(chat_id, ruta_archivo, nombre_archivo, caption=None):
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    with open(ruta_archivo, 'rb') as f:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{token}/sendDocument",
+            data={"chat_id": chat_id, "caption": caption or ""},
+            files={"document": (nombre_archivo, f, "application/pdf")},
+            timeout=60,
+        )
+    if not resp.ok:
+        print(f"*** Error enviando documento a Telegram (chat_id={chat_id}): {resp.status_code} {resp.text} ***")
+    return resp.ok
+
+
+# ---------------------------------------------------------------------------
+# Reporte PDF automatico de fin de turno (R1/R2/R3)
+# ---------------------------------------------------------------------------
+
+HORAS_INICIO_TURNO = [5, 13, 21]  # R1, R2, R3 -- mismo criterio que clasificar_turno en app.py
+MAX_TURNOS_CONSOLIDAR = 3  # si el bot estuvo detenido mucho tiempo, no manda un PDF
+# por cada turno perdido de golpe -- avisa una vez del hueco y retoma desde los
+# ultimos turnos recientes (3 turnos = 24h).
+
+
+def _limites_turno(momento_local):
+    """Devuelve (nombre, inicio, fin) del turno (R1/R2/R3) que contiene momento_local.
+    R3 cruza medianoche (21h a 5h del dia siguiente), asi que se arman los bloques de
+    hoy Y de ayer antes de buscar cual contiene el momento dado."""
+    dia_base = momento_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    for offset_dias in (-1, 0):
+        base = dia_base + timedelta(days=offset_dias)
+        for i, hora in enumerate(HORAS_INICIO_TURNO):
+            inicio = base.replace(hour=hora)
+            fin = inicio + timedelta(hours=8)
+            if inicio <= momento_local < fin:
+                return f"R{i + 1}", inicio, fin
+    raise ValueError(f"No se pudo determinar el turno para {momento_local}")  # no deberia pasar
+
+
+def enviar_resumenes_por_turno(api, estado):
+    """Manda un PDF cada vez que se completa un turno (R1 termina 13h, R2 21h, R3 5h
+    del dia siguiente), con SOLO las fallas que aparecieron nuevas durante ese turno
+    (no el backlog completo de 30 dias que trae /reporte) -- asi queda corto y
+    accionable en vez de las 29 paginas que salian al mandar todo. Si el turno no tuvo
+    fallas nuevas, no se manda nada (silencio quiere decir que no paso nada). Mismo
+    patron de deteccion por comparacion de tiempos que enviar_resumenes_por_hora, para
+    no depender de que el cron corra justo en el corte del turno."""
+    ahora_local = datetime.now(ZONA_BOGOTA)
+    _, inicio_turno_actual, _ = _limites_turno(ahora_local)
+
+    ultimo_str = estado.get('ultimo_turno_fin')
+    if not ultimo_str:
+        # Primera vez que corre esta funcion -- no hay un turno de referencia previo
+        # confiable, asi que solo se marca el punto de partida sin mandar nada.
+        estado['ultimo_turno_fin'] = inicio_turno_actual.isoformat()
+        return
+
+    try:
+        ultimo_turno_fin = datetime.fromisoformat(ultimo_str)
+    except ValueError:
+        estado['ultimo_turno_fin'] = inicio_turno_actual.isoformat()
+        return
+
+    if ultimo_turno_fin >= inicio_turno_actual:
+        return  # el turno actual todavia no termina
+
+    turnos_pendientes = int((inicio_turno_actual - ultimo_turno_fin).total_seconds() // (8 * 3600))
+    if turnos_pendientes > MAX_TURNOS_CONSOLIDAR:
+        enviar_telegram(
+            f"⚠️ El reporte de fin de turno estuvo detenido ~{turnos_pendientes} turnos "
+            f"(desde las {ultimo_turno_fin.strftime('%H:%M del %d/%m')}). Se retoma desde "
+            f"los ultimos {MAX_TURNOS_CONSOLIDAR}."
+        )
+        ultimo_turno_fin = inicio_turno_actual - timedelta(hours=8 * MAX_TURNOS_CONSOLIDAR)
+
+    while ultimo_turno_fin < inicio_turno_actual:
+        nombre_turno, inicio_turno, fin_turno = _limites_turno(ultimo_turno_fin)
+        ruta_pdf = None
+        try:
+            ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+            n_fallas = generar_pdf_reporte_fallas(api, ruta_pdf, desde_local=inicio_turno, hasta_local=fin_turno)
+            # Si no hubo fallas nuevas, no vale la pena mandar el PDF -- silencio es la
+            # mejor senal de que no paso nada en ese turno.
+            if n_fallas == 0:
+                print(f"Turno {nombre_turno} ({inicio_turno.strftime('%d/%m %H:%M')}-{fin_turno.strftime('%H:%M')}): sin fallas nuevas, no se manda nada.")
+            else:
+                nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
+                caption = f"📄 Fallas nuevas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
+                for chat_id in _chat_ids_destino():
+                    _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
+                print(f"Reporte de turno {nombre_turno} enviado.")
+        except Exception as e:
+            print(f"*** No se pudo generar/enviar el reporte del turno {nombre_turno}: {e} ***")
+        finally:
+            if ruta_pdf and os.path.exists(ruta_pdf):
+                os.remove(ruta_pdf)
+        ultimo_turno_fin = fin_turno
+        estado['ultimo_turno_fin'] = ultimo_turno_fin.isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -832,7 +1137,7 @@ def main():
     # una excepcion a mitad de camino deja el estado desactualizado y TODO se vuelve a
     # notificar en la siguiente corrida (5 min despues), y en la siguiente, indefinidamente.
     try:
-        responder_mensajes_nuevos(estado)
+        responder_mensajes_nuevos(api, estado)
         global _CHAT_IDS_SUSCRITOS
         _CHAT_IDS_SUSCRITOS = estado.get('suscriptores', [])
 
@@ -845,6 +1150,7 @@ def main():
         estado['fallas_alta_activas'] = list(claves_fallas_actuales)
 
         enviar_resumenes_por_hora(api, estado)
+        enviar_resumenes_por_turno(api, estado)
     finally:
         guardar_estado(estado)
 
