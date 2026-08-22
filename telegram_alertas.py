@@ -214,6 +214,14 @@ def responder_mensajes_nuevos(api, estado):
         elif texto.startswith("/reporte"):
             ruta_pdf = None
             try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": "⏳ Estamos gestionando tu solicitud, dame un momento..."},
+                    timeout=15,
+                )
+            except Exception as e:
+                print(f"*** No se pudo enviar el aviso de 'procesando' a chat_id={chat_id}: {e} ***")
+            try:
                 ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
                 generar_pdf_reporte_fallas(api, ruta_pdf)
                 nombre_archivo = f"reporte_fallas_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
@@ -622,16 +630,47 @@ COLOR_TITULO_PDF = colors.HexColor('#1F4E79')
 COLOR_CIUDAD_PDF = colors.HexColor('#0B5345')
 COLOR_DESTACADO = colors.HexColor('#C00000')
 
-# Coincidencia por palabra dentro del NOMBRE que ya da Geotab para el diagnostico --
-# sin diccionario propio de codigos: son las categorias que mas urgen por riesgo de
-# accidente (frenado / control de direccion), asi que se resaltan para que no se
-# pierdan entre el resto de fallas de un vehiculo.
-PALABRAS_CLAVE_DESTACADAS = ['abs', 'neumático', 'neumatico', 'llanta']
+# Categoriza por sistema del vehiculo buscando palabras clave en el NOMBRE que ya da
+# Geotab para el diagnostico -- Geotab no trae un campo nativo de sistema/categoria
+# (se reviso: parameterGroup y controller vienen vacios siempre), asi que esta es la
+# unica forma de categorizar sin reintroducir un diccionario propio de 1000+ codigos.
+# Se evalua en orden -- la primera categoria que coincida gana, por eso las mas
+# especificas (ABS, Neumaticos) van antes que las generales (Motor, Electrico).
+CATEGORIAS_SISTEMA = [
+    ('ABS', ['abs', 'sensor de rueda', 'válvula moduladora de presión', 'antibloqueo', 'velocidad de desvío']),
+    ('Neumáticos', ['neumático', 'neumatico', 'llanta']),
+    ('Frenos', ['freno', 'retardador']),
+    ('Postratamiento/Escape', [
+        'postratamiento', 'escape', 'scr', 'egr', 'recirculación de gases', 'recirculacion de gases',
+        'partículas diésel', 'particulas diesel', 'nox', 'catalizador', 'liquido de escape', 'líquido de escape',
+    ]),
+    ('Motor', [
+        'motor', 'aceite', 'refrigerante', 'cigüeñal', 'ciguenal', 'árbol de levas', 'arbol de levas',
+        'inyector', 'cilindro', 'turbocompresor', 'combustible', 'admisión', 'admision', 'ralentí', 'ralenti',
+        'acelerador',
+    ]),
+    ('Transmisión', [
+        'transmisión', 'transmision', 'embrague', 'cambio de marcha', 'palanca de cambios', 'engranaje', 'divisor',
+    ]),
+    ('Eje/Suspensión', ['eje', 'diferencial', 'suspensión', 'suspension', 'inclinación', 'inclinacion']),
+    ('Eléctrico', [
+        'eléctrico', 'electrico', 'luz', 'lámpara', 'lampara', 'batería', 'bateria', 'voltaje', 'interruptor',
+        'fusible', 'bocina', 'alarma', 'panel de instrumentos', 'ventana', 'seguro', 'espejo',
+    ]),
+    ('HVAC', ['hvac', 'aire acondicionado', 'climatiz', 'calefac']),
+    ('Dirección', ['dirección', 'direccion', 'volante']),
+    ('Telemática/GPS', ['telemático', 'telematico', 'gps', 'antena']),
+]
 
 
-def _es_falla_destacada(nombre_diagnostico):
+def _categorizar_falla(nombre_diagnostico):
+    """Sistema del vehiculo al que pertenece la falla, segun palabras clave en el
+    nombre que ya da Geotab. 'General' si no coincide con ninguna categoria conocida."""
     nombre_l = (nombre_diagnostico or '').lower()
-    return any(palabra in nombre_l for palabra in PALABRAS_CLAVE_DESTACADAS)
+    for categoria, palabras in CATEGORIAS_SISTEMA:
+        if any(p in nombre_l for p in palabras):
+            return categoria
+    return 'General'
 
 
 def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=None):
@@ -692,13 +731,15 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
             for fila in sorted(filas, key=lambda f: f['dateTime'], reverse=True):
                 diag_info = dic_diag.get(fila['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
                 fm_info = dic_fm.get(fila['fm_id'], {'nombre': '', 'codigo': None})
+                categoria = _categorizar_falla(diag_info['nombre'])
                 items.append({
                     'spn': diag_info.get('codigo') or '?',
                     'fmi': fm_info.get('codigo') or '?',
                     'nombre': diag_info['nombre'],
                     'criticidad': fila['criticidad'],
                     'hora': fila['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S'),
-                    'destacado': _es_falla_destacada(diag_info['nombre']),
+                    'categoria': categoria,
+                    'destacado': categoria in ('ABS', 'Neumáticos'),
                 })
 
             criticidad_max = max(items, key=lambda it: ORDEN_CRITICIDAD.get(it['criticidad'], 0))['criticidad']
@@ -734,22 +775,29 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
                 tabla_nivel.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), COLOR_POR_CRITICIDAD[criticidad]), ('LEFTPADDING', (0, 0), (-1, -1), 6)]))
                 elementos.append(tabla_nivel)
 
-                encabezado = ['Móvil', 'Marca', 'Ref. Motor', 'N° Motor', 'Fallas activas']
+                # Una fila por FALLA (no una celda gigante por vehiculo con todas sus
+                # fallas adentro) -- con muchas fallas en un solo vehiculo, esa celda
+                # puede terminar mas alta que una pagina entera, y reportlab no puede
+                # partir el contenido de una sola celda entre paginas (LayoutError).
+                # Con una fila corta por falla, el salto de pagina cae entre filas sin
+                # problema. Se repite el movil/marca/etc en cada fila del vehiculo.
+                encabezado = ['Móvil', 'Marca', 'Ref. Motor', 'N° Motor', 'Falla activa']
                 datos_tabla = [encabezado]
                 for f in filas_nivel:
-                    partes_detalle = []
                     for idx, it in enumerate(f['items'], 1):
                         # Mayuscula ANTES de escapar entidades XML (si se aplicara despues,
                         # ".upper()" corrompe entidades como "&amp;" -> "&AMP;").
                         nombre = it['nombre'].upper() if it['destacado'] else it['nombre']
-                        linea = f"{idx}. SPN {it['spn']}/FMI {it['fmi']} — {escapar_xml(nombre)} [{it['criticidad']}] — {it['hora']}"
+                        linea = (
+                            f"{idx}. [{it['categoria']}] SPN {it['spn']}/FMI {it['fmi']} — "
+                            f"{escapar_xml(nombre)} [{it['criticidad']}] — {it['hora']}"
+                        )
                         if it['destacado']:
                             linea = f"<font color='#C00000'><b>{linea}</b></font>"
-                        partes_detalle.append(linea)
-                    detalle = Paragraph("<br/>".join(partes_detalle), estilo_celda)
-                    datos_tabla.append([
-                        f['movil'], f['marca'], f['referencia_motor'], f['n_motor'], detalle
-                    ])
+                        detalle = Paragraph(linea, estilo_celda)
+                        datos_tabla.append([
+                            f['movil'], f['marca'], f['referencia_motor'], f['n_motor'], detalle
+                        ])
 
                 tabla = Table(datos_tabla, colWidths=[3.5 * cm, 3.5 * cm, 2.5 * cm, 2.8 * cm, 11.7 * cm], repeatRows=1)
                 tabla.setStyle(TableStyle([
