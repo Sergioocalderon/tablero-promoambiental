@@ -100,16 +100,25 @@ def guardar_estado(estado):
 
 
 def enviar_telegram(texto):
+    """TELEGRAM_CHAT_ID puede traer un solo chat_id o varios separados por coma
+    (ej. '111111,222222') para mandarle el mismo mensaje a varias personas/chats sin
+    necesitar que compartan un grupo. Devuelve True si se le pudo mandar a al menos
+    uno -- si se exigiera que le llegue a TODOS, un solo destinatario con problemas
+    (bloqueo el bot, chat_id invalido) haria que el evento se reintente sin parar."""
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
-    resp = requests.post(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        json={"chat_id": chat_id, "text": texto},
-        timeout=15,
-    )
-    if not resp.ok:
-        print(f"*** Error enviando a Telegram: {resp.status_code} {resp.text} ***")
-    return resp.ok
+    chat_ids = [c.strip() for c in os.environ["TELEGRAM_CHAT_ID"].split(",") if c.strip()]
+    ok_alguno = False
+    for chat_id in chat_ids:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": texto},
+            timeout=15,
+        )
+        if resp.ok:
+            ok_alguno = True
+        else:
+            print(f"*** Error enviando a Telegram (chat_id={chat_id}): {resp.status_code} {resp.text} ***")
+    return ok_alguno
 
 
 def clasificar_criticidad_geotab(falla):
