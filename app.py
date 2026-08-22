@@ -1801,6 +1801,9 @@ with tab_revolucion:
             Eventos_Con_PTO=('Con_PTO', 'sum'),
         ).reset_index()
         resumen_veh_revolucion['Eventos_Con_PTO'] = resumen_veh_revolucion['Eventos_Con_PTO'].astype(int)
+        # 'Movil' viene como '3095-GVT513' (numero-placa) -- la placa ya tiene su propia
+        # columna al lado, asi que aca solo se muestra el numero de movil.
+        resumen_veh_revolucion['Movil'] = resumen_veh_revolucion['Movil'].astype(str).str.split('-').str[0]
 
         col_top1, col_top2 = st.columns(2)
         with col_top1:
