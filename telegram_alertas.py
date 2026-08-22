@@ -302,7 +302,14 @@ def _filtrar_por_pto_cercano(api, eventos_candidatos, ventana_minutos=VENTANA_PT
         desde = e['activeFrom'] - timedelta(minutes=ventana_minutos)
         hasta = e['activeTo'] + timedelta(minutes=ventana_minutos)
         pulsos = pulsos_por_vehiculo.get(e['id_veh'], [])
-        if any(desde <= p <= hasta for p in pulsos):
+        pulsos_en_ventana = [p for p in pulsos if desde <= p <= hasta]
+        if pulsos_en_ventana:
+            # Pulso mas cercano al inicio del evento (activeFrom) -- es el dato que
+            # importa para el mensaje: que tan cerca estuvo el PTO del arranque del RPM
+            # alto, en vez de solo confirmar "hubo alguno dentro de la ventana".
+            pulso_mas_cercano = min(pulsos_en_ventana, key=lambda p: abs((p - e['activeFrom']).total_seconds()))
+            e['pto_pulso'] = pulso_mas_cercano
+            e['pto_delta_seg'] = (pulso_mas_cercano - e['activeFrom']).total_seconds()
             confirmados.append(e)
     return confirmados
 
@@ -366,14 +373,44 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
 
     claves_nuevas = []
     for c in candidatos:
-        nombre_veh = devices.get(c['id_veh'], {}).get('name', c['id_veh'])
+        vehiculo = devices.get(c['id_veh'], {})
+        nombre_veh = vehiculo.get('name', c['id_veh'])
+        _, tipologia = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+        marca = resolver_marca(vehiculo.get('groups'), mapa_grupos) or 'Sin marca'
+        referencia_motor = next(
+            (v for k, v in REFERENCIA_MOTOR_POR_MARCA.items() if k in marca.lower()), 'Desconocido'
+        )
         hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+
+        delta_seg = c.get('pto_delta_seg')
+        if delta_seg is None:
+            texto_pto = f"PTO activo cerca (±{VENTANA_PTO_MINUTOS} min)."
+        else:
+            hora_pulso_local = c['pto_pulso'].tz_convert(ZONA_BOGOTA).strftime('%H:%M:%S')
+            abs_delta = abs(delta_seg)
+            if abs_delta < 60:
+                n_seg = round(abs_delta)
+                texto_delta = f"{n_seg} segundo" + ("" if n_seg == 1 else "s")
+            else:
+                minutos = abs_delta / 60
+                texto_delta = f"{minutos:.1f} minuto" + ("" if abs(minutos - 1) < 0.05 else "s")
+            if delta_seg < 0:
+                direccion = f"{texto_delta} antes del inicio del evento"
+            elif delta_seg > 0:
+                direccion = f"{texto_delta} después del inicio del evento"
+            else:
+                direccion = "justo al inicio del evento"
+            texto_pto = f"PTO detectado a las {hora_pulso_local} ({direccion})."
+
         texto = (
             f"🏎️ SOBRE-REVOLUCIÓN CON PTO ACTIVO\n"
             f"Vehículo: {nombre_veh}\n"
+            f"Marca: {marca}\n"
+            f"Tipología: {tipologia}\n"
+            f"Motor: {referencia_motor}\n"
             f"Hora: {hora_local}\n"
             f"Duración: {c['duracion_seg']:.0f} segundos sostenidos\n"
-            f"Vehículo detenido con RPM alto, PTO activo cerca (±{VENTANA_PTO_MINUTOS} min)."
+            f"Vehículo detenido con RPM alto, {texto_pto}"
         )
         if enviar_telegram(texto):
             print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s)")
