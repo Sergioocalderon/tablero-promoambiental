@@ -68,7 +68,7 @@ def cargar_estado():
     haciendo que TODO se vuelva a notificar como "nuevo" cada 5 minutos."""
     default = {
         "revolucion_notificados": [], "fallas_alta_activas": [], "ultima_hora_resumen": None,
-        "ultimo_update_id_procesado": None,
+        "ultimo_update_id_procesado": None, "suscriptores": [],
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -79,7 +79,7 @@ def cargar_estado():
             print(f"*** Estado en '{ESTADO_PATH}' tiene formato viejo/invalido (no es un dict) -- se ignora. ***")
             return default
         estado = dict(default)
-        for clave in ("revolucion_notificados", "fallas_alta_activas"):
+        for clave in ("revolucion_notificados", "fallas_alta_activas", "suscriptores"):
             valor = datos.get(clave)
             if isinstance(valor, list):
                 estado[clave] = valor
@@ -101,19 +101,29 @@ def guardar_estado(estado):
         "fallas_alta_activas": estado["fallas_alta_activas"],
         "ultima_hora_resumen": estado.get("ultima_hora_resumen"),
         "ultimo_update_id_procesado": estado.get("ultimo_update_id_procesado"),
+        "suscriptores": estado.get("suscriptores", []),
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
 
 
+# Se llena en main() (desde estado['suscriptores']) antes de mandar cualquier alerta,
+# asi enviar_telegram() no necesita que le pasen el estado explicitamente en cada
+# llamada -- son varias a lo largo del script.
+_CHAT_IDS_SUSCRITOS = []
+
+
 def enviar_telegram(texto):
     """TELEGRAM_CHAT_ID puede traer un solo chat_id o varios separados por coma
-    (ej. '111111,222222') para mandarle el mismo mensaje a varias personas/chats sin
-    necesitar que compartan un grupo. Devuelve True si se le pudo mandar a al menos
-    uno -- si se exigiera que le llegue a TODOS, un solo destinatario con problemas
-    (bloqueo el bot, chat_id invalido) haria que el evento se reintente sin parar."""
+    (ej. '111111,222222'), mas los que se auto-suscribieron escribiendole /start al
+    bot (ver _CHAT_IDS_SUSCRITOS/responder_mensajes_nuevos) -- mismo mensaje a todos
+    sin necesitar que compartan un grupo. Devuelve True si se le pudo mandar a al
+    menos uno -- si se exigiera que le llegue a TODOS, un solo destinatario con
+    problemas (bloqueo el bot, chat_id invalido) haria que el evento se reintente sin
+    parar."""
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_ids = [c.strip() for c in os.environ["TELEGRAM_CHAT_ID"].split(",") if c.strip()]
+    chat_ids_fijos = [c.strip() for c in os.environ["TELEGRAM_CHAT_ID"].split(",") if c.strip()]
+    chat_ids = list(dict.fromkeys(chat_ids_fijos + _CHAT_IDS_SUSCRITOS))  # sin duplicados, preserva orden
     ok_alguno = False
     for chat_id in chat_ids:
         resp = requests.post(
@@ -140,12 +150,12 @@ TEXTO_BIENVENIDA = (
 
 
 def responder_mensajes_nuevos(estado):
-    """Revisa (via getUpdates) si alguien le escribio /start al bot y le responde con
-    un mensaje de bienvenida -- sin esto, quien escribe /start no recibe ninguna
-    confirmacion de que quedo conectado (asi paso con Samuel: escribio pero no le
-    salio nada). Usa el offset guardado en el estado para no re-procesar ni
-    re-responder los mismos mensajes en cada corrida del cron (cada 5 min); nunca
-    lanza una excepcion que frene el resto del script."""
+    """Revisa (via getUpdates) si alguien le escribio /start al bot, lo agrega a la
+    lista de suscriptores (estado['suscriptores']) y le responde con un mensaje de
+    bienvenida -- asi queda recibiendo alertas de una vez, sin que un admin tenga que
+    actualizar el secret TELEGRAM_CHAT_ID a mano. Usa el offset guardado en el estado
+    para no re-procesar ni re-responder los mismos mensajes en cada corrida del cron
+    (cada 5 min); nunca lanza una excepcion que frene el resto del script."""
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     params = {"timeout": 0}
     offset = estado.get("ultimo_update_id_procesado")
@@ -159,6 +169,7 @@ def responder_mensajes_nuevos(estado):
         print(f"*** No se pudieron revisar mensajes entrantes de Telegram: {e} ***")
         return
 
+    estado.setdefault("suscriptores", [])
     for act in actualizaciones:
         estado["ultimo_update_id_procesado"] = act["update_id"]
         mensaje = act.get("message") or {}
@@ -166,6 +177,10 @@ def responder_mensajes_nuevos(estado):
         chat_id = mensaje.get("chat", {}).get("id")
         if chat_id is None or not texto.startswith("/start"):
             continue
+        chat_id_str = str(chat_id)
+        if chat_id_str not in estado["suscriptores"]:
+            estado["suscriptores"].append(chat_id_str)
+            print(f"Nuevo suscriptor agregado: chat_id={chat_id_str}")
         try:
             requests.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
@@ -833,6 +848,8 @@ def main():
     # notificar en la siguiente corrida (5 min despues), y en la siguiente, indefinidamente.
     try:
         responder_mensajes_nuevos(estado)
+        global _CHAT_IDS_SUSCRITOS
+        _CHAT_IDS_SUSCRITOS = estado.get('suscriptores', [])
 
         claves_revolucion_previas = set(estado['revolucion_notificados'])
         claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
