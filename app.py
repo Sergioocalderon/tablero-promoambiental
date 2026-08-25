@@ -497,6 +497,12 @@ ID_DIAGNOSTICO_PTO = 'DiagnosticPowerTakeoffEngagedId'
 VENTANA_PTO_MINUTOS = 3  # ni muy ancha (el PTO pulsa ~cada 1s todo el dia, asi que 10 min
 # encuentra "algun" pulso por pura coincidencia) ni muy angosta (con 1 min se perdio un
 # caso real de prueba: el ultimo pulso de PTO quedo ~2 min antes del evento de RPM).
+# Se probo ampliarla para Foton (bajo confirmacion, 17.6%) pero un analisis de sesiones
+# reales de PTO mostro que ahi pulsa en rafagas muy frecuentes y cortas (50-70/dia,
+# mediana de duracion 0 min) -- con ventana ancha, la mayoria de las "confirmaciones"
+# terminaban agarrando el pulso de otra parada de compactacion, no la del evento. Se
+# mantiene la ventana angosta para todas las marcas hasta reemplazar este cruce por una
+# regla basada en velocidad (el PTO debe desactivarse para moverse).
 
 @st.cache_data(ttl=180)
 def cruzar_con_pto(_client, _df_eventos, f_inicio, f_fin, ventana_minutos=VENTANA_PTO_MINUTOS):
@@ -1781,7 +1787,7 @@ with tab_revolucion:
             df_show_revolucion['Con_PTO'] = False
         # Ninguna de las reglas exige PTO dentro de su condición (se confirmó que el
         # diagnóstico de PTO es un pulso — exigirlo sostenido casi nunca se cumple), así
-        # que Con_PTO siempre se estima cruzando con pulsos de PTO cercanos (±10 min).
+        # que Con_PTO siempre se estima cruzando con pulsos de PTO cercanos (±3 min).
         df_show_revolucion['Con_PTO'] = cruzar_con_pto(client, df_show_revolucion, fecha_inicio, fecha_fin)
         vehiculos_involucrados = df_show_revolucion['id_camion'].nunique()
         eventos_totales = len(df_show_revolucion)

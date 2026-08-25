@@ -253,6 +253,14 @@ VENTANA_PTO_MINUTOS = 3  # ni muy ancha (el PTO pulsa ~cada 1s todo el dia, asi 
 # encuentra "algun" pulso por pura coincidencia) ni muy angosta (con 1 min se perdio un
 # caso real de prueba: el ultimo pulso de PTO quedo ~2 min antes de que arrancara el
 # evento de RPM sostenido -- el motor tarda en subir y sostenerse tras activar el PTO).
+# Se probo ampliarla especificamente para Foton (donde el cruce solo confirmaba 17.6% de
+# los eventos) pero un analisis por sesiones reales de PTO mostro que el PTO ahi pulsa en
+# rafagas muy frecuentes y cortas (50-70 sesiones/dia, mediana de duracion 0 min) -- con
+# una ventana ancha, la mayoria de las "confirmaciones" terminaban agarrando el pulso de
+# OTRA parada de compactacion, no la que genero el evento (159 de 231 no caian dentro de
+# ninguna sesion real). Se decidio mantener la ventana angosta para todas las marcas por
+# ahora, aceptando que en Foton se pierden mas casos reales, hasta que se reemplace este
+# cruce por una regla nueva basada en velocidad (el PTO debe desactivarse para moverse).
 
 
 def _filtrar_por_pto_cercano(api, eventos_candidatos, ventana_minutos=VENTANA_PTO_MINUTOS):
