@@ -23,6 +23,16 @@ def convertir_a_bogota(serie_fechas):
 
 st.set_page_config(page_title="Tablero de Control - Promoambiental", page_icon="🚚", layout="wide")
 
+INTERVALO_ACTUALIZACION_MIN = 15  # el tablero se recarga solo cada X minutos, para que
+# quien lo tenga abierto en una pantalla siempre vea datos recientes sin tener que
+# refrescar a mano (los datos en si ya se refrescan mas seguido via @st.cache_data(ttl=180),
+# esto es lo que hace que el navegador realmente vuelva a correr el script).
+components.html(
+    f"<script>setTimeout(function() {{ window.parent.location.reload(); }}, "
+    f"{INTERVALO_ACTUALIZACION_MIN * 60 * 1000});</script>",
+    height=0,
+)
+
 st.markdown("""
 <style>
     .stApp { background-color: #F8FAFC; }
