@@ -1796,85 +1796,72 @@ with tab_revolucion:
     st.subheader("🏎️ Sobre-Revolución con PTO")
     st.caption(
         "Regla SOBRE REVOLUCIÓN CON PTO de Geotab: RPM > 1300 sostenido 30s con el vehículo detenido "
-        "(compactando). La columna \"Con PTO\" es estimada por cercanía con pulsos reales de PTO."
+        "(compactando), con PTO confirmado por cercanía con un pulso real (±3 min). Los eventos sin PTO "
+        "confirmado se dejan fuera de este tablero -- necesitan un estudio aparte antes de mostrarse aca."
     )
 
     if not df_eventos_revolucion.empty:
+        df_todos_revolucion = df_eventos_revolucion.sort_values('activeFrom', ascending=False)
+        # Ninguna de las reglas exige PTO dentro de su condición (se confirmó que el
+        # diagnóstico de PTO es un pulso — exigirlo sostenido casi nunca se cumple), así
+        # que Con_PTO siempre se estima cruzando con pulsos de PTO cercanos (±3 min).
+        df_todos_revolucion['Con_PTO'] = cruzar_con_pto(client, df_todos_revolucion, fecha_inicio, fecha_fin)
+        # Solo interesa el PTO confirmado -- el resto (RPM alto sin PTO cerca) es "sobre
+        # revolución" general, que necesita un estudio aparte antes de mostrarse acá.
+        df_show_revolucion = df_todos_revolucion[df_todos_revolucion['Con_PTO']].drop(columns=['Con_PTO'])
+
+    if not df_eventos_revolucion.empty and not df_show_revolucion.empty:
         claves_actuales_revolucion = set(
-            df_eventos_revolucion['id_camion'].astype(str) + '|' + df_eventos_revolucion['activeFrom'].astype(str)
+            df_show_revolucion['id_camion'].astype(str) + '|' + df_show_revolucion['activeFrom'].astype(str)
         )
         claves_nuevas_revolucion = claves_actuales_revolucion - st.session_state.claves_revolucion_previas
         alerta_hay_previas = bool(st.session_state.claves_revolucion_previas)
         st.session_state.claves_revolucion_previas = claves_actuales_revolucion
 
-        df_show_revolucion = df_eventos_revolucion.sort_values('activeFrom', ascending=False)
-        if 'Con_PTO' not in df_show_revolucion.columns:
-            df_show_revolucion['Con_PTO'] = False
-        # Ninguna de las reglas exige PTO dentro de su condición (se confirmó que el
-        # diagnóstico de PTO es un pulso — exigirlo sostenido casi nunca se cumple), así
-        # que Con_PTO siempre se estima cruzando con pulsos de PTO cercanos (±3 min).
-        df_show_revolucion['Con_PTO'] = cruzar_con_pto(client, df_show_revolucion, fecha_inicio, fecha_fin)
         vehiculos_involucrados = df_show_revolucion['id_camion'].nunique()
         eventos_totales = len(df_show_revolucion)
         rpm_maximo_registrado = df_show_revolucion['RPM_Pico'].max()
 
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("Vehículos involucrados", vehiculos_involucrados)
-        col_r2.metric("Eventos en el periodo", eventos_totales)
+        col_r2.metric("Eventos con PTO confirmado", eventos_totales)
         col_r3.metric("RPM máximo registrado", f"{rpm_maximo_registrado:,.0f}" if pd.notna(rpm_maximo_registrado) else "N/D")
 
         if claves_nuevas_revolucion and alerta_hay_previas:
             reproducir_alarma()
-            st.warning(f"🆕 {len(claves_nuevas_revolucion)} evento(s) nuevo(s) de sobre-revolución desde la última actualización.")
+            st.warning(f"🆕 {len(claves_nuevas_revolucion)} evento(s) nuevo(s) de sobre-revolución con PTO desde la última actualización.")
 
-        resumen_veh_revolucion = df_show_revolucion.groupby(['Movil', 'Placa']).agg(
-            Eventos=('Con_PTO', 'count'),
-            Eventos_Con_PTO=('Con_PTO', 'sum'),
-        ).reset_index()
-        resumen_veh_revolucion['Eventos_Con_PTO'] = resumen_veh_revolucion['Eventos_Con_PTO'].astype(int)
         # 'Movil' viene como '3095-GVT513' (numero-placa) -- la placa ya tiene su propia
         # columna al lado, asi que aca solo se muestra el numero de movil.
+        resumen_veh_revolucion = df_show_revolucion.groupby(['Movil', 'Placa']).agg(
+            Eventos=('id_camion', 'count'),
+        ).reset_index()
         resumen_veh_revolucion['Movil'] = resumen_veh_revolucion['Movil'].astype(str).str.split('-').str[0]
 
-        col_top1, col_top2 = st.columns(2)
-        with col_top1:
-            st.markdown("**🔝 Top 5 — más eventos de sobre-revolución**")
-            top_eventos = resumen_veh_revolucion.sort_values('Eventos', ascending=False).head(5)
-            st.dataframe(
-                top_eventos[['Movil', 'Placa', 'Eventos']],
-                use_container_width=True, hide_index=True
-            )
-        with col_top2:
-            st.markdown("**🔝 Top 5 — más eventos con PTO accionado**")
-            top_pto = resumen_veh_revolucion[resumen_veh_revolucion['Eventos_Con_PTO'] > 0].sort_values(
-                'Eventos_Con_PTO', ascending=False
-            ).head(5)
-            if not top_pto.empty:
-                st.dataframe(
-                    top_pto[['Movil', 'Placa', 'Eventos_Con_PTO']].rename(columns={'Eventos_Con_PTO': 'Eventos con PTO'}),
-                    use_container_width=True, hide_index=True
-                )
-            else:
-                st.caption("Ningún evento del periodo tuvo PTO detectado cerca.")
+        st.markdown("**🔝 Top 5 — más eventos con PTO accionado**")
+        top_pto = resumen_veh_revolucion.sort_values('Eventos', ascending=False).head(5)
+        st.dataframe(
+            top_pto[['Movil', 'Placa', 'Eventos']].rename(columns={'Eventos': 'Eventos con PTO'}),
+            use_container_width=True, hide_index=True
+        )
 
         df_tabla_revolucion = df_show_revolucion[[
-            'Movil', 'Placa', 'Ciudad', 'Motor', 'activeFrom', 'Duracion_Segundos', 'RPM_Pico', 'Umbral_RPM', 'Con_PTO'
+            'Movil', 'Placa', 'Ciudad', 'Motor', 'activeFrom', 'Duracion_Segundos', 'RPM_Pico', 'Umbral_RPM'
         ]].copy()
         df_tabla_revolucion['Duracion_Min'] = (df_tabla_revolucion['Duracion_Segundos'] / 60).round(1)
         df_tabla_revolucion['activeFrom'] = df_tabla_revolucion['activeFrom'].dt.strftime('%d/%m/%Y %H:%M:%S')
-        df_tabla_revolucion['Con_PTO'] = df_tabla_revolucion['Con_PTO'].map({True: 'Sí', False: 'No'})
         df_tabla_revolucion = df_tabla_revolucion.drop(columns=['Duracion_Segundos']).rename(columns={
             'activeFrom': 'Fecha/Hora', 'Duracion_Min': 'Duración (min)', 'RPM_Pico': 'RPM Pico',
-            'Umbral_RPM': 'Umbral RPM', 'Con_PTO': 'Con PTO'
+            'Umbral_RPM': 'Umbral RPM'
         })
         st.dataframe(df_tabla_revolucion, use_container_width=True, hide_index=True)
         st.download_button(
-            "⬇️ Descargar Excel (sobre-revolución)",
+            "⬇️ Descargar Excel (sobre-revolución con PTO)",
             data=convertir_a_excel(df_tabla_revolucion),
-            file_name=f"sobre_revolucion_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.xlsx",
+            file_name=f"sobre_revolucion_pto_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     else:
-        st.success("✅ No hay eventos de sobre-revolución en el periodo seleccionado.")
+        st.success("✅ No hay eventos de sobre-revolución con PTO confirmado en el periodo seleccionado.")
 
     guardar_snapshot_codigos(hoja_snapshot, claves_actuales)
