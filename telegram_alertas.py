@@ -550,6 +550,47 @@ def obtener_catalogos_diagnosticos(api):
     return dic_diag, dic_fm
 
 
+LIMITE_PAGINA_FAULTDATA = 50000  # tope real que devuelve la API de Geotab por llamada a
+# Get FaultData -- si el rango pedido tiene mas registros que esto (facil con
+# VENTANA_FALLAS_DIAS=30 dias, TODA la flota y TODOS los diagnosticos), la respuesta se
+# corta ahi, ordenada por dateTime ASCENDENTE. Sin paginar, eso significa quedarse
+# siempre con los registros MAS VIEJOS del rango y perder en silencio todo lo reciente
+# -- confirmado con datos reales: la llamada sin paginar traia 50000 filas pero
+# terminaba el 07/08 aunque se pedian los ultimos 30 dias hasta hoy, asi que NINGUNA
+# falla parecia "nueva" nunca (el reporte de turno/hora nunca encontraba nada dentro de
+# su ventana) y las fallas "activas" quedaban ancladas a datos de hace mas de 2 semanas.
+
+
+def _obtener_faultdata_paginado(api, f_inicio, f_fin):
+    """Trae TODOS los FaultData en [f_inicio, f_fin), pidiendo pagina por pagina hasta
+    que una vuelta devuelva menos de LIMITE_PAGINA_FAULTDATA. Cada vuelta arranca desde
+    el dateTime del ultimo registro de la vuelta anterior (rango se solapa a proposito
+    para no perder registros que compartan ese mismo instante); se dedupea por 'id' de
+    FaultData al final, que es unico por registro."""
+    todas = []
+    desde = f_inicio
+    while True:
+        pagina = api.get('FaultData', search={
+            'fromDate': desde.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        }) or []
+        todas.extend(pagina)
+        if len(pagina) < LIMITE_PAGINA_FAULTDATA:
+            break
+        ultimo_dt = max(r['dateTime'] for r in pagina)
+        if ultimo_dt <= desde:
+            break  # resguardo: si no avanza el cursor, cortar en vez de loopear infinito
+        desde = ultimo_dt
+
+    vistos = set()
+    unicas = []
+    for r in todas:
+        if r['id'] not in vistos:
+            vistos.add(r['id'])
+            unicas.append(r)
+    return unicas
+
+
 def _obtener_fallas_activas(api):
     """Todas las fallas activas ahora mismo (cualquier criticidad), una fila por
     vehiculo+diagnostico+modo de falla (la mas reciente). Base comun para las alertas
@@ -562,10 +603,7 @@ def _obtener_fallas_activas(api):
 
     f_fin = datetime.now(timezone.utc)
     f_inicio = f_fin - timedelta(days=VENTANA_FALLAS_DIAS)
-    fallas = api.get('FaultData', search={
-        'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-        'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-    })
+    fallas = _obtener_faultdata_paginado(api, f_inicio, f_fin)
 
     if not fallas:
         return pd.DataFrame(), devices, dic_diag, dic_fm, mapa_grupos
