@@ -108,21 +108,33 @@ def obtener_credencial(nombre_env, ruta_secrets=None):
         return st.secrets[seccion][clave]
     return None
 
-@st.cache_resource
+# ttl=3600 (no solo "sin expiracion") -- si se cacheara para siempre y la sesion
+# quedara invalida (venciO del lado de Geotab, hubo una caida momentanea del
+# servidor, etc.), el tablero quedaria mostrando "Cannot authenticate" indefinidamente
+# hasta que alguien reinicie el proceso a mano, aunque el problema de fondo ya se haya
+# resuelto -- con ttl, se reintenta autenticar solo cada hora como maximo.
+@st.cache_resource(ttl=3600)
 def iniciar_conexion_geotab():
-    try:
-        USUARIO = obtener_credencial("GEOTAB_USUARIO", ("geotab", "usuario"))
-        CONTRASENA = obtener_credencial("GEOTAB_CONTRASENA", ("geotab", "contrasena"))
-        BASE_DE_DATOS = obtener_credencial("GEOTAB_DATABASE", ("geotab", "database"))
-        SERVIDOR = obtener_credencial("GEOTAB_SERVER", ("geotab", "server"))
-        client = mygeotab.API(username=USUARIO, password=CONTRASENA, database=BASE_DE_DATOS, server=SERVIDOR)
-        client.authenticate()
-        return client
-    except Exception as e:
-        st.error(f"Error de autenticación: {e}")
-        return None
+    USUARIO = obtener_credencial("GEOTAB_USUARIO", ("geotab", "usuario"))
+    CONTRASENA = obtener_credencial("GEOTAB_CONTRASENA", ("geotab", "contrasena"))
+    BASE_DE_DATOS = obtener_credencial("GEOTAB_DATABASE", ("geotab", "database"))
+    SERVIDOR = obtener_credencial("GEOTAB_SERVER", ("geotab", "server"))
+    client = mygeotab.API(username=USUARIO, password=CONTRASENA, database=BASE_DE_DATOS, server=SERVIDOR)
+    client.authenticate()
+    return client
 
-client = iniciar_conexion_geotab()
+# El try/except queda FUERA de la funcion cacheada a proposito: si quedara adentro
+# (como estaba antes), un fallo devolvia None y ESO quedaba cacheado como si fuera un
+# resultado valido -- el tablero se quedaba mostrando el error para siempre (ni con el
+# ttl de arriba se recuperaba, porque nunca se volvia a intentar autenticar). Dejando
+# que la excepcion se propague, st.cache_resource NO la cachea, asi que la proxima
+# recarga (cada 15 min, ver INTERVALO_ACTUALIZACION_MIN) vuelve a intentar de una vez,
+# en lugar de esperar hasta que venza el ttl.
+try:
+    client = iniciar_conexion_geotab()
+except Exception as e:
+    st.error(f"Error de autenticación: {e}")
+    client = None
 
 ID_HOJA_SEGUIMIENTO = "1QdPCp8Vgwc9mJLLAMNK2f1uKFggTrDaj2KI__bWC0LQ"  # mismo libro que ya se usaba
 ALCANCES_SHEETS = [
@@ -130,31 +142,34 @@ ALCANCES_SHEETS = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-@st.cache_resource
+@st.cache_resource(ttl=3600)  # mismo motivo que iniciar_conexion_geotab: sin ttl, un
+# fallo transitorio queda "pegado" para siempre en vez de reintentarse solo.
 def conectar_hoja_seguimiento():
     """Conecta con una hoja dedicada a guardar qué códigos estaban activos la última
     vez que se revisó el tablero, para poder detectar cuáles se acaban de activar
     y cuáles ya se desactivaron. La crea si todavía no existe."""
+    credenciales_env = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+    if credenciales_env:
+        credenciales_info = json.loads(credenciales_env)
+    else:
+        credenciales_info = dict(st.secrets["gcp_service_account"])
+    credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
+    cliente_sheets = gspread.authorize(credenciales)
+    libro = cliente_sheets.open_by_key(ID_HOJA_SEGUIMIENTO)
     try:
-        credenciales_env = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
-        if credenciales_env:
-            credenciales_info = json.loads(credenciales_env)
-        else:
-            credenciales_info = dict(st.secrets["gcp_service_account"])
-        credenciales = Credentials.from_service_account_info(credenciales_info, scopes=ALCANCES_SHEETS)
-        cliente_sheets = gspread.authorize(credenciales)
-        libro = cliente_sheets.open_by_key(ID_HOJA_SEGUIMIENTO)
-        try:
-            hoja = libro.worksheet('snapshot_codigos')
-        except gspread.exceptions.WorksheetNotFound:
-            hoja = libro.add_worksheet(title='snapshot_codigos', rows=3000, cols=2)
-            hoja.append_row(['clave', 'fecha_registro'])
-        return hoja
-    except Exception as e:
-        st.warning(f"No se pudo conectar con Google Sheets: {e}")
-        return None
+        hoja = libro.worksheet('snapshot_codigos')
+    except gspread.exceptions.WorksheetNotFound:
+        hoja = libro.add_worksheet(title='snapshot_codigos', rows=3000, cols=2)
+        hoja.append_row(['clave', 'fecha_registro'])
+    return hoja
 
-hoja_snapshot = conectar_hoja_seguimiento()
+# Mismo motivo que con iniciar_conexion_geotab: el try/except queda FUERA de la
+# funcion cacheada para que un fallo no se cachee como si fuera un resultado valido.
+try:
+    hoja_snapshot = conectar_hoja_seguimiento()
+except Exception as e:
+    st.warning(f"No se pudo conectar con Google Sheets: {e}")
+    hoja_snapshot = None
 
 # =============================================================================
 # FUNCIONES DE SEGUIMIENTO DE CÓDIGOS (ACTIVACIÓN / DESACTIVACIÓN)
