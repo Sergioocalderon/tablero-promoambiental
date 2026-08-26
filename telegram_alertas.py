@@ -107,7 +107,7 @@ def cargar_estado():
 def guardar_estado(estado):
     estado_a_guardar = {
         "revolucion_notificados": estado["revolucion_notificados"][-MAX_CLAVES_GUARDADAS:],
-        "fallas_activas": estado["fallas_activas"],
+        "fallas_activas": estado["fallas_activas"][-MAX_CLAVES_GUARDADAS:],
         "ultima_hora_resumen": estado.get("ultima_hora_resumen"),
         "ultimo_update_id_procesado": estado.get("ultimo_update_id_procesado"),
         "suscriptores": estado.get("suscriptores", []),
@@ -1298,7 +1298,7 @@ def main():
     api = conectar_geotab()
     estado = cargar_estado()
     print(f"Estado cargado: {len(estado['revolucion_notificados'])} eventos de revolucion, "
-          f"{len(estado['fallas_activas'])} fallas activas previas.")
+          f"{len(estado['fallas_activas'])} fallas ya notificadas antes.")
 
     # Se guarda el estado pase lo que pase (incluso si algo falla a mitad de camino),
     # para no volver a notificar lo que ya se envio en esta misma corrida. Sin esto,
@@ -1315,7 +1315,15 @@ def main():
 
         claves_fallas_previas = set(estado['fallas_activas'])
         claves_fallas_actuales, _ = revisar_fallas_activas(api, claves_fallas_previas)
-        estado['fallas_activas'] = list(claves_fallas_actuales)
+        # Union, NO reemplazo -- 'fallas_activas' en el estado es memoria de "ya se
+        # notifico" (igual que revolucion_notificados), no "lo que esta activo ahora
+        # mismo" (eso siempre se recalcula fresco desde Geotab via
+        # _obtener_fallas_activas). Muchos diagnosticos pulsan Active -> None -> Active
+        # en segundos (ver _obtener_fallas_activas); si se reemplazara por
+        # claves_fallas_actuales, una falla que pulsara a 'None' justo cuando corre el
+        # cron desaparecia de la memoria y se volvia a notificar como "nueva" la
+        # proxima vez que volviera a 'Active', mandando la misma falla una y otra vez.
+        estado['fallas_activas'] = list(claves_fallas_previas | claves_fallas_actuales)
 
         enviar_resumenes_por_hora(api, estado)
         enviar_resumenes_por_turno(api, estado)
