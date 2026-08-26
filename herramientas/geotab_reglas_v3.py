@@ -269,6 +269,8 @@ def analizar_duracion_eventos(eventos):
             "localidad": e.get("localidad"),
             "lon": e.get("lon"),
             "lat": e.get("lat"),
+            "marca": e.get("marca"),
+            "ciudad": e.get("ciudad"),
         })
 
     if not filas:
@@ -311,6 +313,21 @@ def analizar_duracion_eventos(eventos):
     for dev_id, fila in resumen_dev.head(10).iterrows():
         print(f"    {dev_id}: {int(fila['eventos'])} eventos, promedio {fila['duracion_media_min']:.1f} min, máx {fila['duracion_max_min']:.1f} min")
 
+    if "marca" in df.columns:
+        print("\n  Por marca:")
+        resumen_marca = df.groupby("marca").agg(
+            eventos=("duracion_min", "count"),
+            vehiculos=("device_id", "nunique"),
+            duracion_media_min=("duracion_min", "mean"),
+        ).sort_values("eventos", ascending=False)
+        for marca, fila in resumen_marca.iterrows():
+            print(f"    {marca}: {int(fila['eventos'])} eventos, {int(fila['vehiculos'])} vehículos, promedio {fila['duracion_media_min']:.1f} min")
+
+    if "ciudad" in df.columns:
+        print("\n  Por ciudad:")
+        for ciudad, count in df["ciudad"].value_counts().items():
+            print(f"    {ciudad}: {count} eventos")
+
     return df
 
 
@@ -323,7 +340,7 @@ def exportar_csv_power_bi(df, nombre_regla, csv_path):
     df_pbi["hora"] = pd.to_datetime(df_pbi["activeFrom"]).dt.strftime("%H:%M:%S")
     df_pbi["dia_semana"] = pd.to_datetime(df_pbi["activeFrom"]).dt.day_name()
 
-    columnas = ["regla", "device_id", "fecha", "hora", "dia_semana", "duracion_min",
+    columnas = ["regla", "device_id", "marca", "ciudad", "fecha", "hora", "dia_semana", "duracion_min",
                 "rango", "en_taller", "zona", "localidad", "lat", "lon"]
     columnas = [c for c in columnas if c in df_pbi.columns]
     df_pbi[columnas].rename(columns={"device_id": "vehiculo"}).to_csv(
@@ -353,12 +370,18 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
     # Agrupado por vehículo, y cronológico dentro de cada vehículo (no por duración)
     df_ordenado = df_trabajo.sort_values(["device_id", "activeFrom"], ascending=[True, True]).reset_index(drop=True)
 
-    resumen_veh = df_trabajo.groupby("device_id").agg(
+    tiene_marca_ciudad = "marca" in df_trabajo.columns and "ciudad" in df_trabajo.columns
+    agregacion_resumen = dict(
         eventos=("duracion_min", "count"),
         minutos_totales=("duracion_min", "sum"),
         minutos_promedio=("duracion_min", "mean"),
         minutos_maximo=("duracion_min", "max"),
-    ).sort_values("minutos_totales", ascending=False).reset_index()
+    )
+    if tiene_marca_ciudad:
+        agregacion_resumen["marca"] = ("marca", "first")
+        agregacion_resumen["ciudad"] = ("ciudad", "first")
+    resumen_veh = df_trabajo.groupby("device_id").agg(**agregacion_resumen) \
+        .sort_values("minutos_totales", ascending=False).reset_index()
 
     wb = _Workbook()
 
@@ -381,6 +404,8 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
     ws1["A2"].font = subtitulo_font
 
     headers1 = ["Vehículo", "Eventos", "Minutos totales", "Minutos promedio", "Minutos máximo"]
+    if tiene_marca_ciudad:
+        headers1 += ["Marca", "Ciudad"]
     fh1 = 4
     for col_idx, h in enumerate(headers1, start=1):
         c = ws1.cell(row=fh1, column=col_idx, value=h)
@@ -392,6 +417,8 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
         fila = fh1 + 1 + i
         valores = [r["device_id"], int(r["eventos"]), round(r["minutos_totales"], 1),
                    round(r["minutos_promedio"], 1), round(r["minutos_maximo"], 1)]
+        if tiene_marca_ciudad:
+            valores += [r["marca"], r["ciudad"]]
         for col_idx, val in enumerate(valores, start=1):
             c = ws1.cell(row=fila, column=col_idx, value=val)
             c.font = _Font(name=FUENTE, size=10)
@@ -405,11 +432,13 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
             fill = fill_verde
         ws1.cell(row=fila, column=3).fill = fill
 
-    for idx, w in enumerate([20, 12, 16, 16, 16], start=1):
+    anchos1 = [20, 12, 16, 16, 16] + ([18, 16] if tiene_marca_ciudad else [])
+    for idx, w in enumerate(anchos1, start=1):
         ws1.column_dimensions[_get_column_letter(idx)].width = w
     ws1.freeze_panes = f"A{fh1 + 1}"
     ultima1 = fh1 + len(resumen_veh)
-    tabla1 = _Table(displayName="TablaResumenVehiculo", ref=f"A{fh1}:E{ultima1}")
+    ultima_col1 = _get_column_letter(len(headers1))
+    tabla1 = _Table(displayName="TablaResumenVehiculo", ref=f"A{fh1}:{ultima_col1}{ultima1}")
     tabla1.tableStyleInfo = _TableStyleInfo(name="TableStyleMedium2", showRowStripes=False)
     ws1.add_table(tabla1)
 
@@ -421,6 +450,8 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
     ws2["A2"].font = subtitulo_font
 
     headers2 = ["Vehículo", "Fecha", "Hora", "Duración (min)", "Rango", "Zona", "Localidad", "Ubicación (Google Maps)"]
+    if tiene_marca_ciudad:
+        headers2 += ["Marca", "Ciudad"]
     fh2 = 4
     for col_idx, h in enumerate(headers2, start=1):
         c = ws2.cell(row=fh2, column=col_idx, value=h)
@@ -457,6 +488,13 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
             c_maps.value = ""
             c_maps.font = _Font(name=FUENTE, size=10)
 
+        if tiene_marca_ciudad:
+            for col_idx, val in enumerate([r.get("marca"), r.get("ciudad")], start=9):
+                c = ws2.cell(row=fila, column=col_idx, value=val)
+                c.font = _Font(name=FUENTE, size=10)
+                c.border = border
+                c.alignment = _Alignment(horizontal="center", vertical="center")
+
         if en_taller:
             fill = fill_gris
         elif dur >= 30:
@@ -467,11 +505,13 @@ def generar_reporte_duracion_excel(df, nombre_regla, xlsx_path):
             fill = fill_verde
         ws2.cell(row=fila, column=4).fill = fill
 
-    for idx, w in enumerate([20, 14, 12, 16, 14, 22, 20, 22], start=1):
+    anchos2 = [20, 14, 12, 16, 14, 22, 20, 22] + ([18, 16] if tiene_marca_ciudad else [])
+    for idx, w in enumerate(anchos2, start=1):
         ws2.column_dimensions[_get_column_letter(idx)].width = w
     ws2.freeze_panes = f"A{fh2 + 1}"
     ultima2 = fh2 + len(df_ordenado)
-    tabla2 = _Table(displayName="TablaDetalleVehiculo", ref=f"A{fh2}:H{ultima2}")
+    ultima_col2 = _get_column_letter(len(headers2))
+    tabla2 = _Table(displayName="TablaDetalleVehiculo", ref=f"A{fh2}:{ultima_col2}{ultima2}")
     tabla2.tableStyleInfo = _TableStyleInfo(name="TableStyleMedium2", showRowStripes=False)
     ws2.add_table(tabla2)
 
@@ -1644,6 +1684,33 @@ def enriquecer_eventos_con_zona(api, eventos, zonas_taller, zonas_localidad=None
     return eventos
 
 
+def enriquecer_eventos_con_marca(api, eventos):
+    """Agrega 'marca' y 'ciudad' a cada evento (dict), modificándolos in-place, usando
+    la misma resolución de grupos que ya usan telegram_alertas.py y app.py (marca =
+    grupo de motor tipo International/Foton/Mercedes; ciudad = grupo de operación tipo
+    Bogotá/Cali/Valle) -- no se reinventa esa lógica acá, se reusa directo."""
+    if not eventos:
+        return eventos
+
+    raiz_proyecto = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if raiz_proyecto not in sys.path:
+        sys.path.insert(0, raiz_proyecto)
+    from telegram_alertas import obtener_mapa_grupos, resolver_marca, resolver_ciudad_tipologia
+
+    devices = {d["id"]: d for d in api.get("Device")}
+    mapa_grupos = obtener_mapa_grupos(api)
+
+    for e in eventos:
+        dev_id = (e.get("device") or {}).get("id")
+        vehiculo = devices.get(dev_id, {})
+        grupos_veh = vehiculo.get("groups")
+        e["marca"] = resolver_marca(grupos_veh, mapa_grupos) or "Sin marca"
+        ciudad, _tipologia = resolver_ciudad_tipologia(grupos_veh, mapa_grupos)
+        e["ciudad"] = ciudad
+
+    return eventos
+
+
 # ---------------------------------------------------------------------------
 # Ubicar dónde estaba un vehículo en un momento exacto (para investigar eventos atípicos)
 # ---------------------------------------------------------------------------
@@ -1836,6 +1903,11 @@ def main():
     parser.add_argument("--localidad-prefix", default="bogota-", metavar="TEXTO",
                          help="(Con --con-localidad) Prefijo del nombre de zona que identifica una localidad "
                               "(sin distinguir mayúsculas/tildes). Default: 'bogota-'.")
+    parser.add_argument("--con-marca", action="store_true",
+                         help="(Con --duration-report) Agrega columnas 'Marca' y 'Ciudad' a cada evento, usando la "
+                              "misma resolución de grupos que ya usan telegram_alertas.py/app.py (marca = "
+                              "International/Foton/Mercedes/etc., ciudad = Bogotá/Cali/Valle/etc.). Útil para "
+                              "comparar comportamiento entre marcas o acotar a una ciudad en el paso de análisis.")
     parser.add_argument("--power-bi", action="store_true",
                          help="(Con --duration-report) Además del Excel, genera un CSV plano (una fila por "
                               "evento, sin formato) listo para conectar directamente en Power BI.")
@@ -1921,6 +1993,9 @@ def main():
             zonas_taller = cargar_zonas_taller(api, palabras_clave=args.taller_keywords, solo_bogota=args.solo_bogota, tipo_ids=args.taller_type_ids, nombres_exactos=args.taller_zone_names)
             zonas_localidad = cargar_zonas_localidad(api, prefijo=args.localidad_prefix) if args.con_localidad else None
             enriquecer_eventos_con_zona(api, eventos, zonas_taller, zonas_localidad=zonas_localidad)
+
+        if args.con_marca:
+            enriquecer_eventos_con_marca(api, eventos)
 
         df = analizar_duracion_eventos(eventos)
         detalle_eventos_notables(eventos, devices=args.devices, min_duracion_min=20)
