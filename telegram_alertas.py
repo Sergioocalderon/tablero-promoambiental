@@ -703,6 +703,30 @@ def revisar_fallas_activas(api, claves_activas_previas):
 
 
 # ---------------------------------------------------------------------------
+# Ralenti excesivo (motor encendido, detenido, sin PTO) -- clasificacion de
+# criticidad por duracion. Usa la regla 'Ralentí Excesivo Sin PTO' de Geotab
+# (umbral bajado a 1 min el 2026-08-26 para que los 3 niveles tengan datos
+# reales) via _obtener_eventos_regla, igual que sobre-revolucion. TODAVIA NO
+# esta conectada a ninguna alerta/resumen -- se deja lista aca a proposito,
+# a la espera de medir el volumen real de eventos antes de decidir si se
+# manda por Telegram.
+# ---------------------------------------------------------------------------
+
+NOMBRE_REGLA_RALENTI = 'Ralentí Excesivo Sin PTO'
+
+
+def clasificar_criticidad_ralenti(duracion_min):
+    """Baja: 1-10 min, Media: 11-20 min, Alta: mas de 20 min (criterio acordado
+    con el usuario, mismos rangos para International/Mercedes/Foton)."""
+    if duracion_min > 20:
+        return 'ALTA'
+    elif duracion_min > 10:
+        return 'MEDIA'
+    else:
+        return 'BAJA'
+
+
+# ---------------------------------------------------------------------------
 # Reporte PDF de fallas activas, bajo demanda (comando /reporte en Telegram)
 # ---------------------------------------------------------------------------
 
