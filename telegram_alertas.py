@@ -705,11 +705,16 @@ def revisar_fallas_activas(api, claves_activas_previas):
 # ---------------------------------------------------------------------------
 # Ralenti excesivo (motor encendido, detenido, sin PTO) -- clasificacion de
 # criticidad por duracion. Usa la regla 'Ralentí Excesivo Sin PTO' de Geotab
-# (umbral bajado a 1 min el 2026-08-26 para que los 3 niveles tengan datos
-# reales) via _obtener_eventos_regla, igual que sobre-revolucion. TODAVIA NO
-# esta conectada a ninguna alerta/resumen -- se deja lista aca a proposito,
-# a la espera de medir el volumen real de eventos antes de decidir si se
-# manda por Telegram.
+# via _obtener_eventos_regla, igual que sobre-revolucion. TODAVIA NO esta
+# conectada a ninguna alerta/resumen -- se deja lista aca a proposito.
+#
+# El umbral de la regla se probo primero en 1 min (2026-08-26) para validar
+# los 3 niveles de criticidad con datos reales, pero eso genero demasiado
+# ruido: en 25.5h dieron 1789 eventos en Bogota (Intl/Mercedes/Foton), 94% de
+# ellos "Baja" (1-10min) -- paradas normales del ciclo de recoleccion, no
+# ralenti excesivo real. Se subio a 10 min el mismo dia, que coincide con el
+# limite inferior de "Media", asi que de aca en mas la regla practicamente
+# nunca va a devolver "Baja" (solo eventos ya cerca de 10 min justos).
 # ---------------------------------------------------------------------------
 
 NOMBRE_REGLA_RALENTI = 'Ralentí Excesivo Sin PTO'
@@ -717,7 +722,9 @@ NOMBRE_REGLA_RALENTI = 'Ralentí Excesivo Sin PTO'
 
 def clasificar_criticidad_ralenti(duracion_min):
     """Baja: 1-10 min, Media: 11-20 min, Alta: mas de 20 min (criterio acordado
-    con el usuario, mismos rangos para International/Mercedes/Foton)."""
+    con el usuario, mismos rangos para International/Mercedes/Foton). En la
+    practica "Baja" casi no va a aparecer -- ver nota arriba sobre el umbral
+    de la regla en Geotab (10 min)."""
     if duracion_min > 20:
         return 'ALTA'
     elif duracion_min > 10:
