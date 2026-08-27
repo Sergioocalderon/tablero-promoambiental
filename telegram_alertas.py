@@ -175,6 +175,8 @@ def responder_mensajes_nuevos(api, estado):
       sin que un admin tenga que actualizar el secret TELEGRAM_CHAT_ID a mano.
     - /reporte: genera al vuelo un PDF con todas las fallas activas (cualquier
       criticidad) y se lo manda a quien lo pidio.
+    - /reporte_velocidad: genera al vuelo un PDF con los excesos de velocidad
+      (regla NOMBRE_REGLA_VELOCIDAD) del turno en curso hasta este momento.
     Usa el offset guardado en el estado para no re-procesar ni re-responder los
     mismos mensajes en cada corrida del cron (cada 5 min); nunca lanza una
     excepcion que frene el resto del script."""
@@ -214,6 +216,30 @@ def responder_mensajes_nuevos(api, estado):
                 print(f"Bienvenida enviada a chat_id={chat_id}")
             except Exception as e:
                 print(f"*** No se pudo enviar bienvenida a chat_id={chat_id}: {e} ***")
+
+        elif texto.startswith("/reporte_velocidad"):
+            ruta_pdf = None
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": "⏳ Estamos gestionando tu solicitud, dame un momento..."},
+                    timeout=15,
+                )
+            except Exception as e:
+                print(f"*** No se pudo enviar el aviso de 'procesando' a chat_id={chat_id}: {e} ***")
+            try:
+                ahora_local = datetime.now(ZONA_BOGOTA)
+                _, inicio_turno_actual, _ = _limites_turno(ahora_local)
+                ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+                generar_pdf_reporte_velocidad(api, ruta_pdf, inicio_turno_actual, ahora_local)
+                nombre_archivo = f"reporte_velocidad_{ahora_local.strftime('%Y%m%d_%H%M')}.pdf"
+                _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, "🚨 Excesos de velocidad (turno en curso)")
+                print(f"Reporte de velocidad PDF enviado a chat_id={chat_id}")
+            except Exception as e:
+                print(f"*** No se pudo generar/enviar el reporte de velocidad PDF a chat_id={chat_id}: {e} ***")
+            finally:
+                if ruta_pdf and os.path.exists(ruta_pdf):
+                    os.remove(ruta_pdf)
 
         elif texto.startswith("/reporte"):
             ruta_pdf = None
@@ -918,6 +944,77 @@ def revisar_regeneracion_pendiente(api, claves_ya_notificadas):
 
 
 # ---------------------------------------------------------------------------
+# Excesos de velocidad -- limite operativo propio de la flota de recoleccion
+# (Compactador/Ampliroll, 60 km/h), no el limite legal de cada via. Se
+# valido con datos reales de 14 dias contra las otras 11 reglas de velocidad
+# que existen en Geotab (varias son ruido: una regla de prueba a 10km/h que
+# quedo activa sin querer, umbrales fijos que no distinguen tipo de via,
+# etc.) -- el usuario eligio esta explicitamente (2026-08-27) por ser el
+# limite propio de su tipo de vehiculo, con volumen de eventos manejable.
+# ---------------------------------------------------------------------------
+
+NOMBRE_REGLA_VELOCIDAD = 'R_LÍMITE DE VELOCIDAD DE 60 KM/H COMPACTADOR Y AMPLIROLL'
+UMBRAL_VELOCIDAD_KMH = 60
+DURACION_MINIMA_VELOCIDAD_SEG = 10  # la regla en Geotab ya exige sostenido 10s+; se repite
+# aca como piso propio por si la condicion en Geotab cambia mas adelante.
+
+ID_DIAGNOSTICO_VELOCIDAD_PICO = 'DiagnosticEngineRoadSpeedId'  # mismo diagnostico que usa la condicion de la regla
+VENTANA_VELOCIDAD_PICO_SEGUNDOS = 15  # margen alrededor del evento, igual criterio que _agregar_rpm_pico
+
+
+def _agregar_velocidad_pico(api, eventos_candidatos, ventana_segundos=VENTANA_VELOCIDAD_PICO_SEGUNDOS):
+    """Agrega 'velocidad_pico' (float en km/h, o None) a cada evento (dict con
+    id_veh, activeFrom, activeTo), consultando StatusData del diagnostico de
+    velocidad de rodaje en +/-ventana_segundos -- mismo patron que
+    _agregar_rpm_pico (el ExceptionEvent marca cuando la condicion se sostuvo,
+    pero el pico real puede caer un poco antes/despues del activeFrom/activeTo)."""
+    if not eventos_candidatos:
+        return eventos_candidatos
+
+    vehiculos = list({e['id_veh'] for e in eventos_candidatos})
+    desde_global = min(e['activeFrom'] for e in eventos_candidatos) - timedelta(seconds=ventana_segundos)
+    hasta_global = max(e['activeTo'] for e in eventos_candidatos) + timedelta(seconds=ventana_segundos)
+
+    llamadas = [
+        ('Get', {
+            'typeName': 'StatusData',
+            'search': {
+                'diagnosticSearch': {'id': ID_DIAGNOSTICO_VELOCIDAD_PICO},
+                'deviceSearch': {'id': id_veh},
+                'fromDate': desde_global.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'toDate': hasta_global.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            }
+        })
+        for id_veh in vehiculos
+    ]
+    try:
+        resultados = api.multi_call(llamadas)
+    except Exception as e:
+        print(f"*** No se pudo consultar velocidad pico para el reporte de excesos: {e} ***")
+        for ev in eventos_candidatos:
+            ev['velocidad_pico'] = None
+        return eventos_candidatos
+
+    lecturas_por_vehiculo = {}
+    for id_veh, lecturas in zip(vehiculos, resultados):
+        puntos = []
+        for l in (lecturas or []):
+            try:
+                puntos.append((pd.to_datetime(l['dateTime']), float(l.get('data'))))
+            except (TypeError, ValueError):
+                continue
+        lecturas_por_vehiculo[id_veh] = puntos
+
+    for e in eventos_candidatos:
+        desde = e['activeFrom'] - timedelta(seconds=ventana_segundos)
+        hasta = e['activeTo'] + timedelta(seconds=ventana_segundos)
+        valores = [v for (t, v) in lecturas_por_vehiculo.get(e['id_veh'], []) if desde <= t <= hasta]
+        e['velocidad_pico'] = max(valores) if valores else None
+
+    return eventos_candidatos
+
+
+# ---------------------------------------------------------------------------
 # Reporte PDF de fallas activas, bajo demanda (comando /reporte en Telegram)
 # ---------------------------------------------------------------------------
 
@@ -1262,6 +1359,174 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
     # mandar el PDF (ej. el resumen por hora no manda nada si dio 0)
 
 
+def generar_pdf_reporte_velocidad(api, ruta_salida, desde_local, hasta_local):
+    """Genera el PDF de excesos de velocidad (regla NOMBRE_REGLA_VELOCIDAD) ocurridos
+    en [desde_local, hasta_local) -- mismo estilo visual que generar_pdf_reporte_fallas
+    (tarjeta por vehiculo, encabezado oscuro, fondo gris). A diferencia del reporte de
+    fallas (foto del estado actual), este SIEMPRE es sobre una ventana de tiempo -- un
+    exceso de velocidad es un evento puntual, no un estado que sigue 'activo'."""
+    devices = {d['id']: d for d in api.get('Device')}
+    mapa_grupos = obtener_mapa_grupos(api)
+    desde_utc = desde_local.astimezone(timezone.utc)
+    hasta_utc = hasta_local.astimezone(timezone.utc)
+
+    candidatos = _obtener_eventos_regla(api, NOMBRE_REGLA_VELOCIDAD, desde_utc, hasta_utc, DURACION_MINIMA_VELOCIDAD_SEG)
+    if CIUDAD_FILTRO:
+        candidatos = [
+            c for c in candidatos
+            if resolver_ciudad_tipologia(devices.get(c['id_veh'], {}).get('groups'), mapa_grupos)[0] == CIUDAD_FILTRO
+        ]
+    _agregar_velocidad_pico(api, candidatos)
+
+    estilos = getSampleStyleSheet()
+    estilo_celda = ParagraphStyle('celda_vel', parent=estilos['Normal'], fontSize=8.5, leading=12, textColor=COLOR_TEXTO_OSCURO_PDF)
+    estilo_dato = ParagraphStyle('dato_vel', parent=estilo_celda, fontName='Courier-Bold', textColor=colors.HexColor('#0284C7'))
+    estilo_titulo = ParagraphStyle('titulo_vel', parent=estilos['Title'], textColor=colors.white, alignment=1)
+    estilo_subtitulo = ParagraphStyle('subtitulo_vel', parent=estilos['Normal'], textColor=colors.HexColor('#C7D2E0'), alignment=1)
+    estilo_movil = ParagraphStyle('movil_vel', parent=estilos['Heading4'], textColor=COLOR_TEXTO_OSCURO_PDF, spaceAfter=0, spaceBefore=0)
+    estilo_movil_detalle = ParagraphStyle('movil_detalle_vel', parent=estilos['Normal'], textColor=COLOR_TEXTO_GRIS_PDF, fontSize=9, alignment=2)
+    estilo_resumen_titulo = ParagraphStyle('resumen_titulo_vel', parent=estilos['Heading3'], textColor=COLOR_TEXTO_OSCURO_PDF, spaceAfter=6)
+    estilo_resumen_texto = ParagraphStyle('resumen_texto_vel', parent=estilos['Normal'], textColor=COLOR_TEXTO_OSCURO_PDF, fontSize=9, leading=13)
+
+    subtitulo = (
+        f"Límite operativo {UMBRAL_VELOCIDAD_KMH} km/h — Compactadores/Ampliroll | {CIUDAD_FILTRO or 'Toda la flota'} | "
+        f"{desde_local.strftime('%H:%M')} a {hasta_local.strftime('%H:%M')} del {desde_local.strftime('%d/%m/%Y')}"
+    )
+    encabezado = Table(
+        [[Paragraph("Reporte de Excesos de Velocidad", estilo_titulo)], [Paragraph(subtitulo, estilo_subtitulo)]],
+        colWidths=[25 * cm]
+    )
+    encabezado.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), COLOR_HEADER_PDF),
+        ('ROUNDEDCORNERS', [10, 10, 10, 10]),
+        ('TOPPADDING', (0, 0), (0, 0), 14), ('BOTTOMPADDING', (0, 0), (0, 0), 2),
+        ('TOPPADDING', (0, 1), (0, 1), 2), ('BOTTOMPADDING', (0, 1), (0, 1), 14),
+    ]))
+    elementos = [encabezado, Spacer(1, 0.4 * cm)]
+
+    if not candidatos:
+        elementos.append(Paragraph("No hubo excesos de velocidad en este turno.", estilos['Normal']))
+    else:
+        por_vehiculo = {}
+        for c in candidatos:
+            por_vehiculo.setdefault(c['id_veh'], []).append(c)
+
+        filas_reporte = []
+        for id_veh, eventos in por_vehiculo.items():
+            vehiculo = devices.get(id_veh, {})
+            marca = resolver_marca(vehiculo.get('groups'), mapa_grupos) or 'Sin marca'
+            eventos.sort(key=lambda e: e['activeFrom'])
+            filas_reporte.append({'movil': vehiculo.get('name', id_veh), 'marca': marca, 'eventos': eventos})
+
+        # --- Resumen del turno ---
+        total_eventos = len(candidatos)
+        total_vehiculos = len(filas_reporte)
+        top_vehiculos = sorted(filas_reporte, key=lambda f: -len(f['eventos']))[:3]
+        texto_top = "<br/>".join(
+            f"{i}. {f['movil']} ({len(f['eventos'])} evento(s))" for i, f in enumerate(top_vehiculos, 1)
+        ) or "—"
+        picos_validos = [e.get('velocidad_pico') for e in candidatos if e.get('velocidad_pico') is not None]
+        texto_pico = f"{max(picos_validos):.0f} km/h" if picos_validos else "Sin dato"
+
+        fila_resumen = [[
+            Paragraph(f"<b>Total de excesos:</b><br/>{total_eventos} evento(s) en {total_vehiculos} vehículo(s)", estilo_resumen_texto),
+            Paragraph(f"<b>Vehículos más frecuentes:</b><br/>{texto_top}", estilo_resumen_texto),
+            Paragraph(f"<b>Velocidad pico más alta registrada:</b><br/>{texto_pico}", estilo_resumen_texto),
+        ]]
+        tabla_resumen_titulo = Table([[Paragraph("Resumen del Turno", estilo_resumen_titulo)]], colWidths=[25 * cm])
+        tabla_resumen_titulo.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 14), ('TOPPADDING', (0, 0), (-1, -1), 12), ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        tabla_resumen_cuerpo = Table([fila_resumen[0]], colWidths=[8.3 * cm, 8.3 * cm, 8.4 * cm])
+        tabla_resumen_cuerpo.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (0, 0), 14), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 14),
+        ]))
+        resumen_envoltorio = Table([[tabla_resumen_titulo], [tabla_resumen_cuerpo]], colWidths=[25 * cm])
+        resumen_envoltorio.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+            ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+            ('LINEBEFORE', (0, 0), (0, -1), 3, COLOR_RESUMEN_BORDE_PDF),
+            ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0), ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elementos.append(resumen_envoltorio)
+        elementos.append(Spacer(1, 0.4 * cm))
+
+        # --- Una tarjeta por vehiculo, mas eventos primero ---
+        filas_reporte.sort(key=lambda f: (-len(f['eventos']), f['movil']))
+        for f in filas_reporte:
+            encabezado_veh = Table(
+                [[
+                    Paragraph(f"Placa: {f['movil']}", estilo_movil),
+                    Paragraph(f"{f['marca']} | {len(f['eventos'])} exceso(s) en el turno", estilo_movil_detalle),
+                ]],
+                colWidths=[14 * cm, 11 * cm]
+            )
+            encabezado_veh.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), COLOR_VEHICULO_HEADER_PDF),
+                ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (0, 0), 12), ('RIGHTPADDING', (1, 0), (1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+            elementos.append(encabezado_veh)
+            elementos.append(Spacer(1, 0.15 * cm))
+
+            datos_tabla = [['Hora', 'Duración sostenida', 'Velocidad pico', f'Exceso sobre {UMBRAL_VELOCIDAD_KMH} km/h']]
+            for e in f['eventos']:
+                hora = e['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+                pico = e.get('velocidad_pico')
+                texto_pico = f"{pico:.0f} km/h" if pico is not None else "Sin dato"
+                texto_exceso = f"+{pico - UMBRAL_VELOCIDAD_KMH:.0f} km/h" if pico is not None else "—"
+                datos_tabla.append([
+                    Paragraph(hora, estilo_celda),
+                    Paragraph(f"{e['duracion_seg']:.0f} seg", estilo_celda),
+                    Paragraph(texto_pico, estilo_dato),
+                    Paragraph(texto_exceso, estilo_dato),
+                ])
+
+            tabla = Table(datos_tabla, colWidths=[6.5 * cm, 6 * cm, 6 * cm, 6.5 * cm], repeatRows=1)
+            tabla.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_TEXTO_GRIS_PDF),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 7.5),
+                ('LINEBELOW', (0, 0), (-1, 0), 0.75, colors.HexColor('#D1D5DB')),
+                ('FONTSIZE', (0, 1), (-1, -1), 8.5),
+                ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#EEF0F3')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 7), ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+            ]))
+            elementos.append(tabla)
+            elementos.append(Spacer(1, 0.35 * cm))
+
+    doc = SimpleDocTemplate(
+        ruta_salida, pagesize=landscape(letter),
+        leftMargin=1 * cm, rightMargin=1 * cm, topMargin=1 * cm, bottomMargin=1 * cm,
+    )
+    doc.build(elementos, onFirstPage=_fondo_pagina_reporte, onLaterPages=_fondo_pagina_reporte)
+    return len(candidatos)
+
+
+def _enviar_reporte_velocidad_completo(api, desde_local, hasta_local, nombre_archivo, caption):
+    """Genera y manda el PDF de excesos de velocidad del turno [desde_local, hasta_local).
+    Siempre se manda, incluso sin eventos -- mismo criterio que el reporte de fallas
+    (el supervisor espera un documento cada turno, silencio no es una opcion)."""
+    ruta_pdf = None
+    try:
+        ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+        n_eventos = generar_pdf_reporte_velocidad(api, ruta_pdf, desde_local, hasta_local)
+        for chat_id in _chat_ids_destino():
+            _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
+        print(f"{caption}: PDF enviado ({n_eventos} excesos de velocidad).")
+    except Exception as e:
+        print(f"*** No se pudo generar/enviar el PDF de velocidad ({caption}): {e} ***")
+    finally:
+        if ruta_pdf and os.path.exists(ruta_pdf):
+            os.remove(ruta_pdf)
+
+
 def _enviar_documento_telegram(chat_id, ruta_archivo, nombre_archivo, caption=None):
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     with open(ruta_archivo, 'rb') as f:
@@ -1446,6 +1711,10 @@ def enviar_resumenes_por_turno(api, estado):
     nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
     caption = f"📄 Fallas activas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
     _enviar_reporte_fallas_completo(api, nombre_archivo, caption)
+
+    nombre_archivo_vel = f"velocidad_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
+    caption_vel = f"🚨 Excesos de velocidad — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
+    _enviar_reporte_velocidad_completo(api, inicio_turno, fin_turno, nombre_archivo_vel, caption_vel)
 
 
 # ---------------------------------------------------------------------------
