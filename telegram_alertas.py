@@ -77,6 +77,7 @@ def cargar_estado():
     default = {
         "revolucion_notificados": [], "fallas_activas": [], "ultima_hora_resumen": None,
         "ultimo_update_id_procesado": None, "suscriptores": [], "ultimo_turno_fin": None,
+        "regeneracion_dpf_notificados": [],
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -87,7 +88,7 @@ def cargar_estado():
             print(f"*** Estado en '{ESTADO_PATH}' tiene formato viejo/invalido (no es un dict) -- se ignora. ***")
             return default
         estado = dict(default)
-        for clave in ("revolucion_notificados", "fallas_activas", "suscriptores"):
+        for clave in ("revolucion_notificados", "fallas_activas", "suscriptores", "regeneracion_dpf_notificados"):
             valor = datos.get(clave)
             if isinstance(valor, list):
                 estado[clave] = valor
@@ -112,6 +113,7 @@ def guardar_estado(estado):
         "ultimo_update_id_procesado": estado.get("ultimo_update_id_procesado"),
         "suscriptores": estado.get("suscriptores", []),
         "ultimo_turno_fin": estado.get("ultimo_turno_fin"),
+        "regeneracion_dpf_notificados": estado.get("regeneracion_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -875,6 +877,44 @@ def detectar_regeneracion_pendiente(api, devices, mapa_grupos, f_inicio, f_fin):
     return pendientes
 
 
+def revisar_regeneracion_pendiente(api, claves_ya_notificadas):
+    """Revisa compactadores de Bogota con testigo DPF pendiente (ver
+    detectar_regeneracion_pendiente) y notifica los que todavia no se habian
+    avisado. La clave incluye el inicio del episodio, asi que un mismo
+    episodio se notifica UNA sola vez aunque el testigo siga encendido en las
+    siguientes corridas del cron (misma logica anti-duplicados que fallas y
+    sobre-revolucion)."""
+    devices = {d['id']: d for d in api.get('Device')}
+    mapa_grupos = obtener_mapa_grupos(api)
+    f_fin = datetime.now(timezone.utc)
+    f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
+    pendientes = detectar_regeneracion_pendiente(api, devices, mapa_grupos, f_inicio, f_fin)
+
+    claves_nuevas = []
+    for p in pendientes:
+        clave = f"{p['id_veh']}|{p['lampara_desde'].isoformat()}"
+        if clave in claves_ya_notificadas:
+            continue
+        hora_local = p['lampara_desde'].astimezone(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        texto = (
+            f"🛑 REGENERACIÓN DPF PENDIENTE\n"
+            f"Vehículo: {p['movil']}\n"
+            f"Testigo encendido desde: {hora_local}\n"
+            f"Lleva {p['minutos_transcurridos']:.0f} minutos sin regenerar (ni automática ni manual).\n"
+            f"El conductor debe DETENERSE y realizar la regeneración manual."
+        )
+        if enviar_telegram(texto):
+            print(f"Notificado (DPF pendiente): {clave}")
+            claves_nuevas.append(clave)
+
+    if not claves_nuevas:
+        print("Sin regeneraciones DPF pendientes nuevas que notificar.")
+    else:
+        print(f"Total regeneraciones DPF pendientes notificadas en esta corrida: {len(claves_nuevas)}")
+
+    return claves_nuevas
+
+
 # ---------------------------------------------------------------------------
 # Reporte PDF de fallas activas, bajo demanda (comando /reporte en Telegram)
 # ---------------------------------------------------------------------------
@@ -1471,7 +1511,8 @@ def main():
     api = conectar_geotab()
     estado = cargar_estado()
     print(f"Estado cargado: {len(estado['revolucion_notificados'])} eventos de revolucion, "
-          f"{len(estado['fallas_activas'])} fallas ya notificadas antes.")
+          f"{len(estado['fallas_activas'])} fallas ya notificadas antes, "
+          f"{len(estado['regeneracion_dpf_notificados'])} regeneraciones DPF ya notificadas antes.")
 
     # Se guarda el estado pase lo que pase (incluso si algo falla a mitad de camino),
     # para no volver a notificar lo que ya se envio en esta misma corrida. Sin esto,
@@ -1497,6 +1538,10 @@ def main():
         # cron desaparecia de la memoria y se volvia a notificar como "nueva" la
         # proxima vez que volviera a 'Active', mandando la misma falla una y otra vez.
         estado['fallas_activas'] = list(claves_fallas_previas | claves_fallas_actuales)
+
+        claves_dpf_previas = set(estado['regeneracion_dpf_notificados'])
+        claves_dpf_nuevas = revisar_regeneracion_pendiente(api, claves_dpf_previas)
+        estado['regeneracion_dpf_notificados'] = list(claves_dpf_previas | set(claves_dpf_nuevas))
 
         enviar_resumenes_por_hora(api, estado)
         enviar_resumenes_por_turno(api, estado)
