@@ -734,6 +734,148 @@ def clasificar_criticidad_ralenti(duracion_min):
 
 
 # ---------------------------------------------------------------------------
+# Regeneracion DPF -- deteccion de compactadores que se quedan con la lampara
+# de "regeneracion requerida" encendida sin resolverse (ni automatica ni
+# manualmente). TODAVIA NO esta conectada a ninguna alerta -- se deja lista
+# aca a proposito, igual que ralenti.
+#
+# Alcance: compactadores dobles de Bogota, marca International o Foton -- son
+# los UNICOS compactadores de Bogota con esta telemetria disponible en Geotab
+# (validado con datos reales el 2026-08-26/27). El resto de compactadores de
+# Bogota -- el Mercedes 1164-NWY952 (doble) y los Volkswagen 1307-LSX407 /
+# 1308-LSX408 (sencillos, los unicos 2 de toda la flota) -- no reportan
+# NINGUNA variable de DPF en Geotab, asi que quedan fuera hasta que se revise
+# la configuracion de su dispositivo con el area tecnica (no es un tema de
+# umbral, es que no hay dato que leer).
+#
+# Como se define "resuelto": el testigo (2109) se prende, y se busca despues
+# el primer 'regeneracion activa confirmada' (2740==1 -- OJO que 2740 tiene un
+# tercer valor, 2=inhibida, que NO es lo mismo y no cuenta) o el interruptor
+# de fuerza (2992==1).
+#
+# UMBRAL_SIN_REGENERAR_MINUTOS = 20, a pedido explicito del usuario -- no es
+# un umbral de "cuanto tardaria en resolverse solo" (eso, validado con datos
+# reales de 90 dias fleet-wide, tiene mediana 2.7h, muy por encima de 20 min).
+# La idea NO es medir si el sistema automatico lo hubiera resuelto solo, sino
+# avisar lo antes posible para que el conductor pare y regenere manualmente
+# -- el objetivo es prevenir que se acumule demasiado holl�n en el filtro y
+# se dane el sistema, no esperar a confirmar que quedo "sin resolver". Con
+# este umbral tan bajo, la alerta va a dispararse practicamente cada vez que
+# se prenda el testigo (el interruptor manual casi no se usa hoy en dia --
+# encontrado un unico caso real en toda la flota en 90 dias).
+# ---------------------------------------------------------------------------
+
+ID_LAMPARA_DPF = 'DiagnosticDieselParticulateFilterLampId'
+ID_INTERRUPTOR_DPF = 'aXfHYX0HFtUaOOr_scNuSsg'
+ID_REGEN_ACTIVA_DPF = 'a2MenjAEB90iHUfy6X1oc2A'
+UMBRAL_SIN_REGENERAR_MINUTOS = 20
+
+
+def vehiculos_compactadores_bogota_con_dpf(devices, mapa_grupos):
+    """Devuelve los id de los compactadores dobles de Bogota (International o
+    Foton) -- ver nota de alcance arriba. 'devices' es {id: vehiculo}."""
+    resultado = []
+    for id_veh, vehiculo in devices.items():
+        grupos = vehiculo.get('groups')
+        ciudad, tipologia = resolver_ciudad_tipologia(grupos, mapa_grupos)
+        if ciudad != 'Bogotá' or tipologia != 'COMPACTADORES DOBLES':
+            continue
+        marca = (resolver_marca(grupos, mapa_grupos) or '').lower()
+        if marca.startswith('international') or marca.startswith('foton'):
+            resultado.append(id_veh)
+    return resultado
+
+
+def _episodios_de_encendido(puntos, gap_max_horas=1):
+    """Agrupa lecturas consecutivas en valor exacto 1 (no >=1, para no
+    confundir con el 2=inhibida de 2740) separadas por menos de gap_max_horas
+    en un solo episodio; devuelve el momento de inicio de cada uno."""
+    episodios = []
+    en_episodio = False
+    ultimo_on = None
+    for t, v in puntos:
+        if v == 1:
+            if not en_episodio:
+                episodios.append(t)
+                en_episodio = True
+            elif ultimo_on and (t - ultimo_on).total_seconds() > gap_max_horas * 3600:
+                episodios.append(t)
+            ultimo_on = t
+        else:
+            en_episodio = False
+    return episodios
+
+
+def _traer_serie_statusdata(api, diagnostic_id, vehiculos_ids, f_inicio, f_fin):
+    """Trae StatusData de un diagnostico para varios vehiculos (multi_call en
+    lotes de 5, igual que el resto del script) y devuelve {id_veh: [(dateTime, valor), ...]}
+    ordenado por fecha."""
+    llamadas = [
+        ('Get', {
+            'typeName': 'StatusData',
+            'search': {
+                'diagnosticSearch': {'id': diagnostic_id},
+                'deviceSearch': {'id': id_veh},
+                'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            }
+        })
+        for id_veh in vehiculos_ids
+    ]
+    resultados = []
+    for i in range(0, len(llamadas), 5):
+        resultados.extend(api.multi_call(llamadas[i:i + 5]))
+    series = {}
+    for id_veh, lecturas in zip(vehiculos_ids, resultados):
+        puntos = []
+        for l in (lecturas or []):
+            try:
+                puntos.append((pd.to_datetime(l['dateTime']), float(l['data'])))
+            except (TypeError, ValueError, KeyError):
+                continue
+        puntos.sort()
+        series[id_veh] = puntos
+    return series
+
+
+def detectar_regeneracion_pendiente(api, devices, mapa_grupos, f_inicio, f_fin):
+    """Para cada compactador de Bogota con telemetria de DPF disponible (ver
+    vehiculos_compactadores_bogota_con_dpf), busca episodios de lampara
+    encendida en [f_inicio, f_fin) y verifica si se resolvieron a tiempo.
+    Devuelve una lista de dicts (uno por episodio SIN resolver dentro de
+    UMBRAL_SIN_REGENERAR_MINUTOS) con id_veh, lampara_desde y
+    minutos_transcurridos -- candidatos a alertar. No manda nada a Telegram,
+    solo detecta."""
+    vehiculos_ids = vehiculos_compactadores_bogota_con_dpf(devices, mapa_grupos)
+    if not vehiculos_ids:
+        return []
+
+    serie_lampara = _traer_serie_statusdata(api, ID_LAMPARA_DPF, vehiculos_ids, f_inicio, f_fin)
+    serie_interruptor = _traer_serie_statusdata(api, ID_INTERRUPTOR_DPF, vehiculos_ids, f_inicio, f_fin)
+    serie_regen = _traer_serie_statusdata(api, ID_REGEN_ACTIVA_DPF, vehiculos_ids, f_inicio, f_fin)
+
+    ahora = datetime.now(timezone.utc)
+    pendientes = []
+    for id_veh in vehiculos_ids:
+        episodios = _episodios_de_encendido(serie_lampara.get(id_veh, []))
+        regen_confirmada = [t for t, v in serie_regen.get(id_veh, []) if v == 1]
+        interruptor_activado = [t for t, v in serie_interruptor.get(id_veh, []) if v == 1]
+
+        for t_lampara in episodios:
+            resuelto = any(t >= t_lampara for t in regen_confirmada) or any(t >= t_lampara for t in interruptor_activado)
+            if resuelto:
+                continue
+            minutos_transcurridos = (ahora - t_lampara).total_seconds() / 60
+            if minutos_transcurridos >= UMBRAL_SIN_REGENERAR_MINUTOS:
+                pendientes.append({
+                    'id_veh': id_veh, 'movil': devices.get(id_veh, {}).get('name', id_veh),
+                    'lampara_desde': t_lampara, 'minutos_transcurridos': minutos_transcurridos,
+                })
+
+    return pendientes
+
+
+# ---------------------------------------------------------------------------
 # Reporte PDF de fallas activas, bajo demanda (comando /reporte en Telegram)
 # ---------------------------------------------------------------------------
 
