@@ -1,0 +1,136 @@
+{
+  "activeFrom": "2026-08-15 18:03:44.759000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla en proceso de prueba.",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticPowerTakeoffEngagedId",
+                  "unitOfMeasure": "UnitOfMeasureNoneId"
+                },
+                "id": "a6WPaUdN6NUqG9oROyX2h_A"
+              }
+            ],
+            "conditionType": "IsValueLessThan",
+            "sequence": "0000000000000000",
+            "value": 1,
+            "id": "aKRLUH-px3U-Ii2qWxnnDvA"
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "conditionType": "Speed",
+                    "sequence": "0000000000000000",
+                    "id": "axxDLrpfk90--0Wy7MDHj2w"
+                  }
+                ],
+                "conditionType": "IsValueLessThan",
+                "sequence": "0000000000000000",
+                "unit": "km/h",
+                "value": 1,
+                "id": "am0TDIwHlg0KX81NmvCbFUg"
+              },
+              {
+                "conditionType": "Ignition",
+                "sequence": "0000000000000001",
+                "value": 1,
+                "id": "a_t_nBAta_0G72d3TeA2vRg"
+              }
+            ],
+            "conditionType": "And",
+            "sequence": "0000000000000001",
+            "id": "aRIDClXAPlEOo8oAWEbsDEg"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000000",
+        "id": "aeX3-7HAyyUee5iLsCQcobg"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 60,
+    "id": "aLwpFwX9qTEOj-s34IB08BA"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "arC1QUFFRUkCq4S7Fq6Ma4A"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aMrKDnyilaU-RIbRW64oFHg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "aSC_C4Zh4OkyBDEAsHvY30w"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "awawRu3cOREKWenqrdrIuUQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticPowerTakeoffEngagedId"
+      },
+      "id": "azPQvuJ4BVEGTZOwTQyQA8A"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "awawRu3cOREKWenqrdrIuUQ",
+  "name": "Ralentí Excesivo Sin PTO",
+  "groups": [
+    {
+      "id": "b2C03"
+    }
+  ],
+  "version": "000000000000356e"
+}
