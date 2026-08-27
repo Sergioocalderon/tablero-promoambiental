@@ -10,7 +10,9 @@ configurado actualmente).
 """
 import os
 import json
+import re
 import tempfile
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from xml.sax.saxutils import escape as escapar_xml
 from zoneinfo import ZoneInfo
@@ -921,11 +923,27 @@ def revisar_regeneracion_pendiente(api, claves_ya_notificadas):
 
 ORDEN_CRITICIDAD = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
 COLOR_POR_CRITICIDAD = {
-    'ALTA': colors.HexColor('#ED7D31'), 'MEDIA': colors.HexColor('#FFC000'), 'BAJA': colors.HexColor('#A9D18E'),
+    'ALTA': colors.HexColor('#EF4444'), 'MEDIA': colors.HexColor('#F59E0B'), 'BAJA': colors.HexColor('#9CA3AF'),
 }
-COLOR_TITULO_PDF = colors.HexColor('#1F4E79')
-COLOR_CIUDAD_PDF = colors.HexColor('#0B5345')
 COLOR_DESTACADO = colors.HexColor('#C00000')
+
+# Paleta del diseño tipo "tarjeta" del PDF (a pedido del usuario, mockup 2026-08-27):
+# fondo gris claro de pagina, encabezado azul oscuro, aviso de filtro en verde, tarjeta
+# de resumen con borde azul, y encabezado liviano gris-azulado por vehiculo.
+COLOR_FONDO_PDF = colors.HexColor('#F5F7FA')
+COLOR_HEADER_PDF = colors.HexColor('#0F1B3D')
+COLOR_FILTRO_FONDO_PDF = colors.HexColor('#E8F5E9')
+COLOR_FILTRO_BORDE_PDF = colors.HexColor('#2E7D32')
+COLOR_RESUMEN_BORDE_PDF = colors.HexColor('#2563EB')
+COLOR_VEHICULO_HEADER_PDF = colors.HexColor('#DCE3EC')
+COLOR_TEXTO_OSCURO_PDF = colors.HexColor('#1F2937')
+COLOR_TEXTO_GRIS_PDF = colors.HexColor('#6B7280')
+
+# Categorias que no le sirven al supervisor de patio (conectividad/telemetria del
+# dispositivo, no del vehiculo) -- se ocultan del PDF a pedido del usuario. 'General'
+# tambien se oculta porque en la practica son diagnosticos que Geotab no nombra
+# ("Unknown Diagnostic") y no se puede saber a que sistema pertenecen.
+CATEGORIAS_OCULTAS_PDF = {'Telemática/GPS', 'General'}
 
 # Categoriza por sistema del vehiculo buscando palabras clave en el NOMBRE que ya da
 # Geotab para el diagnostico -- Geotab no trae un campo nativo de sistema/categoria
@@ -960,27 +978,69 @@ CATEGORIAS_SISTEMA = [
 ]
 
 
+# Fallas del DISPOSITIVO Geotab (desconexion, bateria del dispositivo, comunicacion
+# de red/CAN BUS) suelen mencionar "motor", "bateria" o "voltaje" de pasada en su
+# descripcion (ej. "Fallo del dispositivo telematico: fuente de alimentacion de bajo
+# voltaje"), lo que las hacia caer en Motor/Electrico en vez de Telematica/GPS -- y
+# como esa categoria se oculta del PDF, se colaban visibles cuando no deberian. Se
+# revisa esto ANTES que el resto de las categorias, sea cual sea el resto del texto.
+_PATRON_FALLA_DISPOSITIVO = re.compile(r'\bfall[oa] (?:de|del) dispositivo\b', re.IGNORECASE)
+
+
 def _categorizar_falla(nombre_diagnostico):
     """Sistema del vehiculo al que pertenece la falla, segun palabras clave en el
-    nombre que ya da Geotab. 'General' si no coincide con ninguna categoria conocida."""
+    nombre que ya da Geotab. 'General' si no coincide con ninguna categoria conocida.
+    Coincide por palabra completa (limite de palabra), no por substring suelto -- si
+    no, por ejemplo la palabra clave 'abs' (para ABS) coincidia dentro de 'presión
+    ABSOLUTA', categorizando mal una falla real de postratamiento como si fuera ABS
+    (encontrado por el usuario con datos reales, vehiculo 1308-LSX408)."""
     nombre_l = (nombre_diagnostico or '').lower()
+    if _PATRON_FALLA_DISPOSITIVO.search(nombre_l):
+        return 'Telemática/GPS'
     for categoria, palabras in CATEGORIAS_SISTEMA:
-        if any(p in nombre_l for p in palabras):
+        if any(re.search(r'\b' + re.escape(p) + r'\b', nombre_l) for p in palabras):
             return categoria
     return 'General'
 
 
+def _fondo_pagina_reporte(canvas, doc):
+    """Pinta el fondo gris claro de cada pagina -- reportlab no tiene color de pagina
+    nativo, hay que pintarlo a mano antes de que se dibuje el contenido."""
+    canvas.saveState()
+    canvas.setFillColor(COLOR_FONDO_PDF)
+    canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], fill=1, stroke=0)
+    canvas.restoreState()
+
+
+def _pill_criticidad(criticidad, estilo_pill):
+    """Devuelve el 'badge' redondeado de criticidad (tabla de una celda) que se usa
+    como primera columna de cada fila de falla."""
+    pill = Table([[Paragraph(criticidad, estilo_pill)]], colWidths=[1.8 * cm], rowHeights=[0.55 * cm])
+    pill.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), COLOR_POR_CRITICIDAD.get(criticidad, colors.grey)),
+        ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    return pill
+
+
 def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=None):
-    """Genera un PDF con fallas activas (cualquier criticidad), agrupadas por ciudad
-    y luego por criticidad -- mismo espiritu que el reporte de Google Sheets del
-    usuario, pero usando directo el nombre/codigo/criticidad que da Geotab (sin el
-    diccionario manual de 1000+ codigos), para no mantener esa misma informacion
-    duplicada en dos lugares distintos.
+    """Genera un PDF con fallas activas (cualquier criticidad), una tarjeta por
+    vehiculo con sus fallas ordenadas por criticidad -- diseño acordado con el
+    usuario (mockup 2026-08-27): tarjetas redondeadas, badges de color por
+    criticidad, y un resumen arriba con los totales y los sistemas mas afectados.
+    Usa directo el nombre/codigo/criticidad que da Geotab (sin el diccionario manual
+    de 1000+ codigos), para no mantener esa misma informacion duplicada en dos
+    lugares distintos.
+
+    Se ocultan las fallas de CATEGORIAS_OCULTAS_PDF (telemetria/conectividad y
+    diagnosticos sin nombre reconocible) -- no le sirven al supervisor de patio, y
+    un vehiculo cuyas UNICAS fallas sean de esas categorias no aparece en el PDF.
 
     Sin desde_local/hasta_local: TODAS las fallas activas ahora mismo (usado por
-    /reporte). Con ambos: solo las que aparecieron dentro de ese rango (usado por el
-    reporte automatico de fin de turno -- ahi interesa lo nuevo del turno, no repetir
-    el backlog completo cada vez, que es lo que lo volvia larguisimo)."""
+    /reporte y por el reporte de fin de turno). Con ambos: solo las que aparecieron
+    dentro de ese rango (usado por el resumen por hora, que solo quiere lo nuevo)."""
     activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
     if desde_local is not None and hasta_local is not None and not activas.empty:
         desde_utc = desde_local.astimezone(timezone.utc)
@@ -988,22 +1048,39 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
         activas = activas[(activas['dateTime'] >= desde_utc) & (activas['dateTime'] < hasta_utc)]
 
     estilos = getSampleStyleSheet()
-    estilo_celda = ParagraphStyle('celda', parent=estilos['Normal'], fontSize=8, leading=11)
-    estilo_seccion = ParagraphStyle('seccion', parent=estilos['Heading3'], textColor=colors.white, spaceAfter=0, spaceBefore=0)
+    estilo_celda = ParagraphStyle('celda', parent=estilos['Normal'], fontSize=8.5, leading=12, textColor=COLOR_TEXTO_OSCURO_PDF)
+    estilo_sistema = ParagraphStyle('sistema', parent=estilo_celda, fontName='Helvetica-Bold')
+    estilo_fecha = ParagraphStyle('fecha', parent=estilo_celda, textColor=COLOR_TEXTO_GRIS_PDF, alignment=2)
+    estilo_codigo = ParagraphStyle('codigo', parent=estilo_celda, fontName='Courier-Bold', textColor=colors.HexColor('#0284C7'), fontSize=8)
+    estilo_pill = ParagraphStyle('pill', parent=estilos['Normal'], fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
+    estilo_titulo = ParagraphStyle('titulo', parent=estilos['Title'], textColor=colors.white, alignment=1)
+    estilo_subtitulo = ParagraphStyle('subtitulo', parent=estilos['Normal'], textColor=colors.HexColor('#C7D2E0'), alignment=1)
+    estilo_filtro = ParagraphStyle('filtro', parent=estilos['Normal'], textColor=COLOR_FILTRO_BORDE_PDF, fontSize=9, leading=13)
+    estilo_movil = ParagraphStyle('movil', parent=estilos['Heading4'], textColor=COLOR_TEXTO_OSCURO_PDF, spaceAfter=0, spaceBefore=0)
+    estilo_movil_detalle = ParagraphStyle('movil_detalle', parent=estilos['Normal'], textColor=COLOR_TEXTO_GRIS_PDF, fontSize=9, alignment=2)
+    estilo_resumen_titulo = ParagraphStyle('resumen_titulo', parent=estilos['Heading3'], textColor=COLOR_TEXTO_OSCURO_PDF, spaceAfter=6)
+    estilo_resumen_texto = ParagraphStyle('resumen_texto', parent=estilos['Normal'], textColor=COLOR_TEXTO_OSCURO_PDF, fontSize=9, leading=13)
 
     if desde_local is not None and hasta_local is not None:
         subtitulo = (
             f"Fallas nuevas entre {desde_local.strftime('%H:%M')} y {hasta_local.strftime('%H:%M')} del "
-            f"{desde_local.strftime('%d/%m/%Y')} — criterio de criticidad de Geotab (luces del vehículo)"
+            f"{desde_local.strftime('%d/%m/%Y')}"
         )
     else:
-        subtitulo = f"Generado el {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M')} — fuente: criterio de criticidad de Geotab (luces del vehículo)"
+        subtitulo = f"Estado de Flota Geotab | {CIUDAD_FILTRO or 'Toda la flota'} | Generado: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M')}"
 
-    elementos = [
-        Paragraph("Seguimiento de Fallas", estilos['Title']),
-        Paragraph(subtitulo, estilos['Normal']),
-        Spacer(1, 0.5 * cm),
-    ]
+    encabezado = Table(
+        [[Paragraph("Reporte de Fallas Activas", estilo_titulo)], [Paragraph(subtitulo, estilo_subtitulo)]],
+        colWidths=[25 * cm]
+    )
+    encabezado.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), COLOR_HEADER_PDF),
+        ('ROUNDEDCORNERS', [10, 10, 10, 10]),
+        ('TOPPADDING', (0, 0), (0, 0), 14), ('BOTTOMPADDING', (0, 0), (0, 0), 2),
+        ('TOPPADDING', (0, 1), (0, 1), 2), ('BOTTOMPADDING', (0, 1), (0, 1), 14),
+    ]))
+    elementos = [encabezado, Spacer(1, 0.4 * cm)]
+    filas_reporte = []
 
     if activas.empty:
         elementos.append(Paragraph("No hay fallas activas en este momento.", estilos['Normal']))
@@ -1013,9 +1090,9 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
             por_vehiculo.setdefault(fila['id_camion'], []).append(fila)
 
         filas_reporte = []
+        total_ocultas = 0
         for id_camion, filas in por_vehiculo.items():
             vehiculo = devices.get(id_camion, {})
-            ciudad, _ = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
             marca = resolver_marca(vehiculo.get('groups'), mapa_grupos) or 'Sin marca'
             marca_l = marca.lower()
             referencia_motor = next(
@@ -1025,96 +1102,164 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
             n_motor = vin[-6:] if vin else 'Sin registrar'
 
             items = []
-            for fila in sorted(filas, key=lambda f: f['dateTime'], reverse=True):
+            for fila in filas:
                 diag_info = dic_diag.get(fila['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
                 fm_info = dic_fm.get(fila['fm_id'], {'nombre': '', 'codigo': None})
                 categoria = _categorizar_falla(diag_info['nombre'])
+                if categoria in CATEGORIAS_OCULTAS_PDF:
+                    total_ocultas += 1
+                    continue
+                nombre = diag_info['nombre']
+                if fm_info['nombre']:
+                    nombre += f" — {fm_info['nombre']}"
                 items.append({
+                    'nombre': nombre,
                     'spn': diag_info.get('codigo') or '?',
                     'fmi': fm_info.get('codigo') or '?',
-                    'nombre': diag_info['nombre'],
                     'criticidad': fila['criticidad'],
-                    'hora': fila['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S'),
+                    'hora': fila['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y'),
                     'categoria': categoria,
-                    'destacado': categoria in ('ABS', 'Neumáticos'),
+                    'destacado': categoria in ('ABS', 'Neumáticos', 'Postratamiento/Escape', 'Motor'),
                 })
 
-            criticidad_max = max(items, key=lambda it: ORDEN_CRITICIDAD.get(it['criticidad'], 0))['criticidad']
+            if not items:
+                continue  # este vehiculo solo tenia fallas de categorias ocultas
+
+            items.sort(key=lambda it: (-ORDEN_CRITICIDAD.get(it['criticidad'], 0), it['hora']))
+            criticidad_max = items[0]['criticidad']
             filas_reporte.append({
-                'ciudad': ciudad, 'criticidad': criticidad_max,
+                'criticidad': criticidad_max,
                 'movil': vehiculo.get('name', id_camion), 'marca': marca,
                 'referencia_motor': referencia_motor, 'n_motor': n_motor, 'items': items,
             })
 
-        ciudades = sorted(
-            {f['ciudad'] for f in filas_reporte},
-            key=lambda c: (c == 'Sin ciudad asignada', c)
-        )
-        for ciudad in ciudades:
-            filas_ciudad = [f for f in filas_reporte if f['ciudad'] == ciudad]
-            elementos.append(Spacer(1, 0.3 * cm))
-            tabla_ciudad = Table(
-                [[Paragraph(f"{ciudad}  (Total vehículos: {len(filas_ciudad)})", estilo_seccion)]],
-                colWidths=[24 * cm]
-            )
-            tabla_ciudad.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), COLOR_CIUDAD_PDF), ('LEFTPADDING', (0, 0), (-1, -1), 6)]))
-            elementos.append(tabla_ciudad)
-
-            for criticidad in ('ALTA', 'MEDIA', 'BAJA'):
-                filas_nivel = [f for f in filas_ciudad if f['criticidad'] == criticidad]
-                if not filas_nivel:
-                    continue
-
-                tabla_nivel = Table(
-                    [[Paragraph(f"{criticidad}  (Cantidad: {len(filas_nivel)})", estilo_seccion)]],
-                    colWidths=[24 * cm]
+        if not filas_reporte:
+            elementos.append(Paragraph(
+                "No hay fallas activas relevantes en este momento "
+                f"(se ocultaron {total_ocultas} de conectividad/diagnóstico desconocido).", estilos['Normal']
+            ))
+        else:
+            if total_ocultas:
+                aviso_filtro = Table(
+                    [[Paragraph(
+                        f"<b>Filtro aplicado:</b> se ocultaron {total_ocultas} falla(s) de conectividad "
+                        f"telemática y diagnósticos sin nombre reconocible -- no aportan al mantenimiento del vehículo.",
+                        estilo_filtro
+                    )]],
+                    colWidths=[25 * cm]
                 )
-                tabla_nivel.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), COLOR_POR_CRITICIDAD[criticidad]), ('LEFTPADDING', (0, 0), (-1, -1), 6)]))
-                elementos.append(tabla_nivel)
+                aviso_filtro.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), COLOR_FILTRO_FONDO_PDF),
+                    ('ROUNDEDCORNERS', [6, 6, 6, 6]),
+                    ('BOX', (0, 0), (-1, -1), 1, COLOR_FILTRO_BORDE_PDF),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 10), ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ]))
+                elementos.append(aviso_filtro)
+                elementos.append(Spacer(1, 0.35 * cm))
 
-                # Una fila por FALLA (no una celda gigante por vehiculo con todas sus
-                # fallas adentro) -- con muchas fallas en un solo vehiculo, esa celda
+            # --- Resumen de novedades ---
+            vehiculos_alta = [f for f in filas_reporte if f['criticidad'] == 'ALTA']
+            vehiculos_media_baja = [f for f in filas_reporte if f['criticidad'] != 'ALTA']
+            conteo_sistemas = Counter(it['categoria'] for f in filas_reporte for it in f['items'])
+            top_sistemas = [c for c, _ in conteo_sistemas.most_common(3)]
+            texto_sistemas = "<br/>".join(f"{i}. {s}" for i, s in enumerate(top_sistemas, 1)) or "—"
+
+            fila_resumen = [[
+                Paragraph(
+                    f"<b>Vehículos en Alerta Crítica (ALTA):</b><br/>{len(vehiculos_alta)} unidad(es) "
+                    f"(Prioridad de ingreso a taller)", estilo_resumen_texto
+                ),
+                Paragraph(
+                    f"<b>Vehículos con fallas (MEDIA/BAJA):</b><br/>{len(vehiculos_media_baja)} unidad(es) "
+                    f"(Monitoreo preventivo)", estilo_resumen_texto
+                ),
+                Paragraph(f"<b>Sistemas más afectados:</b><br/>{texto_sistemas}", estilo_resumen_texto),
+            ]]
+            # Se arma en dos tablas -- titulo a lo ancho, y una fila de 3 columnas debajo --
+            # porque Table exige que todas las filas tengan la misma cantidad de columnas.
+            tabla_resumen_titulo = Table([[Paragraph("Resumen de Novedades", estilo_resumen_titulo)]], colWidths=[25 * cm])
+            tabla_resumen_titulo.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 14), ('TOPPADDING', (0, 0), (-1, -1), 12), ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            tabla_resumen_cuerpo = Table([fila_resumen[0]], colWidths=[8.3 * cm, 8.3 * cm, 8.4 * cm])
+            tabla_resumen_cuerpo.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (0, 0), 14), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 14),
+            ]))
+            resumen_envoltorio = Table([[tabla_resumen_titulo], [tabla_resumen_cuerpo]], colWidths=[25 * cm])
+            resumen_envoltorio.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+                ('LINEBEFORE', (0, 0), (0, -1), 3, COLOR_RESUMEN_BORDE_PDF),
+                ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0), ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elementos.append(resumen_envoltorio)
+            elementos.append(Spacer(1, 0.4 * cm))
+
+            # --- Una tarjeta por vehiculo, ordenadas por criticidad (ALTA primero) ---
+            filas_reporte.sort(key=lambda f: (-ORDEN_CRITICIDAD.get(f['criticidad'], 0), f['movil']))
+            for f in filas_reporte:
+                encabezado_veh = Table(
+                    [[
+                        Paragraph(f"Placa: {f['movil']}", estilo_movil),
+                        Paragraph(f"{f['marca']} | Motor: {f['referencia_motor']} ({f['n_motor']})", estilo_movil_detalle),
+                    ]],
+                    colWidths=[14 * cm, 11 * cm]
+                )
+                encabezado_veh.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), COLOR_VEHICULO_HEADER_PDF),
+                    ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (0, 0), 12), ('RIGHTPADDING', (1, 0), (1, 0), 12),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ]))
+                elementos.append(encabezado_veh)
+                elementos.append(Spacer(1, 0.15 * cm))
+
+                # Una fila por FALLA (no una celda gigante con todas las fallas del
+                # vehiculo adentro) -- con muchas fallas en un solo vehiculo, esa celda
                 # puede terminar mas alta que una pagina entera, y reportlab no puede
                 # partir el contenido de una sola celda entre paginas (LayoutError).
-                # Con una fila corta por falla, el salto de pagina cae entre filas sin
-                # problema. Se repite el movil/marca/etc en cada fila del vehiculo.
-                encabezado = ['Móvil', 'Marca', 'Ref. Motor', 'N° Motor', 'Falla activa']
-                datos_tabla = [encabezado]
-                for f in filas_nivel:
-                    for idx, it in enumerate(f['items'], 1):
-                        # Mayuscula ANTES de escapar entidades XML (si se aplicara despues,
-                        # ".upper()" corrompe entidades como "&amp;" -> "&AMP;").
-                        nombre = it['nombre'].upper() if it['destacado'] else it['nombre']
-                        linea = (
-                            f"{idx}. [{it['categoria']}] SPN {it['spn']}/FMI {it['fmi']} — "
-                            f"{escapar_xml(nombre)} [{it['criticidad']}] — {it['hora']}"
-                        )
-                        if it['destacado']:
-                            linea = f"<font color='#C00000'><b>{linea}</b></font>"
-                        detalle = Paragraph(linea, estilo_celda)
-                        datos_tabla.append([
-                            f['movil'], f['marca'], f['referencia_motor'], f['n_motor'], detalle
-                        ])
+                datos_tabla = [['Nivel', 'Código', 'Sistema', 'Descripción del diagnóstico', 'Fecha reporte']]
+                for it in f['items']:
+                    nombre = it['nombre'].upper() if it['destacado'] else it['nombre']
+                    texto_desc = escapar_xml(nombre)
+                    if it['destacado']:
+                        texto_desc = f"<font color='#C00000'><b>{texto_desc}</b></font>"
+                    datos_tabla.append([
+                        _pill_criticidad(it['criticidad'], estilo_pill),
+                        Paragraph(f"SPN {it['spn']}/FMI {it['fmi']}", estilo_codigo),
+                        Paragraph(it['categoria'], estilo_sistema),
+                        Paragraph(texto_desc, estilo_celda),
+                        Paragraph(it['hora'], estilo_fecha),
+                    ])
 
-                tabla = Table(datos_tabla, colWidths=[3.5 * cm, 3.5 * cm, 2.5 * cm, 2.8 * cm, 11.7 * cm], repeatRows=1)
+                tabla = Table(datos_tabla, colWidths=[2.4 * cm, 3.4 * cm, 3.3 * cm, 12.4 * cm, 3.5 * cm], repeatRows=1)
                 tabla.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E7E6E6')),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_TEXTO_GRIS_PDF),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTSIZE', (0, 0), (-1, 0), 7.5),
+                    ('LINEBELOW', (0, 0), (-1, 0), 0.75, colors.HexColor('#D1D5DB')),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8.5),
+                    ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#EEF0F3')),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 7), ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+                    ('LEFTPADDING', (0, 0), (0, -1), 0),
                 ]))
                 elementos.append(tabla)
-                elementos.append(Spacer(1, 0.2 * cm))
+                elementos.append(Spacer(1, 0.35 * cm))
 
     doc = SimpleDocTemplate(
         ruta_salida, pagesize=landscape(letter),
         leftMargin=1 * cm, rightMargin=1 * cm, topMargin=1 * cm, bottomMargin=1 * cm,
     )
-    doc.build(elementos)
-    return len(activas)  # cuantas fallas quedaron incluidas -- para que el llamador
-    # decida si vale la pena mandar el PDF (ej. el reporte de turno no manda nada si
-    # dio 0, en vez de intentar detectarlo leyendo el PDF ya comprimido)
+    doc.build(elementos, onFirstPage=_fondo_pagina_reporte, onLaterPages=_fondo_pagina_reporte)
+    return sum(len(f['items']) for f in filas_reporte)  # cuantas fallas quedaron incluidas
+    # (ya sin las categorias ocultas) -- para que el llamador decida si vale la pena
+    # mandar el PDF (ej. el resumen por hora no manda nada si dio 0)
 
 
 def _enviar_documento_telegram(chat_id, ruta_archivo, nombre_archivo, caption=None):
@@ -1229,14 +1374,37 @@ def _enviar_reporte_fallas(api, desde_local, hasta_local, nombre_archivo, captio
         print(f"*** No se pudo armar/enviar el resumen de persistentes ({etiqueta_persistentes}): {e} ***")
 
 
+def _enviar_reporte_fallas_completo(api, nombre_archivo, caption):
+    """Genera y manda el PDF con TODAS las fallas activas ahora mismo (no solo
+    las nuevas de una ventana) -- pensado para el reporte de fin de turno, que
+    el supervisor recibe/imprime para hacer su debido proceso y necesita el
+    panorama completo, no solo lo que cambio en las ultimas 8 horas. A
+    diferencia de _enviar_reporte_fallas, este SIEMPRE se manda, incluso si no
+    hay fallas activas (el PDF mismo dice "No hay fallas activas") -- el
+    supervisor espera un documento cada turno, silencio no es una opcion aca."""
+    ruta_pdf = None
+    try:
+        ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+        n_fallas = generar_pdf_reporte_fallas(api, ruta_pdf)
+        for chat_id in _chat_ids_destino():
+            _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
+        print(f"{caption}: PDF enviado ({n_fallas} fallas activas).")
+    except Exception as e:
+        print(f"*** No se pudo generar/enviar el PDF ({caption}): {e} ***")
+    finally:
+        if ruta_pdf and os.path.exists(ruta_pdf):
+            os.remove(ruta_pdf)
+
+
 def enviar_resumenes_por_turno(api, estado):
     """Manda un PDF cada vez que se completa un turno (R1 termina 13h, R2 21h, R3 5h
-    del dia siguiente), con SOLO las fallas que aparecieron nuevas durante ese turno
-    (no el backlog completo de 30 dias que trae /reporte) -- asi queda corto y
-    accionable en vez de las 29 paginas que salian al mandar todo. Si el turno no tuvo
-    fallas nuevas, no se manda nada (silencio quiere decir que no paso nada). Mismo
-    patron de deteccion por comparacion de tiempos que enviar_resumenes_por_hora, para
-    no depender de que el cron corra justo en el corte del turno."""
+    del dia siguiente) con el listado COMPLETO de fallas activas (cualquier
+    criticidad, no solo las nuevas del turno) -- pensado para que el supervisor
+    lo reciba/imprima en cada cambio de turno y tenga el panorama entero para
+    su debido proceso. Siempre se manda, incluso si no hay fallas activas.
+    Mismo patron de deteccion por comparacion de tiempos que
+    enviar_resumenes_por_hora, para no depender de que el cron corra justo en
+    el corte del turno."""
     ahora_local = datetime.now(ZONA_BOGOTA)
     _, inicio_turno_actual, _ = _limites_turno(ahora_local)
 
@@ -1265,14 +1433,19 @@ def enviar_resumenes_por_turno(api, estado):
         )
         ultimo_turno_fin = inicio_turno_actual - timedelta(hours=8 * MAX_TURNOS_CONSOLIDAR)
 
+    # El PDF ahora es una foto del estado ACTUAL (todas las fallas activas), no de
+    # una ventana pasada -- si se recuperan varios turnos de golpe (el bot estuvo
+    # caido), no tiene sentido mandar el mismo PDF repetido con etiquetas de
+    # turnos distintos, asi que se avanza el estado por cada turno perdido pero
+    # el envio se hace una sola vez, para el turno mas reciente que ya termino.
     while ultimo_turno_fin < inicio_turno_actual:
         nombre_turno, inicio_turno, fin_turno = _limites_turno(ultimo_turno_fin)
-        nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
-        caption = f"📄 Fallas nuevas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
-        _enviar_reporte_fallas(api, inicio_turno, fin_turno, nombre_archivo, caption, f"turno {nombre_turno}")
-
         ultimo_turno_fin = fin_turno
         estado['ultimo_turno_fin'] = ultimo_turno_fin.isoformat()
+
+    nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
+    caption = f"📄 Fallas activas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
+    _enviar_reporte_fallas_completo(api, nombre_archivo, caption)
 
 
 # ---------------------------------------------------------------------------
