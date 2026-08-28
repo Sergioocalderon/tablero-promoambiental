@@ -48,6 +48,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh cache list --key telegram-estado- --limit 100 --json id,createdAt \
-            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id' \
-            | xargs -r -n1 gh cache delete || true
+          set -o pipefail
+          echo "Caches con prefijo telegram-estado- encontradas:"
+          gh cache list --key telegram-estado- --limit 100 --json id,createdAt,key
+          IDS_A_BORRAR=$(gh cache list --key telegram-estado- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          if [ -z "$IDS_A_BORRAR" ]; then
+            echo "No hay caches viejas que borrar (0 o 1 encontradas)."
+          else
+            echo "Borrando estas caches:"
+            echo "$IDS_A_BORRAR"
+            echo "$IDS_A_BORRAR" | xargs -n1 gh cache delete
+          fi
