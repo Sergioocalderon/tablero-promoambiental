@@ -9,9 +9,6 @@ permissions:
   actions: write
   contents: read
 
-concurrency:
-  group: alertas-telegram
-  cancel-in-progress: false
 
 jobs:
   revisar-y-notificar:
