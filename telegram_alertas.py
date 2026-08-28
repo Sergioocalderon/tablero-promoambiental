@@ -1416,7 +1416,12 @@ def generar_pdf_reporte_velocidad(api, ruta_salida, desde_local, hasta_local):
             vehiculo = devices.get(id_veh, {})
             marca = resolver_marca(vehiculo.get('groups'), mapa_grupos) or 'Sin marca'
             eventos.sort(key=lambda e: e['activeFrom'])
-            filas_reporte.append({'movil': vehiculo.get('name', id_veh), 'marca': marca, 'eventos': eventos})
+            picos_veh = [e.get('velocidad_pico') for e in eventos if e.get('velocidad_pico') is not None]
+            filas_reporte.append({
+                'movil': vehiculo.get('name', id_veh), 'marca': marca, 'eventos': eventos,
+                'duracion_total_seg': sum(e['duracion_seg'] for e in eventos),
+                'velocidad_pico_max': max(picos_veh) if picos_veh else None,
+            })
 
         # --- Resumen del turno ---
         total_eventos = len(candidatos)
@@ -1453,8 +1458,54 @@ def generar_pdf_reporte_velocidad(api, ruta_salida, desde_local, hasta_local):
         elementos.append(resumen_envoltorio)
         elementos.append(Spacer(1, 0.4 * cm))
 
-        # --- Una tarjeta por vehiculo, mas eventos primero ---
+        # --- Detalle cuantificable por vehiculo (TODOS, no solo el top 3 del
+        # resumen) -- pedido explicito del usuario 2026-08-27 despues de validar
+        # el PDF, para poder comparar la flota completa de un vistazo antes de
+        # entrar al detalle evento por evento de cada tarjeta. ---
         filas_reporte.sort(key=lambda f: (-len(f['eventos']), f['movil']))
+        datos_tabla_vehiculos = [['Vehículo', 'Marca', 'N° Eventos', 'Duración total', 'Velocidad pico', f'Exceso máx. sobre {UMBRAL_VELOCIDAD_KMH} km/h']]
+        for f in filas_reporte:
+            dur_total = f['duracion_total_seg']
+            texto_dur_total = f"{dur_total / 60:.1f} min" if dur_total >= 60 else f"{dur_total:.0f} seg"
+            pico_max = f['velocidad_pico_max']
+            texto_pico_max = f"{pico_max:.0f} km/h" if pico_max is not None else "Sin dato"
+            texto_exceso_max = f"+{pico_max - UMBRAL_VELOCIDAD_KMH:.0f} km/h" if pico_max is not None else "—"
+            datos_tabla_vehiculos.append([
+                Paragraph(f['movil'], estilo_celda),
+                Paragraph(f['marca'], estilo_celda),
+                Paragraph(str(len(f['eventos'])), estilo_dato),
+                Paragraph(texto_dur_total, estilo_dato),
+                Paragraph(texto_pico_max, estilo_dato),
+                Paragraph(texto_exceso_max, estilo_dato),
+            ])
+
+        tabla_titulo_vehiculos = Table([[Paragraph("Detalle por Vehículo", estilo_resumen_titulo)]], colWidths=[25 * cm])
+        tabla_titulo_vehiculos.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0), ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elementos.append(tabla_titulo_vehiculos)
+
+        tabla_vehiculos = Table(
+            datos_tabla_vehiculos,
+            colWidths=[4.5 * cm, 5 * cm, 3 * cm, 4 * cm, 4 * cm, 4.5 * cm], repeatRows=1
+        )
+        tabla_vehiculos.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), COLOR_VEHICULO_HEADER_PDF),
+            ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_TEXTO_OSCURO_PDF),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 8.5),
+            ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#EEF0F3')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 7), ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        elementos.append(tabla_vehiculos)
+        elementos.append(Spacer(1, 0.5 * cm))
+
+        # --- Una tarjeta por vehiculo, mas eventos primero ---
         for f in filas_reporte:
             encabezado_veh = Table(
                 [[
