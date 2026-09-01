@@ -410,6 +410,10 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
             if resolver_ciudad_tipologia(devices.get(c['id_veh'], {}).get('groups'), mapa_grupos)[0] == CIUDAD_FILTRO
         ]
 
+    # Mismo enriquecimiento de RPM que ya usa el resumen por hora (_resumen_eventos_revolucion_hora)
+    # -- aca se agrega tambien a la alerta individual, que hasta ahora no lo traia.
+    _agregar_rpm_pico(api, candidatos)
+
     claves_nuevas = []
     for c in candidatos:
         vehiculo = devices.get(c['id_veh'], {})
@@ -420,6 +424,7 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
             (v for k, v in REFERENCIA_MOTOR_POR_MARCA.items() if k in marca.lower()), 'Desconocido'
         )
         hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        rpm_texto = f"{c['rpm_pico']:.0f} RPM" if c.get('rpm_pico') is not None else "No disponible"
 
         delta_seg = c.get('pto_delta_seg')
         if delta_seg is None:
@@ -448,11 +453,12 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
             f"Tipología: {tipologia}\n"
             f"Motor: {referencia_motor}\n"
             f"Hora: {hora_local}\n"
+            f"RPM registrado: {rpm_texto}\n"
             f"Duración: {c['duracion_seg']:.0f} segundos sostenidos\n"
             f"Vehículo detenido con RPM alto, {texto_pto}"
         )
         if enviar_telegram(texto):
-            print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s)")
+            print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s, {rpm_texto})")
             claves_nuevas.append(c['clave'])
 
     return claves_nuevas
