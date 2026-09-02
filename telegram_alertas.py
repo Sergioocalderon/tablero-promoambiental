@@ -32,7 +32,7 @@ MAX_CLAVES_GUARDADAS = 5000  # evita que el estado de eventos (append-only) crez
 
 # Filtro temporal a una sola ciudad -- ya se esta rodando a nivel nacional, pero por
 # ahora el seguimiento (Telegram) solo se quiere en Bogota mientras se mejora el
-# proceso; poner en None reactiva todas las ciudades sin tocar nada mas del codigo.
+# proceso; poner en None reactiva todas las ciudades sin tocar nad  a mas del codigo.
 CIUDAD_FILTRO = 'Bogotá'
 
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
@@ -80,6 +80,8 @@ def cargar_estado():
         "revolucion_notificados": [], "fallas_activas": [], "ultima_hora_resumen": None,
         "ultimo_update_id_procesado": None, "suscriptores": [], "ultimo_turno_fin": None,
         "regeneracion_dpf_notificados": [],
+        "vehiculos_seguimiento": [], "seguimiento_fallas_notificadas": [],
+        "seguimiento_revolucion_notificados": [], "seguimiento_dpf_notificados": [],
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -90,7 +92,11 @@ def cargar_estado():
             print(f"*** Estado en '{ESTADO_PATH}' tiene formato viejo/invalido (no es un dict) -- se ignora. ***")
             return default
         estado = dict(default)
-        for clave in ("revolucion_notificados", "fallas_activas", "suscriptores", "regeneracion_dpf_notificados"):
+        for clave in (
+            "revolucion_notificados", "fallas_activas", "suscriptores", "regeneracion_dpf_notificados",
+            "vehiculos_seguimiento", "seguimiento_fallas_notificadas",
+            "seguimiento_revolucion_notificados", "seguimiento_dpf_notificados",
+        ):
             valor = datos.get(clave)
             if isinstance(valor, list):
                 estado[clave] = valor
@@ -116,6 +122,10 @@ def guardar_estado(estado):
         "suscriptores": estado.get("suscriptores", []),
         "ultimo_turno_fin": estado.get("ultimo_turno_fin"),
         "regeneracion_dpf_notificados": estado.get("regeneracion_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
+        "vehiculos_seguimiento": estado.get("vehiculos_seguimiento", []),
+        "seguimiento_fallas_notificadas": estado.get("seguimiento_fallas_notificadas", [])[-MAX_CLAVES_GUARDADAS:],
+        "seguimiento_revolucion_notificados": estado.get("seguimiento_revolucion_notificados", [])[-MAX_CLAVES_GUARDADAS:],
+        "seguimiento_dpf_notificados": estado.get("seguimiento_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -163,8 +173,32 @@ TEXTO_BIENVENIDA = (
     "🚨 Fallas críticas (ALTA) apenas se activen\n"
     "📊 Un resumen consolidado cada hora\n\n"
     "No necesitas hacer nada más -- ya quedaste suscrito. Para dejar de recibir "
-    "mensajes, avisa a quien administra el bot para que te quite del listado."
+    "mensajes, avisa a quien administra el bot para que te quite del listado.\n\n"
+    "🎯 Además podés poner vehículos puntuales en SEGUIMIENTO urgente:\n"
+    "/seguir <placa> -- cualquier anomalía de ese vehículo (falla nueva, "
+    "sobre-revolución, DPF pendiente) te llega destacada, con PDF en el caso "
+    "de fallas.\n"
+    "/dejarseguir <placa> -- lo saca del seguimiento.\n"
+    "/seguimiento -- lista los vehículos en seguimiento ahora mismo."
 )
+
+
+def _buscar_vehiculo_por_texto(devices, texto_busqueda):
+    """Busca un vehiculo por nombre/placa (coincidencia exacta primero, si no
+    por substring, sin importar mayusculas/acentos de Ñ). Devuelve (vehiculo o
+    None, lista_de_nombres_parecidos) -- si hay mas de un parecido y ninguna
+    coincidencia exacta, se devuelve None junto con la lista para que quien
+    llama le pida al usuario que sea mas especifico."""
+    objetivo = texto_busqueda.strip().upper()
+    if not objetivo:
+        return None, []
+    exactos = [d for d in devices.values() if d.get('name', '').strip().upper() == objetivo]
+    if len(exactos) == 1:
+        return exactos[0], []
+    parecidos = [d for d in devices.values() if objetivo in d.get('name', '').strip().upper()]
+    if len(parecidos) == 1:
+        return parecidos[0], []
+    return None, sorted(d.get('name', '') for d in parecidos)[:15]
 
 
 def responder_mensajes_nuevos(api, estado):
@@ -262,6 +296,85 @@ def responder_mensajes_nuevos(api, estado):
             finally:
                 if ruta_pdf and os.path.exists(ruta_pdf):
                     os.remove(ruta_pdf)
+
+        elif texto.startswith("/seguimiento"):
+            seguidos = estado.get("vehiculos_seguimiento", [])
+            if not seguidos:
+                texto_resp = "No hay ningún vehículo en seguimiento ahora mismo. Usa /seguir <placa> para agregar uno."
+            else:
+                lista = "\n".join(f"🎯 {v['nombre']}" for v in seguidos)
+                texto_resp = f"Vehículos en seguimiento urgente ({len(seguidos)}):\n{lista}"
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": texto_resp}, timeout=15,
+                )
+            except Exception as e:
+                print(f"*** No se pudo responder /seguimiento a chat_id={chat_id}: {e} ***")
+
+        elif texto.startswith("/dejarseguir"):
+            busqueda = texto[len("/dejarseguir"):].strip()
+            seguidos = estado.setdefault("vehiculos_seguimiento", [])
+            if not busqueda:
+                texto_resp = "Escribe la placa a quitar del seguimiento, ej: /dejarseguir 1152-NWX541"
+            else:
+                objetivo = busqueda.upper()
+                coincidencias = [v for v in seguidos if objetivo in v['nombre'].upper()]
+                if len(coincidencias) == 1:
+                    seguidos.remove(coincidencias[0])
+                    texto_resp = f"✅ '{coincidencias[0]['nombre']}' ya no está en seguimiento."
+                elif len(coincidencias) > 1:
+                    lista = ", ".join(v['nombre'] for v in coincidencias)
+                    texto_resp = f"Hay más de un vehículo en seguimiento que coincide, sé más específico: {lista}"
+                else:
+                    texto_resp = f"'{busqueda}' no está en la lista de seguimiento. Usa /seguimiento para verla."
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": texto_resp}, timeout=15,
+                )
+            except Exception as e:
+                print(f"*** No se pudo responder /dejarseguir a chat_id={chat_id}: {e} ***")
+
+        elif texto.startswith("/seguir"):
+            busqueda = texto[len("/seguir"):].strip()
+            if not busqueda:
+                texto_resp = "Escribe la placa a seguir, ej: /seguir 1152-NWX541"
+            else:
+                try:
+                    devices = {d['id']: d for d in api.get('Device')}
+                    vehiculo, parecidos = _buscar_vehiculo_por_texto(devices, busqueda)
+                except Exception as e:
+                    print(f"*** No se pudo buscar el vehiculo para /seguir (chat_id={chat_id}): {e} ***")
+                    vehiculo, parecidos = None, None
+
+                if parecidos is None:
+                    texto_resp = "No se pudo consultar Geotab en este momento, intenta de nuevo en un rato."
+                elif vehiculo:
+                    seguidos = estado.setdefault("vehiculos_seguimiento", [])
+                    ya_estaba = any(v['device_id'] == vehiculo['id'] for v in seguidos)
+                    if ya_estaba:
+                        texto_resp = f"'{vehiculo.get('name')}' ya estaba en seguimiento."
+                    else:
+                        seguidos.append({"device_id": vehiculo['id'], "nombre": vehiculo.get('name', vehiculo['id'])})
+                        texto_resp = (
+                            f"🎯 Ahora estás siguiendo a '{vehiculo.get('name')}' con urgencia.\n"
+                            "Cualquier falla nueva (con PDF), sobre-revolución o DPF pendiente de este "
+                            "vehículo se avisa destacada a todos los suscriptores.\n"
+                            f"Para quitarlo: /dejarseguir {vehiculo.get('name', '')}"
+                        )
+                elif parecidos:
+                    lista = ", ".join(parecidos)
+                    texto_resp = f"No hay una coincidencia única para '{busqueda}'. ¿Quisiste decir alguno de estos?: {lista}"
+                else:
+                    texto_resp = f"No se encontró ningún vehículo que coincida con '{busqueda}'."
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": texto_resp}, timeout=15,
+                )
+            except Exception as e:
+                print(f"*** No se pudo responder /seguir a chat_id={chat_id}: {e} ***")
 
 
 def clasificar_criticidad_geotab(falla):
@@ -688,11 +801,15 @@ def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
 EMOJI_POR_CRITICIDAD = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': 'ℹ️'}
 
 
-def revisar_fallas_activas(api, claves_activas_previas):
+def revisar_fallas_activas(activas, devices, dic_diag, dic_fm, mapa_grupos, claves_activas_previas):
     """Alerta individual por cada falla nueva, de CUALQUIER criticidad (antes solo
     ALTA) -- para que lo que llega a Telegram coincida con lo que se ve en Geotab en
-    vez de ser solo un subconjunto."""
-    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
+    vez de ser solo un subconjunto. Recibe los datos ya traidos de Geotab (ver
+    _obtener_fallas_activas) en vez de 'api', para que main() los pida UNA sola vez
+    y se los pase tambien a revisar_seguimiento -- si cada uno volviera a llamar
+    _obtener_fallas_activas por su cuenta, se duplicaria la paginacion de 30 dias de
+    FaultData en CADA corrida del cron (cada 5 min), incluso sin vehiculos en
+    seguimiento."""
     if activas.empty:
         return set(), []
 
@@ -1122,7 +1239,8 @@ def _pill_criticidad(criticidad, estilo_pill):
     return pill
 
 
-def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=None):
+def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=None,
+                                dispositivos_filtro=None, titulo=None):
     """Genera un PDF con fallas activas (cualquier criticidad), una tarjeta por
     vehiculo con sus fallas ordenadas por criticidad -- diseño acordado con el
     usuario (mockup 2026-08-27): tarjetas redondeadas, badges de color por
@@ -1137,12 +1255,19 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
 
     Sin desde_local/hasta_local: TODAS las fallas activas ahora mismo (usado por
     /reporte y por el reporte de fin de turno). Con ambos: solo las que aparecieron
-    dentro de ese rango (usado por el resumen por hora, que solo quiere lo nuevo)."""
+    dentro de ese rango (usado por el resumen por hora, que solo quiere lo nuevo).
+
+    dispositivos_filtro: set opcional de device_id -- si se pasa, solo se incluyen
+    esos vehiculos (usado por el seguimiento urgente de vehiculos puntuales, ver
+    revisar_seguimiento). titulo: reemplaza el encabezado "Reporte de Fallas
+    Activas" por defecto (mismo uso)."""
     activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
     if desde_local is not None and hasta_local is not None and not activas.empty:
         desde_utc = desde_local.astimezone(timezone.utc)
         hasta_utc = hasta_local.astimezone(timezone.utc)
         activas = activas[(activas['dateTime'] >= desde_utc) & (activas['dateTime'] < hasta_utc)]
+    if dispositivos_filtro is not None and not activas.empty:
+        activas = activas[activas['id_camion'].isin(dispositivos_filtro)]
 
     estilos = getSampleStyleSheet()
     estilo_celda = ParagraphStyle('celda', parent=estilos['Normal'], fontSize=8.5, leading=12, textColor=COLOR_TEXTO_OSCURO_PDF)
@@ -1167,7 +1292,7 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
         subtitulo = f"Estado de Flota Geotab | {CIUDAD_FILTRO or 'Toda la flota'} | Generado: {datetime.now(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M')}"
 
     encabezado = Table(
-        [[Paragraph("Reporte de Fallas Activas", estilo_titulo)], [Paragraph(subtitulo, estilo_subtitulo)]],
+        [[Paragraph(titulo or "Reporte de Fallas Activas", estilo_titulo)], [Paragraph(subtitulo, estilo_subtitulo)]],
         colWidths=[25 * cm]
     )
     encabezado.setStyle(TableStyle([
@@ -1590,6 +1715,127 @@ def _enviar_documento_telegram(chat_id, ruta_archivo, nombre_archivo, caption=No
     if not resp.ok:
         print(f"*** Error enviando documento a Telegram (chat_id={chat_id}): {resp.status_code} {resp.text} ***")
     return resp.ok
+
+
+# ---------------------------------------------------------------------------
+# Seguimiento urgente de vehiculos puntuales (comandos /seguir, /dejarseguir,
+# /seguimiento -- ver responder_mensajes_nuevos). A diferencia de las alertas
+# generales (que ya cubren TODA la flota de CIUDAD_FILTRO), esto es para
+# destacar un vehiculo concreto que alguien eligio seguir de cerca: cualquier
+# falla nueva (con PDF, mismo diseño que /reporte pero filtrado a ese
+# vehiculo), sobre-revolucion con PTO o DPF pendiente se avisa marcada como
+# seguimiento urgente, a todos los suscriptores. Usa sus propias claves de "ya
+# notificado" (separadas de las generales) para poder mandar el PDF destacado
+# de un vehiculo aunque la alerta de texto general de esa misma falla ya se
+# haya mandado antes.
+# ---------------------------------------------------------------------------
+
+def revisar_seguimiento(api, estado, activas, devices, dic_diag, dic_fm, mapa_grupos):
+    """activas/devices/dic_diag/dic_fm/mapa_grupos: mismo resultado de
+    _obtener_fallas_activas ya calculado en main() para revisar_fallas_activas --
+    se reutiliza en vez de volver a pedirlo, ver nota en revisar_fallas_activas."""
+    seguidos = estado.get('vehiculos_seguimiento', [])
+    if not seguidos:
+        return
+    ids_seguidos = {v['device_id'] for v in seguidos}
+    nombres_por_id = {v['device_id']: v['nombre'] for v in seguidos}
+
+    # --- Fallas activas (cualquier criticidad) -> PDF destacado por vehiculo ---
+    if not activas.empty:
+        activas_seguidas = activas[activas['id_camion'].isin(ids_seguidos)]
+        notificadas_prev = set(estado.get('seguimiento_fallas_notificadas', []))
+        claves_actuales = {
+            f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}" for _, row in activas_seguidas.iterrows()
+        }
+        vehiculos_con_falla_nueva = {
+            row['id_camion'] for _, row in activas_seguidas.iterrows()
+            if f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}" not in notificadas_prev
+        }
+
+        for id_veh in vehiculos_con_falla_nueva:
+            nombre_veh = nombres_por_id.get(id_veh, id_veh)
+            ruta_pdf = None
+            try:
+                ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+                generar_pdf_reporte_fallas(
+                    api, ruta_pdf, dispositivos_filtro={id_veh},
+                    titulo=f"Seguimiento urgente: {nombre_veh}",
+                )
+                nombre_archivo = f"seguimiento_{nombre_veh}_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
+                for chat_id in _chat_ids_destino():
+                    _enviar_documento_telegram(
+                        chat_id, ruta_pdf, nombre_archivo,
+                        f"🎯🚨 SEGUIMIENTO URGENTE -- {nombre_veh} tiene falla(s) nueva(s)",
+                    )
+                print(f"Seguimiento: PDF de fallas enviado para {nombre_veh}")
+            except Exception as e:
+                print(f"*** Seguimiento: no se pudo generar/enviar el PDF de fallas de {nombre_veh}: {e} ***")
+            finally:
+                if ruta_pdf and os.path.exists(ruta_pdf):
+                    os.remove(ruta_pdf)
+
+        estado['seguimiento_fallas_notificadas'] = list(notificadas_prev | claves_actuales)
+
+    # --- Sobre-revolucion con PTO (1300 RPM), solo vehiculos seguidos ---
+    try:
+        f_fin = datetime.now(timezone.utc)
+        f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
+        candidatos = _obtener_eventos_regla(
+            api, NOMBRE_REGLA_PTO, f_inicio, f_fin,
+            duracion_minima_seg=DURACION_MINIMA_PTO_SEG, requiere_pto_cercano=True,
+        )
+    except Exception as e:
+        print(f"*** Seguimiento: no se pudo revisar sobre-revolucion: {e} ***")
+        candidatos = []
+
+    notificados_prev_rpm = set(estado.get('seguimiento_revolucion_notificados', []))
+    claves_nuevas_rpm = []
+    for c in candidatos:
+        if c['id_veh'] not in ids_seguidos or c['clave'] in notificados_prev_rpm:
+            continue
+        nombre_veh = nombres_por_id.get(c['id_veh'], c['id_veh'])
+        hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        texto = (
+            f"🎯🏎️ SEGUIMIENTO URGENTE -- SOBRE-REVOLUCIÓN CON PTO\n"
+            f"Vehículo: {nombre_veh}\n"
+            f"Hora: {hora_local}\n"
+            f"Duración: {c['duracion_seg']:.0f} segundos sostenidos"
+        )
+        if enviar_telegram(texto):
+            claves_nuevas_rpm.append(c['clave'])
+    estado['seguimiento_revolucion_notificados'] = list(notificados_prev_rpm | set(claves_nuevas_rpm))
+
+    # --- Regeneracion DPF pendiente, solo vehiculos seguidos (la deteccion misma
+    # solo aplica a compactadores dobles de Bogota Intl/Foton, ver
+    # vehiculos_compactadores_bogota_con_dpf -- un vehiculo seguido fuera de ese
+    # subconjunto simplemente no genera candidatos aca) ---
+    try:
+        f_fin = datetime.now(timezone.utc)
+        f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
+        pendientes = detectar_regeneracion_pendiente(api, devices, mapa_grupos, f_inicio, f_fin)
+    except Exception as e:
+        print(f"*** Seguimiento: no se pudo revisar DPF pendiente: {e} ***")
+        pendientes = []
+
+    notificados_prev_dpf = set(estado.get('seguimiento_dpf_notificados', []))
+    claves_nuevas_dpf = []
+    for p in pendientes:
+        if p['id_veh'] not in ids_seguidos:
+            continue
+        clave = f"{p['id_veh']}|{p['lampara_desde'].isoformat()}"
+        if clave in notificados_prev_dpf:
+            continue
+        nombre_veh = nombres_por_id.get(p['id_veh'], p['id_veh'])
+        hora_local = p['lampara_desde'].astimezone(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        texto = (
+            f"🎯🛑 SEGUIMIENTO URGENTE -- REGENERACIÓN DPF PENDIENTE\n"
+            f"Vehículo: {nombre_veh}\n"
+            f"Testigo encendido desde: {hora_local}\n"
+            f"Lleva {p['minutos_transcurridos']:.0f} minutos sin regenerar (ni automática ni manual)."
+        )
+        if enviar_telegram(texto):
+            claves_nuevas_dpf.append(clave)
+    estado['seguimiento_dpf_notificados'] = list(notificados_prev_dpf | set(claves_nuevas_dpf))
 
 
 # ---------------------------------------------------------------------------
@@ -2020,8 +2266,14 @@ def main():
         claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
         estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
 
+        # Se pide UNA sola vez y se reparte a revisar_fallas_activas y a
+        # revisar_seguimiento -- ver nota en revisar_fallas_activas.
+        activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla = _obtener_fallas_activas(api)
+
         claves_fallas_previas = set(estado['fallas_activas'])
-        claves_fallas_actuales, _ = revisar_fallas_activas(api, claves_fallas_previas)
+        claves_fallas_actuales, _ = revisar_fallas_activas(
+            activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas
+        )
         # Union, NO reemplazo -- 'fallas_activas' en el estado es memoria de "ya se
         # notifico" (igual que revolucion_notificados), no "lo que esta activo ahora
         # mismo" (eso siempre se recalcula fresco desde Geotab via
@@ -2035,6 +2287,11 @@ def main():
         claves_dpf_previas = set(estado['regeneracion_dpf_notificados'])
         claves_dpf_nuevas = revisar_regeneracion_pendiente(api, claves_dpf_previas)
         estado['regeneracion_dpf_notificados'] = list(claves_dpf_previas | set(claves_dpf_nuevas))
+
+        try:
+            revisar_seguimiento(api, estado, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla)
+        except Exception as e:
+            print(f"*** Seguimiento de vehiculos puntuales fallo en esta corrida: {e} ***")
 
         enviar_resumenes_por_hora(api, estado)
         enviar_resumenes_por_turno(api, estado)
