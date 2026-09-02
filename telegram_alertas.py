@@ -808,24 +808,6 @@ def _obtener_fallas_activas(api):
     return activas, devices, dic_diag, dic_fm, mapa_grupos
 
 
-def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
-    """Arma los campos de texto de una fila de falla (cualquier criticidad) --
-    reutilizado por la alerta individual y por el resumen consolidado por hora."""
-    diag_info = dic_diag.get(row['diag_id'], {'nombre': 'Diagnóstico desconocido', 'codigo': None})
-    fm_info = dic_fm.get(row['fm_id'], {'nombre': '', 'codigo': None})
-    vehiculo = devices.get(row['id_camion'], {})
-    nombre_veh = vehiculo.get('name', row['id_camion'])
-    ciudad, tipologia = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
-    hora_local = row['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
-    spn = diag_info.get('codigo') or '?'
-    fmi = fm_info.get('codigo') or '?'
-    descripcion = diag_info['nombre']
-    if fm_info['nombre']:
-        descripcion += f" — {fm_info['nombre']}"
-    url_busqueda = f"https://www.google.com/search?q=SPN+{spn}+FMI+{fmi}+causa+falla+motores+diesel"
-    return nombre_veh, ciudad, tipologia, spn, fmi, descripcion, hora_local, url_busqueda
-
-
 EMOJI_POR_CRITICIDAD = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': 'ℹ️'}
 
 
@@ -1909,61 +1891,47 @@ def _limites_turno(momento_local):
     raise ValueError(f"No se pudo determinar el turno para {momento_local}")  # no deberia pasar
 
 
-def _construir_texto_persistentes(api, desde, etiqueta):
-    """Lista compacta (una linea por vehiculo, no el detalle completo) de las fallas
-    que ya estaban activas ANTES de 'desde' y siguen activas ahora -- para no perder
-    el rastro de lo que lleva dias sin resolverse, ya que el PDF del periodo (turno u
-    hora) solo trae lo nuevo. Cualquier criticidad (no solo ALTA). 'etiqueta' es texto
-    libre para el encabezado (ej. 'turno R2' o 'antes de las 14:00')."""
+def _filtrar_fallas_persistentes(api, desde):
+    """Fallas activas AHORA que ya estaban activas antes de 'desde' y siguen sin
+    resolver -- devuelve la misma tupla que _obtener_fallas_activas (activas ya
+    filtradas, devices, dic_diag, dic_fm, mapa_grupos), lista para pasarla como
+    datos_precomputados a generar_pdf_reporte_fallas."""
     activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
-    if activas.empty:
-        return []
-
-    desde_utc = desde.astimezone(timezone.utc)
-    persistentes = activas[activas['dateTime'] < desde_utc]
-    if persistentes.empty:
-        return []
-
-    ahora_utc = datetime.now(timezone.utc)
-    filas_persistentes = []
-    for _, grupo in persistentes.groupby('id_camion'):
-        fila_mas_vieja = grupo.sort_values('dateTime', ascending=True).iloc[0]
-        nombre_veh, ciudad, _, _, _, _, _, _ = _texto_falla(fila_mas_vieja, devices, dic_diag, dic_fm, mapa_grupos)
-        dias_activa = (ahora_utc - fila_mas_vieja['dateTime']).days
-        conteo_criticidad = grupo['criticidad'].value_counts().to_dict()
-        resumen_criticidad = ', '.join(
-            f"{n} {c}" for c, n in sorted(conteo_criticidad.items(), key=lambda kv: -ORDEN_CRITICIDAD.get(kv[0], 0))
-        )
-        filas_persistentes.append({
-            'ciudad': ciudad, 'n_codigos': len(grupo),
-            'texto': f"  • {nombre_veh}: {len(grupo)} código(s) ({resumen_criticidad}), la más vieja lleva {dias_activa} día(s) activa",
-        })
-
-    lineas = [
-        f"⏳ Fallas persistentes sin resolver ({etiqueta}) — "
-        f"{len(persistentes)} en {persistentes['id_camion'].nunique()} vehículos:"
-    ]
-    for ciudad, filas_ciudad in _agrupar_por_ciudad(filas_persistentes):
-        lineas.append(f"{ciudad}:")
-        for f in sorted(filas_ciudad, key=lambda x: -x['n_codigos']):
-            lineas.append(f['texto'])
-    return lineas
+    if not activas.empty:
+        desde_utc = desde.astimezone(timezone.utc)
+        activas = activas[activas['dateTime'] < desde_utc]
+    return activas, devices, dic_diag, dic_fm, mapa_grupos
 
 
 def _enviar_reporte_fallas(api, desde_local, etiqueta_persistentes):
-    """Manda el resumen de texto de las fallas persistentes (activas desde antes de
-    desde_local y que siguen sin resolver). Las fallas NUEVAS del periodo ya NO se
-    mandan aca -- desde que revisar_fallas_activas empezo a consolidarlas en un PDF
-    en CADA corrida del cron (cada 5 min, ver esa funcion), este mismo PDF una vez
-    por hora quedaba puro duplicado de lo que ya se habia mandado minutos antes
-    (2026-09-02, a pedido del usuario: unificar en un solo camino en vez de dos)."""
+    """Genera y manda un PDF (mismo diseño/generador que el resto de reportes de
+    fallas -- ver generar_pdf_reporte_fallas) con las fallas que ya estaban activas
+    antes de desde_local y siguen sin resolver ahora -- silencio si no hay ninguna.
+    Antes esto se mandaba como texto plano; a pedido del usuario (2026-09-02, "que
+    llegue en PDF como la estructura que estamos manejando") pasa a usar el mismo
+    formato que /reporte, el seguimiento urgente y las fallas nuevas de cada
+    corrida del cron."""
+    ruta_pdf = None
     try:
-        lineas_persistentes = _construir_texto_persistentes(api, desde_local, etiqueta_persistentes)
-        if lineas_persistentes:
-            _enviar_por_partes(lineas_persistentes)
-            print(f"Resumen de persistentes ({etiqueta_persistentes}) enviado.")
+        persistentes, devices, dic_diag, dic_fm, mapa_grupos = _filtrar_fallas_persistentes(api, desde_local)
+        if persistentes.empty:
+            print(f"Persistentes ({etiqueta_persistentes}): ninguna, no se manda nada.")
+            return
+        ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+        n_fallas = generar_pdf_reporte_fallas(
+            api, ruta_pdf, titulo="Fallas Persistentes Sin Resolver",
+            datos_precomputados=(persistentes, devices, dic_diag, dic_fm, mapa_grupos),
+        )
+        nombre_archivo = f"fallas_persistentes_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
+        caption = f"⏳ Fallas persistentes sin resolver ({etiqueta_persistentes}) — {n_fallas} código(s)"
+        for chat_id in _chat_ids_destino():
+            _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
+        print(f"Persistentes ({etiqueta_persistentes}): PDF enviado ({n_fallas} fallas).")
     except Exception as e:
-        print(f"*** No se pudo armar/enviar el resumen de persistentes ({etiqueta_persistentes}): {e} ***")
+        print(f"*** No se pudo generar/enviar el PDF de persistentes ({etiqueta_persistentes}): {e} ***")
+    finally:
+        if ruta_pdf and os.path.exists(ruta_pdf):
+            os.remove(ruta_pdf)
 
 
 def _enviar_reporte_fallas_completo(api, nombre_archivo, caption):
