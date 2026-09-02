@@ -12,6 +12,7 @@ import os
 import json
 import re
 import tempfile
+import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from xml.sax.saxutils import escape as escapar_xml
@@ -522,6 +523,10 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
             if resolver_ciudad_tipologia(devices.get(c['id_veh'], {}).get('groups'), mapa_grupos)[0] == CIUDAD_FILTRO
         ]
 
+    # Mismo enriquecimiento de RPM que ya usa el resumen por hora (_resumen_eventos_revolucion_hora)
+    # -- aca se agrega tambien a la alerta individual, que hasta ahora no lo traia.
+    _agregar_rpm_pico(api, candidatos)
+
     claves_nuevas = []
     for c in candidatos:
         vehiculo = devices.get(c['id_veh'], {})
@@ -532,6 +537,7 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
             (v for k, v in REFERENCIA_MOTOR_POR_MARCA.items() if k in marca.lower()), 'Desconocido'
         )
         hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        rpm_texto = f"{c['rpm_pico']:.0f} RPM" if c.get('rpm_pico') is not None else "No disponible"
 
         delta_seg = c.get('pto_delta_seg')
         if delta_seg is None:
@@ -560,11 +566,12 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
             f"Tipología: {tipologia}\n"
             f"Motor: {referencia_motor}\n"
             f"Hora: {hora_local}\n"
+            f"RPM registrado: {rpm_texto}\n"
             f"Duración: {c['duracion_seg']:.0f} segundos sostenidos\n"
             f"Vehículo detenido con RPM alto, {texto_pto}"
         )
         if enviar_telegram(texto):
-            print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s)")
+            print(f"Notificado: {c['clave']} ({c['duracion_seg']:.0f}s, {rpm_texto})")
             claves_nuevas.append(c['clave'])
 
     return claves_nuevas
@@ -681,13 +688,32 @@ def resolver_marca(grupos_vehiculo, mapa_grupos):
     return None
 
 
+def api_get_con_reintentos(api, type_name, intentos=3, espera_seg=5):
+    """Wrapper alrededor de api.get con reintentos ante errores transitorios
+    de red (ej. 'Response ended prematurely' cuando el catalogo es grande y
+    la conexion se corta a mitad de la respuesta -- confirmado con datos
+    reales el 2026-09-01 en la consulta de 'Diagnostic', que trae miles de
+    registros). No reintenta errores de logica -- solo problemas de red/conexion,
+    para no ocultar bugs reales detras de reintentos silenciosos."""
+    ultimo_error = None
+    for intento in range(1, intentos + 1):
+        try:
+            return api.get(type_name)
+        except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            ultimo_error = e
+            print(f"*** Error de red consultando {type_name} (intento {intento}/{intentos}): {e} ***")
+            if intento < intentos:
+                time.sleep(espera_seg)
+    raise ultimo_error
+
+
 def obtener_catalogos_diagnosticos(api):
     dic_diag = {}
-    for d in api.get('Diagnostic'):
+    for d in api_get_con_reintentos(api, 'Diagnostic'):
         if isinstance(d, dict) and 'id' in d:
             dic_diag[d['id']] = {'nombre': d.get('name') or 'Diagnóstico sin nombre', 'codigo': d.get('code')}
     dic_fm = {}
-    for fm in api.get('FailureMode'):
+    for fm in api_get_con_reintentos(api, 'FailureMode'):
         if isinstance(fm, dict) and 'id' in fm:
             dic_fm[fm['id']] = {'nombre': fm.get('name') or '', 'codigo': fm.get('code')}
     return dic_diag, dic_fm
@@ -1995,11 +2021,6 @@ def enviar_resumenes_por_turno(api, estado):
         )
         ultimo_turno_fin = inicio_turno_actual - timedelta(hours=8 * MAX_TURNOS_CONSOLIDAR)
 
-    # El PDF ahora es una foto del estado ACTUAL (todas las fallas activas), no de
-    # una ventana pasada -- si se recuperan varios turnos de golpe (el bot estuvo
-    # caido), no tiene sentido mandar el mismo PDF repetido con etiquetas de
-    # turnos distintos, asi que se avanza el estado por cada turno perdido pero
-    # el envio se hace una sola vez, para el turno mas reciente que ya termino.
     while ultimo_turno_fin < inicio_turno_actual:
         nombre_turno, inicio_turno, fin_turno = _limites_turno(ultimo_turno_fin)
         ultimo_turno_fin = fin_turno

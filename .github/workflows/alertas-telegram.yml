@@ -5,6 +5,11 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+permissions:
+  actions: write
+  contents: read
+
+
 jobs:
   revisar-y-notificar:
     runs-on: ubuntu-latest
@@ -38,3 +43,23 @@ jobs:
         with:
           path: telegram_estado.json
           key: telegram-estado-${{ github.run_id }}
+
+      - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Caches con prefijo telegram-estado- encontradas:"
+          gh cache list --key telegram-estado- --limit 100 --json id,createdAt,key
+
+          IDS_A_BORRAR=$(gh cache list --key telegram-estado- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+
+          if [ -z "$IDS_A_BORRAR" ]; then
+            echo "No hay caches viejas que borrar (0 o 1 encontradas)."
+          else
+            echo "Borrando caches viejas (un 'ya no existia' es normal si otra corrida en paralelo se adelanto):"
+            for id in $IDS_A_BORRAR; do
+              gh cache delete "$id" || echo "  -> ya no existia: $id (probablemente borrada por otra corrida en paralelo)"
+            done
+          fi
