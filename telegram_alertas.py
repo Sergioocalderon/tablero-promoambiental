@@ -829,15 +829,18 @@ def _texto_falla(row, devices, dic_diag, dic_fm, mapa_grupos):
 EMOJI_POR_CRITICIDAD = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': 'ℹ️'}
 
 
-def revisar_fallas_activas(activas, devices, dic_diag, dic_fm, mapa_grupos, claves_activas_previas):
-    """Alerta individual por cada falla nueva, de CUALQUIER criticidad (antes solo
-    ALTA) -- para que lo que llega a Telegram coincida con lo que se ve en Geotab en
-    vez de ser solo un subconjunto. Recibe los datos ya traidos de Geotab (ver
-    _obtener_fallas_activas) en vez de 'api', para que main() los pida UNA sola vez
-    y se los pase tambien a revisar_seguimiento -- si cada uno volviera a llamar
-    _obtener_fallas_activas por su cuenta, se duplicaria la paginacion de 30 dias de
-    FaultData en CADA corrida del cron (cada 5 min), incluso sin vehiculos en
-    seguimiento."""
+def revisar_fallas_activas(api, activas, devices, dic_diag, dic_fm, mapa_grupos, claves_activas_previas):
+    """Consolida TODAS las fallas nuevas de esta corrida (cualquier criticidad, de
+    cualquier vehiculo) en UN solo PDF -- mismo generador/diseño que ya usan /reporte,
+    el resumen por hora y el reporte de fin de turno (ver generar_pdf_reporte_fallas),
+    en vez del mensaje de texto plano que mandaba antes por cada falla nueva por
+    separado (2026-09-02: a pedido del usuario, "solo texto no me suma nada").
+
+    Recibe los datos ya traidos de Geotab (ver _obtener_fallas_activas) en vez de
+    llamarla de nuevo, para que main() los pida UNA sola vez y se los pase tambien a
+    revisar_seguimiento -- si cada uno volviera a pedirlos por su cuenta, se
+    duplicaria la paginacion de 30 dias de FaultData en CADA corrida del cron (cada
+    5 min)."""
     if activas.empty:
         return set(), []
 
@@ -850,29 +853,34 @@ def revisar_fallas_activas(activas, devices, dic_diag, dic_fm, mapa_grupos, clav
             continue
         filas_nuevas.append(row)
 
-    for row in filas_nuevas:
-        nombre_veh, ciudad, tipologia, spn, fmi, descripcion, hora_local, url_busqueda = _texto_falla(
-            row, devices, dic_diag, dic_fm, mapa_grupos
-        )
-        emoji = EMOJI_POR_CRITICIDAD.get(row['criticidad'], '🔧')
-        texto = (
-            f"{emoji} FALLA ACTIVA ({row['criticidad']})\n"
-            f"Vehículo: {nombre_veh}\n"
-            f"Ciudad: {ciudad}\n"
-            f"Tipología: {tipologia}\n"
-            f"SPN {spn} | FMI {fmi}\n"
-            f"{descripcion}\n"
-            f"Hora: {hora_local}\n"
-            f"🔍 Buscar causa: {url_busqueda}"
-        )
-        if enviar_telegram(texto):
-            clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
-            print(f"Notificado (falla {row['criticidad']}): {clave}")
-
     if not filas_nuevas:
         print("Sin fallas nuevas que notificar.")
-    else:
-        print(f"Total fallas notificadas en esta corrida: {len(filas_nuevas)}")
+        return claves_actuales, filas_nuevas
+
+    ids_vehiculos_nuevos = {row['id_camion'] for row in filas_nuevas}
+    criticidad_max = max((row['criticidad'] for row in filas_nuevas), key=lambda c: ORDEN_CRITICIDAD.get(c, 0))
+    emoji = EMOJI_POR_CRITICIDAD.get(criticidad_max, '🔧')
+    caption = (
+        f"{emoji} {len(filas_nuevas)} falla(s) nueva(s) en {len(ids_vehiculos_nuevos)} vehículo(s) "
+        f"(máxima criticidad: {criticidad_max})"
+    )
+
+    ruta_pdf = None
+    try:
+        ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+        generar_pdf_reporte_fallas(
+            api, ruta_pdf, dispositivos_filtro=ids_vehiculos_nuevos, titulo="Fallas Nuevas Detectadas",
+            datos_precomputados=(activas, devices, dic_diag, dic_fm, mapa_grupos),
+        )
+        nombre_archivo = f"fallas_nuevas_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
+        for chat_id in _chat_ids_destino():
+            _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
+        print(f"Total fallas notificadas en esta corrida: {len(filas_nuevas)} (PDF, {len(ids_vehiculos_nuevos)} vehículos)")
+    except Exception as e:
+        print(f"*** No se pudo generar/enviar el PDF de fallas nuevas: {e} ***")
+    finally:
+        if ruta_pdf and os.path.exists(ruta_pdf):
+            os.remove(ruta_pdf)
 
     return claves_actuales, filas_nuevas
 
@@ -1268,7 +1276,7 @@ def _pill_criticidad(criticidad, estilo_pill):
 
 
 def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=None,
-                                dispositivos_filtro=None, titulo=None):
+                                dispositivos_filtro=None, titulo=None, datos_precomputados=None):
     """Genera un PDF con fallas activas (cualquier criticidad), una tarjeta por
     vehiculo con sus fallas ordenadas por criticidad -- diseño acordado con el
     usuario (mockup 2026-08-27): tarjetas redondeadas, badges de color por
@@ -1288,8 +1296,17 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
     dispositivos_filtro: set opcional de device_id -- si se pasa, solo se incluyen
     esos vehiculos (usado por el seguimiento urgente de vehiculos puntuales, ver
     revisar_seguimiento). titulo: reemplaza el encabezado "Reporte de Fallas
-    Activas" por defecto (mismo uso)."""
-    activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
+    Activas" por defecto (mismo uso).
+
+    datos_precomputados: tupla opcional (activas, devices, dic_diag, dic_fm,
+    mapa_grupos) ya calculada por el llamador (ver _obtener_fallas_activas) --
+    evita pedirle a Geotab la misma paginacion de 30 dias de FaultData otra vez
+    (usado por revisar_fallas_activas, que corre cada 5 min y ya la trae en
+    main() para el chequeo general)."""
+    if datos_precomputados is not None:
+        activas, devices, dic_diag, dic_fm, mapa_grupos = datos_precomputados
+    else:
+        activas, devices, dic_diag, dic_fm, mapa_grupos = _obtener_fallas_activas(api)
     if desde_local is not None and hasta_local is not None and not activas.empty:
         desde_utc = desde_local.astimezone(timezone.utc)
         hasta_utc = hasta_local.astimezone(timezone.utc)
@@ -1788,6 +1805,7 @@ def revisar_seguimiento(api, estado, activas, devices, dic_diag, dic_fm, mapa_gr
                 generar_pdf_reporte_fallas(
                     api, ruta_pdf, dispositivos_filtro={id_veh},
                     titulo=f"Seguimiento urgente: {nombre_veh}",
+                    datos_precomputados=(activas, devices, dic_diag, dic_fm, mapa_grupos),
                 )
                 nombre_archivo = f"seguimiento_{nombre_veh}_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
                 for chat_id in _chat_ids_destino():
@@ -1932,29 +1950,13 @@ def _construir_texto_persistentes(api, desde, etiqueta):
     return lineas
 
 
-def _enviar_reporte_fallas(api, desde_local, hasta_local, nombre_archivo, caption, etiqueta_persistentes):
-    """Genera y manda el PDF de fallas nuevas en [desde_local, hasta_local) -- silencio
-    (no manda nada) si dio 0 -- mas el resumen de texto de las persistentes (activas
-    desde antes de desde_local). Mismo patron para el resumen por hora y el reporte de
-    fin de turno, asi ambos quedan cortos y faciles de revisar (el PDF trae solo lo
-    nuevo, ya agrupado por ciudad/criticidad/sistema; el texto no repite el detalle de
-    lo que ya se reporto antes, solo la cuenta de lo que sigue sin resolver)."""
-    ruta_pdf = None
-    try:
-        ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
-        n_fallas = generar_pdf_reporte_fallas(api, ruta_pdf, desde_local=desde_local, hasta_local=hasta_local)
-        if n_fallas == 0:
-            print(f"{caption}: sin fallas nuevas, no se manda nada.")
-        else:
-            for chat_id in _chat_ids_destino():
-                _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
-            print(f"{caption}: PDF enviado ({n_fallas} fallas).")
-    except Exception as e:
-        print(f"*** No se pudo generar/enviar el PDF ({caption}): {e} ***")
-    finally:
-        if ruta_pdf and os.path.exists(ruta_pdf):
-            os.remove(ruta_pdf)
-
+def _enviar_reporte_fallas(api, desde_local, etiqueta_persistentes):
+    """Manda el resumen de texto de las fallas persistentes (activas desde antes de
+    desde_local y que siguen sin resolver). Las fallas NUEVAS del periodo ya NO se
+    mandan aca -- desde que revisar_fallas_activas empezo a consolidarlas en un PDF
+    en CADA corrida del cron (cada 5 min, ver esa funcion), este mismo PDF una vez
+    por hora quedaba puro duplicado de lo que ya se habia mandado minutos antes
+    (2026-09-02, a pedido del usuario: unificar en un solo camino en vez de dos)."""
     try:
         lineas_persistentes = _construir_texto_persistentes(api, desde_local, etiqueta_persistentes)
         if lineas_persistentes:
@@ -2260,9 +2262,7 @@ def enviar_resumenes_por_hora(api, estado):
         except Exception as e:
             print(f"*** Error armando/enviando el resumen de revolucion de {ultima_hora.strftime('%H:%M')}: {e} ***")
 
-        nombre_archivo = f"fallas_{ultima_hora.strftime('%Y%m%d_%H%M')}.pdf"
-        caption = f"📄 Fallas nuevas — {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')} ({ultima_hora.strftime('%d/%m/%Y')})"
-        _enviar_reporte_fallas(api, ultima_hora, fin_hora, nombre_archivo, caption, f"antes de las {ultima_hora.strftime('%H:%M')}")
+        _enviar_reporte_fallas(api, ultima_hora, f"antes de las {ultima_hora.strftime('%H:%M')}")
 
         print(f"Resumen por hora procesado: {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
         ultima_hora = fin_hora
@@ -2295,7 +2295,7 @@ def main():
 
         claves_fallas_previas = set(estado['fallas_activas'])
         claves_fallas_actuales, _ = revisar_fallas_activas(
-            activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas
+            api, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas
         )
         # Union, NO reemplazo -- 'fallas_activas' en el estado es memoria de "ya se
         # notifico" (igual que revolucion_notificados), no "lo que esta activo ahora
