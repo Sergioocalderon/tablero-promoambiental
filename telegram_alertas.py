@@ -688,17 +688,19 @@ def resolver_marca(grupos_vehiculo, mapa_grupos):
     return None
 
 
-def api_get_con_reintentos(api, type_name, intentos=3, espera_seg=5):
+def api_get_con_reintentos(api, type_name, search=None, intentos=3, espera_seg=5):
     """Wrapper alrededor de api.get con reintentos ante errores transitorios
-    de red (ej. 'Response ended prematurely' cuando el catalogo es grande y
-    la conexion se corta a mitad de la respuesta -- confirmado con datos
-    reales el 2026-09-01 en la consulta de 'Diagnostic', que trae miles de
-    registros). No reintenta errores de logica -- solo problemas de red/conexion,
-    para no ocultar bugs reales detras de reintentos silenciosos."""
+    de red (ej. 'Response ended prematurely' cuando la respuesta es grande y
+    la conexion se corta a mitad de camino -- confirmado con datos reales el
+    2026-09-01 en 'Diagnostic', y de nuevo el mismo dia en la paginacion de
+    'FaultData' de 30 dias/toda la flota, que tumbo toda la corrida del cron
+    con una excepcion sin manejar). No reintenta errores de logica -- solo
+    problemas de red/conexion, para no ocultar bugs reales detras de
+    reintentos silenciosos."""
     ultimo_error = None
     for intento in range(1, intentos + 1):
         try:
-            return api.get(type_name)
+            return api.get(type_name, search=search) if search is not None else api.get(type_name)
         except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             ultimo_error = e
             print(f"*** Error de red consultando {type_name} (intento {intento}/{intentos}): {e} ***")
@@ -739,7 +741,7 @@ def _obtener_faultdata_paginado(api, f_inicio, f_fin):
     todas = []
     desde = f_inicio
     while True:
-        pagina = api.get('FaultData', search={
+        pagina = api_get_con_reintentos(api, 'FaultData', search={
             'fromDate': desde.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
         }) or []
