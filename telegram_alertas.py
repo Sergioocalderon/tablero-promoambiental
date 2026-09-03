@@ -323,6 +323,18 @@ def responder_mensajes_nuevos(api, estado):
                 coincidencias = [v for v in seguidos if objetivo in v['nombre'].upper()]
                 if len(coincidencias) == 1:
                     seguidos.remove(coincidencias[0])
+                    # Se purga tambien la memoria de "ya notificado" de ese vehiculo -- si
+                    # no, un /seguir posterior sobre el mismo vehiculo no avisaria nada de
+                    # lo que ya estaba activo antes (las claves no cambian entre corridas,
+                    # ver revisar_seguimiento), quedando en el mismo silencio de antes.
+                    prefijo = f"{coincidencias[0]['device_id']}|"
+                    for clave_estado in (
+                        "seguimiento_fallas_notificadas", "seguimiento_revolucion_notificados",
+                        "seguimiento_dpf_notificados",
+                    ):
+                        estado[clave_estado] = [
+                            c for c in estado.get(clave_estado, []) if not c.startswith(prefijo)
+                        ]
                     texto_resp = f"✅ '{coincidencias[0]['nombre']}' ya no está en seguimiento."
                 elif len(coincidencias) > 1:
                     lista = ", ".join(v['nombre'] for v in coincidencias)
@@ -1771,15 +1783,20 @@ def revisar_seguimiento(api, estado, activas, devices, dic_diag, dic_fm, mapa_gr
     if not activas.empty:
         activas_seguidas = activas[activas['id_camion'].isin(ids_seguidos)]
         notificadas_prev = set(estado.get('seguimiento_fallas_notificadas', []))
-        claves_actuales = {
-            f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}" for _, row in activas_seguidas.iterrows()
-        }
-        vehiculos_con_falla_nueva = {
-            row['id_camion'] for _, row in activas_seguidas.iterrows()
-            if f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}" not in notificadas_prev
-        }
+        claves_por_vehiculo = {}
+        for _, row in activas_seguidas.iterrows():
+            clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
+            if clave not in notificadas_prev:
+                claves_por_vehiculo.setdefault(row['id_camion'], set()).add(clave)
 
-        for id_veh in vehiculos_con_falla_nueva:
+        # Solo se agregan a "ya notificadas" las claves de un vehiculo si el PDF
+        # realmente se genero y se le pudo mandar a AL MENOS un suscriptor -- antes
+        # esto se marcaba igual aunque generar_pdf_reporte_fallas/el envio fallaran
+        # (ej. corte de red), asi que una falla nueva se daba por "avisada" sin que
+        # jamas hubiera llegado a Telegram, y nunca se volvia a reintentar porque su
+        # clave (vehiculo+diagnostico+modo de falla) no cambia entre corridas.
+        claves_confirmadas = set()
+        for id_veh, claves_nuevas_veh in claves_por_vehiculo.items():
             nombre_veh = nombres_por_id.get(id_veh, id_veh)
             ruta_pdf = None
             try:
@@ -1790,19 +1807,25 @@ def revisar_seguimiento(api, estado, activas, devices, dic_diag, dic_fm, mapa_gr
                     datos_precomputados=(activas, devices, dic_diag, dic_fm, mapa_grupos),
                 )
                 nombre_archivo = f"seguimiento_{nombre_veh}_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
+                enviado_a_alguno = False
                 for chat_id in _chat_ids_destino():
-                    _enviar_documento_telegram(
+                    if _enviar_documento_telegram(
                         chat_id, ruta_pdf, nombre_archivo,
                         f"🎯🚨 SEGUIMIENTO URGENTE -- {nombre_veh} tiene falla(s) nueva(s)",
-                    )
-                print(f"Seguimiento: PDF de fallas enviado para {nombre_veh}")
+                    ):
+                        enviado_a_alguno = True
+                if enviado_a_alguno:
+                    claves_confirmadas |= claves_nuevas_veh
+                    print(f"Seguimiento: PDF de fallas enviado para {nombre_veh}")
+                else:
+                    print(f"*** Seguimiento: el PDF de {nombre_veh} no le llego a NINGUN suscriptor -- se reintenta la proxima corrida. ***")
             except Exception as e:
-                print(f"*** Seguimiento: no se pudo generar/enviar el PDF de fallas de {nombre_veh}: {e} ***")
+                print(f"*** Seguimiento: no se pudo generar/enviar el PDF de fallas de {nombre_veh} (se reintenta la proxima corrida): {e} ***")
             finally:
                 if ruta_pdf and os.path.exists(ruta_pdf):
                     os.remove(ruta_pdf)
 
-        estado['seguimiento_fallas_notificadas'] = list(notificadas_prev | claves_actuales)
+        estado['seguimiento_fallas_notificadas'] = list(notificadas_prev | claves_confirmadas)
 
     # --- Sobre-revolucion con PTO (1300 RPM), solo vehiculos seguidos ---
     try:
