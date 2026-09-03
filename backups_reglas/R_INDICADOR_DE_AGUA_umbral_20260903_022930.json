@@ -1,0 +1,67 @@
+{
+  "activeFrom": "2026-08-15 04:26:13.158000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Se detecta agua en el combustible: Sensor en filtro trampa. Drenar filtro trampa.",
+  "condition": {
+    "children": [
+      {
+        "conditionType": "FilterStatusDataByDiagnostic",
+        "sequence": "0000000000000000",
+        "diagnostic": {
+          "id": "aqrnaVDR2ek6po5jgm4E-zw",
+          "unitOfMeasure": "UnitOfMeasureNoneId"
+        },
+        "id": "asiEfInS-HUqyTPxTU7oEsA"
+      }
+    ],
+    "conditionType": "IsValueMoreThan",
+    "sequence": "0000000000000000",
+    "value": 1,
+    "id": "akZM7erH0VUyK2Vym13uz3w"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "az4_okI7EkE-0t41Wf99Z8A"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aqrnaVDR2ek6po5jgm4E-zw"
+      },
+      "id": "aDnfmyBff-kOjtGinRapVTw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "az4_okI7EkE-0t41Wf99Z8A"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aqrnaVDR2ek6po5jgm4E-zw"
+      },
+      "id": "am0I8ezap0U6aNcxfgO72dA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "az4_okI7EkE-0t41Wf99Z8A",
+  "name": "R_INDICADOR DE AGUA EN EL COMBUSTIBLE (L9-OM 926-ISF 3.8-T800-NHR-N400)",
+  "groups": [
+    {
+      "id": "b2C03"
+    }
+  ],
+  "version": "00000000000035bb"
+}
