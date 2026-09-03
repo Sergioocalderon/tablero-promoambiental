@@ -1780,52 +1780,67 @@ def revisar_seguimiento(api, estado, activas, devices, dic_diag, dic_fm, mapa_gr
     nombres_por_id = {v['device_id']: v['nombre'] for v in seguidos}
 
     # --- Fallas activas (cualquier criticidad) -> PDF destacado por vehiculo ---
-    if not activas.empty:
-        activas_seguidas = activas[activas['id_camion'].isin(ids_seguidos)]
-        notificadas_prev = set(estado.get('seguimiento_fallas_notificadas', []))
-        claves_por_vehiculo = {}
-        for _, row in activas_seguidas.iterrows():
-            clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
-            if clave not in notificadas_prev:
-                claves_por_vehiculo.setdefault(row['id_camion'], set()).add(clave)
+    # OJO: el resto de esta seccion corre siempre, incluso si 'activas' (la flota
+    # entera) viene vacia -- si se salteara con un 'if not activas.empty', un
+    # vehiculo cuya ultima falla se acaba de resolver nunca soltaria su foto vieja
+    # (ver mas abajo), y al reaparecer esa falla no se detectaria como nueva.
+    activas_seguidas = activas[activas['id_camion'].isin(ids_seguidos)] if not activas.empty else activas
+    notificadas_prev = set(estado.get('seguimiento_fallas_notificadas', []))
+    claves_activas_por_vehiculo = {}
+    for _, row in activas_seguidas.iterrows():
+        clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
+        claves_activas_por_vehiculo.setdefault(row['id_camion'], set()).add(clave)
 
-        # Solo se agregan a "ya notificadas" las claves de un vehiculo si el PDF
-        # realmente se genero y se le pudo mandar a AL MENOS un suscriptor -- antes
-        # esto se marcaba igual aunque generar_pdf_reporte_fallas/el envio fallaran
-        # (ej. corte de red), asi que una falla nueva se daba por "avisada" sin que
-        # jamas hubiera llegado a Telegram, y nunca se volvia a reintentar porque su
-        # clave (vehiculo+diagnostico+modo de falla) no cambia entre corridas.
-        claves_confirmadas = set()
-        for id_veh, claves_nuevas_veh in claves_por_vehiculo.items():
-            nombre_veh = nombres_por_id.get(id_veh, id_veh)
-            ruta_pdf = None
-            try:
-                ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
-                generar_pdf_reporte_fallas(
-                    api, ruta_pdf, dispositivos_filtro={id_veh},
-                    titulo=f"Seguimiento urgente: {nombre_veh}",
-                    datos_precomputados=(activas, devices, dic_diag, dic_fm, mapa_grupos),
-                )
-                nombre_archivo = f"seguimiento_{nombre_veh}_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
-                enviado_a_alguno = False
-                for chat_id in _chat_ids_destino():
-                    if _enviar_documento_telegram(
-                        chat_id, ruta_pdf, nombre_archivo,
-                        f"🎯🚨 SEGUIMIENTO URGENTE -- {nombre_veh} tiene falla(s) nueva(s)",
-                    ):
-                        enviado_a_alguno = True
-                if enviado_a_alguno:
-                    claves_confirmadas |= claves_nuevas_veh
-                    print(f"Seguimiento: PDF de fallas enviado para {nombre_veh}")
-                else:
-                    print(f"*** Seguimiento: el PDF de {nombre_veh} no le llego a NINGUN suscriptor -- se reintenta la proxima corrida. ***")
-            except Exception as e:
-                print(f"*** Seguimiento: no se pudo generar/enviar el PDF de fallas de {nombre_veh} (se reintenta la proxima corrida): {e} ***")
-            finally:
-                if ruta_pdf and os.path.exists(ruta_pdf):
-                    os.remove(ruta_pdf)
+    # 'seguimiento_fallas_notificadas' es una FOTO de lo que estaba activo en la
+    # ultima corrida (no una lista que solo crece) -- si no, un codigo que se
+    # resuelve y vuelve a aparecer dias despues quedaria silenciado para
+    # siempre, porque su clave (vehiculo+diagnostico+modo de falla) ya habia
+    # quedado marcada como "avisada" una vez y nunca se soltaba (a pedido del
+    # usuario, 2026-09-03: "si se quitan y vuelven a salir, ¿me los muestra?").
+    # Por vehiculo: "nuevo" = esta activo ahora Y no estaba en la foto anterior
+    # -- cubre tanto un codigo realmente nuevo como uno que ya se habia resuelto
+    # y reaparecio. Solo se actualiza la foto de un vehiculo si no habia nada
+    # nuevo que avisar, o si lo nuevo se pudo mandar con exito -- si el envio
+    # falla, se deja la foto vieja para reintentar en la proxima corrida.
+    notificadas_actualizado = set(notificadas_prev)
+    for id_veh in ids_seguidos:
+        prefijo = f"{id_veh}|"
+        activas_veh = claves_activas_por_vehiculo.get(id_veh, set())
+        prev_veh = {c for c in notificadas_prev if c.startswith(prefijo)}
+        nuevas_veh = activas_veh - prev_veh
+        if not nuevas_veh:
+            notificadas_actualizado = (notificadas_actualizado - prev_veh) | activas_veh
+            continue
 
-        estado['seguimiento_fallas_notificadas'] = list(notificadas_prev | claves_confirmadas)
+        nombre_veh = nombres_por_id.get(id_veh, id_veh)
+        ruta_pdf = None
+        try:
+            ruta_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+            generar_pdf_reporte_fallas(
+                api, ruta_pdf, dispositivos_filtro={id_veh},
+                titulo=f"Seguimiento urgente: {nombre_veh}",
+                datos_precomputados=(activas, devices, dic_diag, dic_fm, mapa_grupos),
+            )
+            nombre_archivo = f"seguimiento_{nombre_veh}_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
+            enviado_a_alguno = False
+            for chat_id in _chat_ids_destino():
+                if _enviar_documento_telegram(
+                    chat_id, ruta_pdf, nombre_archivo,
+                    f"🎯🚨 SEGUIMIENTO URGENTE -- {nombre_veh} tiene falla(s) nueva(s)",
+                ):
+                    enviado_a_alguno = True
+            if enviado_a_alguno:
+                notificadas_actualizado = (notificadas_actualizado - prev_veh) | activas_veh
+                print(f"Seguimiento: PDF de fallas enviado para {nombre_veh}")
+            else:
+                print(f"*** Seguimiento: el PDF de {nombre_veh} no le llego a NINGUN suscriptor -- se reintenta la proxima corrida. ***")
+        except Exception as e:
+            print(f"*** Seguimiento: no se pudo generar/enviar el PDF de fallas de {nombre_veh} (se reintenta la proxima corrida): {e} ***")
+        finally:
+            if ruta_pdf and os.path.exists(ruta_pdf):
+                os.remove(ruta_pdf)
+
+    estado['seguimiento_fallas_notificadas'] = list(notificadas_actualizado)
 
     # --- Sobre-revolucion con PTO (1300 RPM), solo vehiculos seguidos ---
     try:
