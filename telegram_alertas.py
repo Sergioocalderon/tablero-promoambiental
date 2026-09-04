@@ -80,7 +80,7 @@ def cargar_estado():
     default = {
         "revolucion_notificados": [], "fallas_activas": [], "ultima_hora_resumen": None,
         "ultimo_update_id_procesado": None, "suscriptores": [], "ultimo_turno_fin": None,
-        "regeneracion_dpf_notificados": [],
+        "regeneracion_dpf_notificados": [], "temperatura_motor_notificados": [],
         "vehiculos_seguimiento": [], "seguimiento_fallas_notificadas": [],
         "seguimiento_revolucion_notificados": [], "seguimiento_dpf_notificados": [],
     }
@@ -95,6 +95,7 @@ def cargar_estado():
         estado = dict(default)
         for clave in (
             "revolucion_notificados", "fallas_activas", "suscriptores", "regeneracion_dpf_notificados",
+            "temperatura_motor_notificados",
             "vehiculos_seguimiento", "seguimiento_fallas_notificadas",
             "seguimiento_revolucion_notificados", "seguimiento_dpf_notificados",
         ):
@@ -123,6 +124,7 @@ def guardar_estado(estado):
         "suscriptores": estado.get("suscriptores", []),
         "ultimo_turno_fin": estado.get("ultimo_turno_fin"),
         "regeneracion_dpf_notificados": estado.get("regeneracion_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
+        "temperatura_motor_notificados": estado.get("temperatura_motor_notificados", [])[-MAX_CLAVES_GUARDADAS:],
         "vehiculos_seguimiento": estado.get("vehiculos_seguimiento", []),
         "seguimiento_fallas_notificadas": estado.get("seguimiento_fallas_notificadas", [])[-MAX_CLAVES_GUARDADAS:],
         "seguimiento_revolucion_notificados": estado.get("seguimiento_revolucion_notificados", [])[-MAX_CLAVES_GUARDADAS:],
@@ -604,6 +606,59 @@ def revisar_sobre_revolucion(api, claves_ya_notificadas):
         print(f"Total sobre-revolucion notificados en esta corrida: {len(claves_nuevas)}")
     else:
         print("Sin eventos nuevos de sobre-revolucion que notificar.")
+
+    return claves_nuevas
+
+
+# ---------------------------------------------------------------------------
+# Temperatura de motor alta (X12) -- riesgo de daño de motor, se avisa a TODOS
+# los suscriptores apenas se detecta (no espera al resumen por hora). Regla
+# validada el 2026-09-04: se probo temporalmente a 80C/2min para confirmar que
+# el sensor de los 5 vehiculos del alcance reportaba bien (si reportaba, max
+# real 94-96C) antes de dejarla en su umbral de produccion (101C sostenido
+# 15s, con ignition=1).
+# ---------------------------------------------------------------------------
+
+NOMBRE_REGLA_TEMPERATURA_MOTOR = 'R_TEMPERATURA DE MOTOR MÁXIMA (X12)'
+
+
+def revisar_temperatura_motor(api, claves_ya_notificadas):
+    devices = {d['id']: d for d in api.get('Device')}
+    mapa_grupos = obtener_mapa_grupos(api)
+
+    f_fin = datetime.now(timezone.utc)
+    f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
+    candidatos = _obtener_eventos_regla(api, NOMBRE_REGLA_TEMPERATURA_MOTOR, f_inicio, f_fin)
+    candidatos = [c for c in candidatos if c['clave'] not in claves_ya_notificadas]
+    if CIUDAD_FILTRO:
+        candidatos = [
+            c for c in candidatos
+            if resolver_ciudad_tipologia(devices.get(c['id_veh'], {}).get('groups'), mapa_grupos)[0] == CIUDAD_FILTRO
+        ]
+
+    claves_nuevas = []
+    for c in candidatos:
+        vehiculo = devices.get(c['id_veh'], {})
+        nombre_veh = vehiculo.get('name', c['id_veh'])
+        ciudad, tipologia = resolver_ciudad_tipologia(vehiculo.get('groups'), mapa_grupos)
+        hora_local = c['activeFrom'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
+        texto = (
+            f"🌡️🚨 TEMPERATURA DE MOTOR ALTA\n"
+            f"Vehículo: {nombre_veh}\n"
+            f"Ciudad: {ciudad}\n"
+            f"Tipología: {tipologia}\n"
+            f"Hora: {hora_local}\n"
+            f"Duración: {c['duracion_seg']:.0f} segundos sostenidos por encima del máximo\n"
+            f"⚠️ Riesgo de daño de motor -- detener y revisar de inmediato."
+        )
+        if enviar_telegram(texto):
+            print(f"Notificado (temperatura motor): {c['clave']}")
+            claves_nuevas.append(c['clave'])
+
+    if claves_nuevas:
+        print(f"Total temperatura de motor notificados en esta corrida: {len(claves_nuevas)}")
+    else:
+        print("Sin eventos nuevos de temperatura de motor que notificar.")
 
     return claves_nuevas
 
@@ -2316,6 +2371,10 @@ def main():
         claves_dpf_previas = set(estado['regeneracion_dpf_notificados'])
         claves_dpf_nuevas = revisar_regeneracion_pendiente(api, claves_dpf_previas)
         estado['regeneracion_dpf_notificados'] = list(claves_dpf_previas | set(claves_dpf_nuevas))
+
+        claves_temp_previas = set(estado.get('temperatura_motor_notificados', []))
+        claves_temp_nuevas = revisar_temperatura_motor(api, claves_temp_previas)
+        estado['temperatura_motor_notificados'] = list(claves_temp_previas | set(claves_temp_nuevas))
 
         try:
             revisar_seguimiento(api, estado, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla)
