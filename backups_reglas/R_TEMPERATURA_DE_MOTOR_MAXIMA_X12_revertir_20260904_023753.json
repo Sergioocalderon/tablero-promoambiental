@@ -1,0 +1,116 @@
+{
+  "activeFrom": "2026-08-24 20:53:18.552000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Regla para identificar recalentamiento de motor (X12) \nMáxima Temperatura; 102 °C\nPor  15 segundos\n\n\n[PRUEBA TEMPORAL 2026-09-04] Umbral bajado a 80C/2min (original: 101C/15s) para diagnosticar por que 4 de 5 vehiculos del alcance nunca reportan el sensor de temperatura. Revertir a 101C/15s una vez confirmado. Ver respaldo en backups_reglas/R_TEMPERATURA_DE_MOTOR_MAXIMA_X12_prueba_20260904_002906.json",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "conditionType": "FilterStatusDataByDiagnostic",
+                "sequence": "0000000000000000",
+                "diagnostic": {
+                  "id": "DiagnosticEngineCoolantTemperatureId",
+                  "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+                },
+                "id": "aTzqKtijmsU-dSP15oyCOeQ"
+              }
+            ],
+            "conditionType": "IsValueMoreThan",
+            "sequence": "0000000000000000",
+            "unit": "C",
+            "value": 80,
+            "id": "a2CvO1QWizk6nZ9yaZk4vkQ"
+          },
+          {
+            "conditionType": "Ignition",
+            "sequence": "0000000000000001",
+            "value": 1,
+            "id": "aV_e_VUGIbUGRyn1-16of_g"
+          }
+        ],
+        "conditionType": "And",
+        "sequence": "0000000000000000",
+        "id": "ab2s3DUDodk2GLxbfZkxY3Q"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 120,
+    "id": "aJRRf36H3XUGwVh1eXVz7kQ"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "arfsZ_zRrGU2VeVLkyKKgLg"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineCoolantTemperatureId"
+      },
+      "id": "awlhtEtL7-0aLsjcCxTrYug"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "arfsZ_zRrGU2VeVLkyKKgLg"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineCoolantTemperatureId"
+      },
+      "id": "al3bSV3RHkEi42FbyFrFQfw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "arfsZ_zRrGU2VeVLkyKKgLg"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "aIU_KJiPthU6ewIYwhx04Zw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "arfsZ_zRrGU2VeVLkyKKgLg"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticIgnitionId"
+      },
+      "id": "anIB5yP9rME-Mxhyy1boOBA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "arfsZ_zRrGU2VeVLkyKKgLg",
+  "name": "R_TEMPERATURA DE MOTOR MÁXIMA (X12)",
+  "groups": [
+    {
+      "id": "b2C8C"
+    }
+  ],
+  "version": "00000000000035f0"
+}
