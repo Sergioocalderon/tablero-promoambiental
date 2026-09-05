@@ -1,0 +1,119 @@
+{
+  "activeFrom": "2026-07-15 05:42:23.064000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Detecta caída de tensión en carga del alternador por: 1. Daño de correa y/o 2. falla en alternador del sistema eléctrico.\n\nTensión nominal en carga: Aprox. 27,8 VDC\nLímite de salida máxima del sistema 29,5 VDC",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "aNyAEOjdq60G5fimWQjX5XQ",
+              "unitOfMeasure": "UnitOfMeasureVoltsId"
+            },
+            "id": "aQ9_trb5fkEqD2Q4xbkTNqA"
+          }
+        ],
+        "conditionType": "IsValueLessThan",
+        "sequence": "0000000000000000",
+        "unit": "V",
+        "value": 27,
+        "id": "aYaadtrJUxE6ycBHO5_E1ow"
+      },
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "DiagnosticEngineHoursId",
+              "unitOfMeasure": "UnitOfMeasureSecondsId"
+            },
+            "id": "aHdfp_meTxUGc8IFqinrDTA"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000001",
+        "unit": "s",
+        "value": 10,
+        "id": "aX794sdwhB0KfMFntvHZA2w"
+      }
+    ],
+    "conditionType": "And",
+    "sequence": "0000000000000000",
+    "id": "aRnD4Ghu1rEOdYqhmZRMLIA"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aW-g0X1qO3USl3Qxv27T4qA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aNyAEOjdq60G5fimWQjX5XQ"
+      },
+      "id": "a6r9maVDEWkO2dJFuuDWyzg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aW-g0X1qO3USl3Qxv27T4qA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "aNyAEOjdq60G5fimWQjX5XQ"
+      },
+      "id": "aua8kZiQrm0eephmvaxrvHw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aW-g0X1qO3USl3Qxv27T4qA"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineHoursId"
+      },
+      "id": "aTVbhWkevk0icqbqYSbZIdw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aW-g0X1qO3USl3Qxv27T4qA"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "DiagnosticEngineHoursId"
+      },
+      "id": "ajfQ_DHxUxE-6CwlnJWOxfg"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aW-g0X1qO3USl3Qxv27T4qA",
+  "name": "R_CAÍDA DE TENSIÓN CARGA DEL ALTERNADOR (X12)",
+  "groups": [
+    {
+      "id": "b2C8C"
+    }
+  ],
+  "version": "00000000000035be"
+}
