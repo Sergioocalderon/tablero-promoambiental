@@ -47,6 +47,12 @@ VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se 
 # que con las otras reglas. ---
 NOMBRE_REGLA_PTO = 'SOBRE REVOLUCIÓN CON PTO (L9-X12-OM 926-ISF 3.8)'
 DURACION_MINIMA_PTO_SEG = 30
+# La regla de Geotab sigue en 1300 RPM para TODAS las marcas (no se toco, a
+# proposito -- ramificar por grupo dentro de una sola regla no es posible en
+# Geotab). Mercedes (motor OM926) exige ademas este umbral propio, aplicado en
+# codigo con _filtrar_por_umbral_mercedes, DESPUES de que la regla ya disparo
+# el candidato a 1300 -- decision tomada con el usuario 2026-09-14.
+UMBRAL_RPM_MERCEDES_PTO = 1500
 
 # --- Fallas criticas: severidad tomada directo de las luces que reporta Geotab
 # (mismo criterio que app.py: ALTA = roja o proteccion motor, MEDIA = ambar). ---
@@ -540,6 +546,7 @@ def _revisar_regla_revolucion(api, devices, mapa_grupos, nombre_regla, claves_ya
     # Mismo enriquecimiento de RPM que ya usa el resumen por hora (_resumen_eventos_revolucion_hora)
     # -- aca se agrega tambien a la alerta individual, que hasta ahora no lo traia.
     _agregar_rpm_pico(api, candidatos)
+    candidatos = _filtrar_por_umbral_mercedes(candidatos, devices, mapa_grupos)
 
     claves_nuevas = []
     for c in candidatos:
@@ -1909,6 +1916,13 @@ def revisar_seguimiento(api, estado, activas, devices, dic_diag, dic_fm, mapa_gr
         print(f"*** Seguimiento: no se pudo revisar sobre-revolucion: {e} ***")
         candidatos = []
 
+    # CAMBIO: antes este bloque no traia rpm_pico ni aplicaba el umbral propio de
+    # Mercedes (1500 RPM) -- un Mercedes seguido podia disparar la alerta urgente
+    # con solo 1300 RPM mientras la alerta normal y el resumen ya lo filtraban,
+    # inconsistente entre features. Mismo filtro que usan esas dos.
+    _agregar_rpm_pico(api, candidatos)
+    candidatos = _filtrar_por_umbral_mercedes(candidatos, devices, mapa_grupos)
+
     notificados_prev_rpm = set(estado.get('seguimiento_revolucion_notificados', []))
     claves_nuevas_rpm = []
     for c in candidatos:
@@ -2196,6 +2210,28 @@ def _agregar_rpm_pico(api, eventos_candidatos, ventana_segundos=VENTANA_RPM_SEGU
     return eventos_candidatos
 
 
+def _filtrar_por_umbral_mercedes(eventos_candidatos, devices, mapa_grupos):
+    """Filtro de marca aplicado DESPUES de que la regla de Geotab ya disparo el
+    candidato a 1300 RPM (la regla sigue igual para todos -- no se toco en Geotab,
+    a proposito, ver conversacion 2026-09-12/14): para Mercedes (motor OM926) se
+    exige que el pico real de RPM llegue a UMBRAL_RPM_MERCEDES_PTO antes de
+    notificar; las demas marcas pasan sin cambios con el umbral de 1300 de siempre.
+
+    Requiere que cada candidato ya tenga 'rpm_pico' (ver _agregar_rpm_pico) --
+    si la consulta de RPM fallo y rpm_pico quedo en None, NO se suprime (mismo
+    criterio de "fallar abierto" que el resto del pipeline: mejor una alerta de
+    mas por un pico que no se pudo confirmar, que perder una real por un hueco
+    de datos)."""
+    filtrados = []
+    for e in eventos_candidatos:
+        vehiculo = devices.get(e['id_veh'], {})
+        marca = (resolver_marca(vehiculo.get('groups'), mapa_grupos) or '').lower()
+        if 'mercedes' in marca and e.get('rpm_pico') is not None and e['rpm_pico'] < UMBRAL_RPM_MERCEDES_PTO:
+            continue  # Mercedes por debajo de su umbral propio -- se descarta, no se notifica
+        filtrados.append(e)
+    return filtrados
+
+
 def _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_utc):
     """Eventos de SOBRE REVOLUCIÓN CON PTO (unica regla que interesa por ahora; la de
     L9/X12 mide algo distinto -- RPM alto en recorrido, sin exigir vehiculo detenido --
@@ -2207,6 +2243,7 @@ def _resumen_eventos_revolucion_hora(api, devices, mapa_grupos, inicio_utc, fin_
         api, NOMBRE_REGLA_PTO, inicio_utc, fin_utc, DURACION_MINIMA_PTO_SEG, requiere_pto_cercano=True
     )
     _agregar_rpm_pico(api, candidatos)
+    candidatos = _filtrar_por_umbral_mercedes(candidatos, devices, mapa_grupos)
     filas = []
     for c in candidatos:
         vehiculo = devices.get(c['id_veh'], {})
