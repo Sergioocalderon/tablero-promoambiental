@@ -1,7 +1,7 @@
 {
     "name": "Dashboard de Análisis de Fallas",
     "supportEmail": "sergio.calderon@promoambientaldistrito.com",
-    "version": "2.6",
+    "version": "2.7",
     "items": [
         {
             "url": "dashboardAnalisisFallas.html",

@@ -767,7 +767,10 @@ geotab.addin.dashboardAnalisisFallas = function () {
       }
       var acc = porCodigo[clave];
       acc.episodios += g.episodios;
-      acc.vehiculosAfectados[g.idVehiculo] = true;
+      // CAMBIO (2026-10-03): se guardan los episodios POR vehículo (antes solo
+      // un "true") -- la tabla de detalle de sistema muestra qué móviles
+      // tienen cada código, ordenados por episodios.
+      acc.vehiculosAfectados[g.idVehiculo] = (acc.vehiculosAfectados[g.idVehiculo] || 0) + g.episodios;
       if (g.ultimaFecha > acc.ultimaFecha) acc.ultimaFecha = g.ultimaFecha;
     });
 
@@ -781,6 +784,9 @@ geotab.addin.dashboardAnalisisFallas = function () {
         nombreFalla: acc.nombreFalla,
         episodios: acc.episodios,
         vehiculosAfectados: Object.keys(acc.vehiculosAfectados).length,
+        episodiosPorVehiculo: Object.keys(acc.vehiculosAfectados)
+          .map(function (id) { return { idVehiculo: id, episodios: acc.vehiculosAfectados[id] }; })
+          .sort(function (a, b) { return b.episodios - a.episodios; }),
         ultimaFecha: acc.ultimaFecha
       };
     });
@@ -1367,17 +1373,59 @@ geotab.addin.dashboardAnalisisFallas = function () {
 
   var TOP_SISTEMA_DETALLE = 15;
 
+  // CAMBIO (2026-10-03, pedido del usuario): la columna "Vehículos" del
+  // detalle de un sistema mostraba solo cuántos eran. Ahora muestra cuáles:
+  // una etiqueta por móvil con sus episodios de ESE código, de más a menos.
+  // Cada etiqueta filtra el dashboard por ese móvil (mismo cfToggle('vehiculo')
+  // que el gráfico de Top vehículos). Hasta MAX_MOVILES_EN_CELDA etiquetas;
+  // el resto queda en "+N más", con la lista completa al pasar el mouse.
+  var MAX_MOVILES_EN_CELDA = 6;
+
+  function crearCeldaMovilesCodigo(c) {
+    var cont = crear('div', { display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', maxWidth: '360px' });
+    var lista = c.episodiosPorVehiculo || [];
+    var seleccionados = CF.vehiculo || [];
+    function nombreDe(id) {
+      var info = datosCache.infoVehiculos[id];
+      return info ? info.nombre : id;
+    }
+    lista.slice(0, MAX_MOVILES_EN_CELDA).forEach(function (v) {
+      var activo = seleccionados.indexOf(v.idVehiculo) !== -1;
+      var chip = crear('button', {
+        border: '1px solid ' + (activo ? T.color.primary : T.color.border),
+        background: activo ? T.color.primary : T.color.canvas,
+        color: activo ? '#FFFFFF' : T.color.body,
+        borderRadius: '999px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: '600',
+        cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', lineHeight: '1.5'
+      }, nombreDe(v.idVehiculo) + ' (' + v.episodios + ')');
+      chip.type = 'button';
+      chip.title = (activo ? 'Quitar filtro: ' : 'Filtrar el dashboard por ') + nombreDe(v.idVehiculo) + ' — ' + v.episodios + ' episodio(s) de este código';
+      chip.addEventListener('click', function (evt) {
+        evt.stopPropagation();
+        cfToggle('vehiculo', v.idVehiculo);
+      });
+      cont.appendChild(chip);
+    });
+    if (lista.length > MAX_MOVILES_EN_CELDA) {
+      var resto = lista.slice(MAX_MOVILES_EN_CELDA);
+      var mas = crear('span', { fontSize: '0.7rem', color: T.color.muted, fontWeight: '600', cursor: 'help' }, '+' + resto.length + ' más');
+      mas.title = resto.map(function (v) { return nombreDe(v.idVehiculo) + ' (' + v.episodios + ')'; }).join('\n');
+      cont.appendChild(mas);
+    }
+    return cont;
+  }
+
   function construirTablaSistemaDetalle(codigosOrdenados) {
     var total = codigosOrdenados.length;
     var top = codigosOrdenados.slice(0, TOP_SISTEMA_DETALLE);
     var maximo = top.length ? top[0].episodios : 0;
     var panel = construirTablaSecundaria(
       'Códigos SPN/FMI de este sistema' + (total > TOP_SISTEMA_DETALLE ? ' (top ' + TOP_SISTEMA_DETALLE + ' de ' + total + ')' : ''),
-      ['SPN/FMI', 'Descripción', 'Vehículos', 'Episodios', 'Última falla'],
+      ['SPN/FMI', 'Descripción', 'Móviles (episodios)', 'Episodios', 'Última falla'],
       top,
       function (c) {
         return [
-          crearCeldaSpnFmiConBusqueda(c), crearTextoTruncado(c.nombreFalla, '320px'), String(c.vehiculosAfectados),
+          crearCeldaSpnFmiConBusqueda(c), crearTextoTruncado(c.nombreFalla, '320px'), crearCeldaMovilesCodigo(c),
           crearBarraDatos(c.episodios, maximo), formatearFechaHora(c.ultimaFecha)
         ];
       }
