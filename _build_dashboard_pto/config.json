@@ -1,7 +1,7 @@
 {
     "name": "Análisis de Sobre-Revolución con PTO",
     "supportEmail": "sergio.calderon@promoambientaldistrito.com",
-    "version": "1.16",
+    "version": "1.17",
     "items": [
         {
             "url": "dashboardAnalisisPTO.html",

@@ -104,6 +104,9 @@
     });
     return flota;
   }
+  function isHiddenCategory(cat){
+    return !!(DASH && DASH.hiddenCategories && DASH.hiddenCategories.indexOf(cat) !== -1);
+  }
   function countByField(rows, field){
     var m = {};
     rows.forEach(function(r){ m[r[field]] = (m[r[field]] || 0) + 1; });
@@ -407,10 +410,15 @@
         var fb = DASH.activeCrit[0];
         setKpi('fallas_alta', String(full.filter(function(r){ return r.criticidad === fb; }).length));
       }
-      var catCounts = countByField(full, 'categoria');
+      // DASH.hiddenCategories (opcional, 2026-10-03): categorías que el
+      // reporte pide excluir del KPI de sistema y del gráfico por sistema
+      // (p.ej. 'Otro / Sin clasificar', que solo mete ruido). Esas fallas
+      // siguen contando en el total y en la tabla. El % se calcula sobre el
+      // total de fallas distintas.
+      var catCounts = countByField(full.filter(function(r){ return !isHiddenCategory(r.categoria); }), 'categoria');
       var topCat = null, topCatN = -1;
       Object.keys(catCounts).forEach(function(c){ if(catCounts[c] > topCatN){ topCat = c; topCatN = catCounts[c]; } });
-      setKpi('sistema_principal', topCat + ' (' + decFmt(100 * topCatN / fallasDistintas) + ' %)');
+      setKpi('sistema_principal', topCat === null ? '—' : topCat + ' (' + decFmt(100 * topCatN / fallasDistintas) + ' %)');
       var movCounts = countByField(full, 'movil');
       var top5 = Object.keys(movCounts).map(function(m){ return [m, movCounts[m]]; })
         .sort(function(a, b){ return b[1] - a[1]; }).slice(0, 5);
@@ -451,7 +459,7 @@
     }, 'criticidad', 'Criticidad');
 
     recomputeChart('sistemas_bar', function(){
-      var base = filterRowsCf(DASH.rows, 'sistema');
+      var base = filterRowsCf(DASH.rows, 'sistema').filter(function(r){ return !isHiddenCategory(r.categoria); });
       var groups = groupCriticidad(base, 'categoria');
       var keys = Object.keys(groups);
       if(!keys.length) return null;

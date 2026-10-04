@@ -42,7 +42,7 @@ geotab.addin.dashboardAnalisisPTO = function () {
   // disparando de nuevo el pipeline pesado (StatusData de RPM de alta
   // resolución + PTO por vehículo, DOS VECES -- rango actual y periodo
   // anterior). Pedido explícito: que SIEMPRE cargue con el rango rápido por
-  // defecto (2 semanas vs. 2 semanas anteriores) para que la apertura del
+  // defecto (hoy 1 semana vs. la semana anterior) para que la apertura del
   // add-in sea rápida. El campo Desde/Hasta sigue editable para una consulta
   // puntual con "Analizar rango", pero ya no se recuerda entre sesiones.
   // CAMBIO (2026-09-17): bajado de 30 a 14 dias -- con el alcance nacional
@@ -50,7 +50,13 @@ geotab.addin.dashboardAnalisisPTO = function () {
   // hacia el pipeline demasiado pesado (ver cambios/2026-09-17_fix-serverstopped-carga-inicial.md).
   // 14 dias reduce el volumen de datos a la mitad sin perder demasiado
   // contexto para detectar tendencia.
-  var DIAS_RANGO_POR_DEFECTO = 14;
+  // CAMBIO (2026-10-03, decisión del usuario tras la auditoría): bajado de 14
+  // a 7 días. Medido con la API real: la vista de 2 semanas descargaba
+  // ~1,6 GB de RPM de alta resolución (más otro tanto para el periodo
+  // anterior), y eso causaba "Se agotó el tiempo de espera". Con 7 días el
+  // volumen baja a la mitad sin tocar el cálculo de RPM pico. Un rango más
+  // largo sigue disponible a mano con "Analizar rango".
+  var DIAS_RANGO_POR_DEFECTO = 7;
   var TOP_N = 5;
   var INTERVALO_AUTO_REFRESCO_MS = 10 * 60 * 1000; // 10 min, igual al operativo
   // Mismo límite de página que herramientas/geotab_comun.py
@@ -1418,7 +1424,7 @@ geotab.addin.dashboardAnalisisPTO = function () {
     }
 
     var botonAnalizar = crearBoton('Analizar rango', true);
-    var botonUltimos30 = crearBoton('Últimas 2 semanas', false);
+    var botonUltimos30 = crearBoton('Última semana', false);
 
     var filaFiltros = crear('div', { display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end' });
     filaFiltros.appendChild(campoDesde.envoltorio);

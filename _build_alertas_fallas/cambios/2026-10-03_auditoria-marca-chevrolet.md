@@ -20,7 +20,7 @@ recalculadas por fuera en Python, todas exactas:
   NHR y la van N400 salían con "Motor: Desconocido" y sin marca. Verificado con
   la corrida real: ahora sale "Motor: Sin confirmar".
 
-## Observación pendiente de decisión del usuario (sin cambiar)
+## Observación revisada con el usuario: se mantiene oculto (decisión 2026-10-03)
 
 `CATEGORIAS_OCULTAS` incluye 'General', o sea todo diagnóstico cuyo nombre no
 contenga una palabra clave conocida. El aviso dice "conectividad telemática y
@@ -32,3 +32,5 @@ diagnósticos sin nombre reconocible". Medido el 2026-10-03:
   repetidos de la flota en el Dashboard de Fallas.
 - Oculta **10 "Alerta: Se excedió el límite de aceleración para colisiones"**
   (posibles choques).
+
+**Decisión del usuario (2026-10-03):** dejarlas ocultas. No se cambia `CATEGORIAS_OCULTAS`. Queda documentado para que no se vuelva a plantear como bug: es un criterio de negocio deliberado.

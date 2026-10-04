@@ -214,11 +214,28 @@ geotab.addin.dashboardAnalisisFallas = function () {
   // siempre. Nuevos umbrales calibrados a esa distribución real (Bajo 1-4 ·
   // Medio 5-8 · Alto 9-20 · Crítico ≥21 o falla de sistema crítico) --
   // ajustar aquí si la flota cambia de escala más adelante.
+  //
+  // CAMBIO (recalibración 2026-10-03, pedida por el usuario tras la
+  // auditoría): con datos reales de 30 días (toda la flota, 75 vehículos con
+  // fallas) 57 de 75 salían "Crítico", así que la categoría ya no
+  // distinguía nada. Los dos criterios estaban saturados a la vez:
+  //  - Cantidad: mediana 76 episodios/vehículo (P25 9 · P75 260 · P90 567),
+  //    así que ≥21 lo cumplían 49 vehículos.
+  //  - Sistema: bastaba UN episodio de Motor/Frenos/Dirección/Embrague en
+  //    cualquier momento del rango, aunque ya estuviera resuelto (54 vehículos).
+  // Nuevos umbrales, redondeados sobre los cuantiles reales: Bajo 1-9 ·
+  // Medio 10-79 · Alto 80-499 · Crítico ≥500. Y el criterio de sistema exige
+  // que la falla crítica SIGA ACTIVA al cierre del rango (`tieneFallaCriticaActiva`,
+  // mismo criterio que el KPI "vehículos con alerta crítica activa"), que es
+  // lo que de verdad pide "atención inmediata". Resultado con los mismos
+  // datos: Crítico 32 · Alto 10 · Medio 15 · Bajo 18. Los umbrales están
+  // calibrados para el rango por defecto de 30 días: con un rango más corto
+  // los vehículos tienden a caer en niveles más bajos.
   function clasificarCriticidadVehiculo(datos) {
     var episodios = datos.episodios || 0;
-    if (datos.tieneFallaCritica || episodios >= 21) return CRITICIDAD.CRITICO;
-    if (episodios >= 9) return CRITICIDAD.ALTO;
-    if (episodios >= 5) return CRITICIDAD.MEDIO;
+    if (datos.tieneFallaCriticaActiva || episodios >= 500) return CRITICIDAD.CRITICO;
+    if (episodios >= 80) return CRITICIDAD.ALTO;
+    if (episodios >= 10) return CRITICIDAD.MEDIO;
     return CRITICIDAD.BAJO;
   }
 
@@ -662,7 +679,7 @@ geotab.addin.dashboardAnalisisFallas = function () {
     var porVehiculo = {};
     grupos.forEach(function (g) {
       if (!porVehiculo[g.idVehiculo]) {
-        porVehiculo[g.idVehiculo] = { idVehiculo: g.idVehiculo, episodios: 0, codigosDistintos: 0, ultimaFecha: g.ultimaFecha, tieneFallaCritica: false };
+        porVehiculo[g.idVehiculo] = { idVehiculo: g.idVehiculo, episodios: 0, codigosDistintos: 0, ultimaFecha: g.ultimaFecha, tieneFallaCritica: false, tieneFallaCriticaActiva: false };
       }
       var acc = porVehiculo[g.idVehiculo];
       acc.episodios += g.episodios;
@@ -671,15 +688,21 @@ geotab.addin.dashboardAnalisisFallas = function () {
       // CAMBIO: marca el vehículo si ALGUNA de sus fallas es de un sistema
       // crítico -- basta una sola para que el vehículo entero se clasifique
       // como Crítico, sin importar cuántos episodios tenga en total.
+      // CAMBIO (2026-10-03): para la criticidad solo cuenta si esa falla
+      // crítica SIGUE ACTIVA al cierre del rango (tieneFallaCriticaActiva) --
+      // ver la recalibración en clasificarCriticidadVehiculo.
       var diagInfo = catalogos.dicDiag[g.idDiagnostico];
-      if (diagInfo && esFallaSistemaCritico(diagInfo.nombre)) acc.tieneFallaCritica = true;
+      if (diagInfo && esFallaSistemaCritico(diagInfo.nombre)) {
+        acc.tieneFallaCritica = true;
+        if (g.activaAlFinal) acc.tieneFallaCriticaActiva = true;
+      }
     });
 
     var lista = Object.keys(porVehiculo).map(function (idVeh) {
       var acc = porVehiculo[idVeh];
       var info = infoVehiculos[idVeh] || { claveVehiculo: idVeh, ciudad: 'Sin ciudad asignada', tipologia: 'Sin tipología asignada', marca: 'Sin marca', referenciaMotor: 'Desconocido' };
       // CAMBIO: clasificación de criticidad centralizada (ver clasificarCriticidadVehiculo).
-      var criticidad = clasificarCriticidadVehiculo({ episodios: acc.episodios, tieneFallaCritica: acc.tieneFallaCritica });
+      var criticidad = clasificarCriticidadVehiculo({ episodios: acc.episodios, tieneFallaCriticaActiva: acc.tieneFallaCriticaActiva });
       return {
         idVehiculo: idVeh,
         claveVehiculo: info.claveVehiculo,
@@ -1492,10 +1515,11 @@ geotab.addin.dashboardAnalisisFallas = function () {
       boxShadow: '0 6px 20px rgba(15,23,42,0.28)'
     });
     panel.innerHTML =
-      '🔴 <b>Crítico</b>: ≥21 episodios, o cualquier falla de Motor/Frenos/Dirección/Embrague<br>' +
-      '🟠 <b>Alto</b>: 9–20 episodios<br>' +
-      '🟡 <b>Medio</b>: 5–8 episodios<br>' +
-      '🟢 <b>Bajo</b>: 1–4 episodios';
+      '🔴 <b>Crítico</b>: ≥500 episodios, o una falla de Motor/Frenos/Dirección/Embrague que sigue activa<br>' +
+      '🟠 <b>Alto</b>: 80–499 episodios<br>' +
+      '🟡 <b>Medio</b>: 10–79 episodios<br>' +
+      '🟢 <b>Bajo</b>: 1–9 episodios<br>' +
+      '<span style="opacity:.75">Umbrales calibrados para 30 días.</span>';
 
     boton.addEventListener('click', function (evt) {
       evt.stopPropagation();
