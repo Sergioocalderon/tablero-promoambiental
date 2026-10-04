@@ -1195,10 +1195,16 @@ geotab.addin.operaciones = function () {
     });
 
     var filaCampos = crear('div', {
-      display: 'grid', gridTemplateColumns: 'minmax(150px,1.3fr) minmax(140px,1fr) minmax(140px,1fr) minmax(180px,1fr)',
+      // CAMBIO (2026-10-03, pedido del usuario): Empresa va en su propia fila a
+      // todo el ancho -- compartiendo fila con las fechas le tocaban ~170px y
+      // nombres como "ESTACIÓN DE TRANSFERENCIA ZIPA" o "PROMO AMBIENTAL
+      // DISTRITO BOGOTA" salían cortados; las fechas y los atajos también
+      // quedaban apretados. Ahora: fila 1 Empresa, fila 2 Desde | Hasta | Atajos.
+      display: 'grid', gridTemplateColumns: 'minmax(170px,1fr) minmax(170px,1fr) minmax(200px,1.1fr)',
       gap: '14px', alignItems: 'end'
     });
     filaCampos.className = 'rptx-form-grid';
+    envEmpresa.style.gridColumn = '1 / -1';
     filaCampos.appendChild(envEmpresa);
     filaCampos.appendChild(envDesde);
     filaCampos.appendChild(envHasta);

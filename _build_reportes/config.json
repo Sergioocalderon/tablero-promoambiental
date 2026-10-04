@@ -1,7 +1,7 @@
 {
     "name": "Mantenimiento",
     "supportEmail": "sergio.calderon@promoambientaldistrito.com",
-    "version": "2.3",
+    "version": "2.4",
     "items": [
         {
             "url": "mantenimiento.html",
