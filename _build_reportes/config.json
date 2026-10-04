@@ -1,0 +1,14 @@
+{
+    "name": "Mantenimiento",
+    "supportEmail": "sergio.calderon@promoambientaldistrito.com",
+    "version": "2.2",
+    "items": [
+        {
+            "url": "mantenimiento.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Mantenimiento"
+            }
+        }
+    ]
+}

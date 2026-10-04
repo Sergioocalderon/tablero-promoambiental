@@ -1,0 +1,14 @@
+{
+    "name": "Dashboard de Análisis de Fallas",
+    "supportEmail": "sergio.calderon@promoambientaldistrito.com",
+    "version": "2.5",
+    "items": [
+        {
+            "url": "dashboardAnalisisFallas.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Dashboard de Análisis de Fallas"
+            }
+        }
+    ]
+}

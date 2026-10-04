@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <!-- Geotab elimina las etiquetas <style>: todo el estilo de ESTA pantalla (selector
+       de empresa/fechas + botón) se aplica por JS (CSSOM) en mantenimiento.js, mismo
+       patrón que dashboardAnalisisFallas.html / dashboardAnalisisPTO.html.
+       No se cargan Chart.js ni chartjs-plugin-datalabels aquí -- el REPORTE descargado
+       no los usa (su motor propio dibuja barras/Pareto con <div>, no <canvas>), y esta
+       pantalla de configuración tampoco tiene gráficas. -->
+</head>
+<body>
+  <div id="mantenimientoRoot"></div>
+  <script src="mantenimiento.js"></script>
+</body>
+</html>

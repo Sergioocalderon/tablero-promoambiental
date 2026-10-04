@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <!-- Geotab elimina las etiquetas <style>: todo el estilo de ESTA pantalla (selector
+       de empresa/fechas + botón) se aplica por JS (CSSOM) en operaciones.js, mismo
+       patrón que dashboardAnalisisFallas.html / dashboardAnalisisPTO.html /
+       mantenimiento.html (add-in hermano, nacido de la misma separación el
+       2026-10-01 -- ver _build_operaciones/cambios/2026-10-01_creacion-addin-operaciones.md).
+       No se cargan Chart.js ni chartjs-plugin-datalabels aquí -- el REPORTE descargado
+       no los usa (su motor propio dibuja barras/Pareto con <div>, no <canvas>), y esta
+       pantalla de configuración tampoco tiene gráficas. -->
+</head>
+<body>
+  <div id="operacionesRoot"></div>
+  <script src="operaciones.js"></script>
+</body>
+</html>

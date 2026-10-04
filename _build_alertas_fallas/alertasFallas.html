@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <!-- Geotab elimina las etiquetas <style>: todo el estilo se aplica por JS (CSSOM) en alertasFallas.js -->
+  <!-- SheetJS: parsea el Excel de tripulaciones directo en el navegador (sin subirlo a ningun servidor) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- html2canvas: convierte la tarjeta del Mini Expediente (renderizada en un iframe
+       oculto) a una imagen PNG para descargar y compartir por WhatsApp -- ver
+       capturarYDescargarImagen() en alertasFallas.js. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <div id="alertasFallasRoot"></div>
+  <script src="alertasFallas.js"></script>
+</body>
+</html>

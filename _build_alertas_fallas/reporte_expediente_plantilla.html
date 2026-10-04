@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Expediente — Caso de Falla</title>
+<!-- Leaflet (mapa OpenStreetMap embebido, MIT license) -- este HTML se descarga y se
+     abre fuera del sandbox del add-in de Geotab, así que puede cargar librerías
+     externas por CDN sin problema de CSP (mismo precedente que SheetJS en
+     alertasFallas.html). Si no hay internet cuando se abre el expediente, el script
+     inline de abajo detecta que "L" no existe y muestra un aviso en vez de romper
+     el resto de la tarjeta. -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+:root{--ink:#0b2454;--accent:#0891b2;--corp:#2563eb;--muted:#64748b;--border:#e2e8f0;--bg:#f1f5f9;--card:#ffffff;
+      --alta:#dc2626;--media:#f59e0b;--baja:#94a3b8;--good:#16a34a}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#1e293b;font-size:14px;display:flex;justify-content:center}
+.card{width:100%;max-width:480px;background:var(--card);border-radius:16px;padding:22px 20px 18px;box-shadow:0 1px 2px rgba(15,23,42,.05),0 8px 24px rgba(15,23,42,.06)}
+.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:750}
+.subtitulo{font-size:13px;font-weight:650;color:var(--ink);margin-top:2px}
+.pildoras{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.titulo-movil{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.01em;margin:2px 0}
+.titulo-movil .placa{font-size:14px;font-weight:650;color:var(--muted);margin-left:8px}
+.nombre-falla{font-size:15px;font-weight:700;color:#1e293b;line-height:1.3;margin:2px 0 6px}
+.codigo-linea{font-family:'Courier New',monospace;font-size:12.5px;font-weight:750;color:var(--accent);margin-bottom:12px}
+.caja-fmi{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.45;margin-bottom:18px}
+.campo{margin-bottom:14px}
+.field-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:750;margin-bottom:3px}
+.field-value{font-size:14px;font-weight:700;color:#1e293b}
+.field-value.sin-dato{font-weight:600;font-style:italic;color:var(--muted)}
+.field-sub{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
+.map-wrap{margin-top:10px}
+a.ext-link{color:var(--accent);text-decoration:none;font-weight:650}
+a.ext-link:hover{text-decoration:underline}
+.aviso-sin-datos{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;font-weight:650;line-height:1.4}
+.sin-dato{color:var(--muted);font-style:italic}
+footer{text-align:center;color:var(--muted);font-size:10.5px;padding:16px 2px 2px;border-top:1px solid var(--border);margin-top:20px}
+@media print{ body{background:#fff;padding:0} .card{box-shadow:none;max-width:none} }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <header>
+    <div class="eyebrow">Telemetry &amp; Fleet Intelligence</div>
+    <div class="subtitulo">Mini expediente de falla</div>
+  </header>
+
+  <div id="aviso-slot"></div>
+
+  <div class="pildoras" id="pildoras-slot"></div>
+
+  <h1 class="titulo-movil">MÓVIL {{MOVIL}} <span class="placa">{{PLACA}}</span></h1>
+  <div class="nombre-falla">{{NOMBRE_FALLA}}</div>
+  <div class="codigo-linea">SPN {{SPN}} / FMI {{FMI}} · {{CATEGORIA}}</div>
+
+  <div class="caja-fmi">{{SIGNIFICADO_FMI}}</div>
+
+  <div class="campo" id="cuando-slot"></div>
+  <div class="campo" id="empresa-slot"></div>
+  <div class="campo" id="donde-slot"></div>
+  <div class="campo" id="conductor-slot"></div>
+
+  <footer>Generado {{GENERADO}}</footer>
+
+</div>
+
+</body>
+</html>
