@@ -36,7 +36,7 @@ interruptor manual se activo o no:
   3. Interruptor se activa pero la lampara NO se apaga tras
      UMBRAL_HORAS_ALERTA_TALLER horas mas -> aviso de taller (el conductor ya
      actuo, el vehiculo no logra regenerar -- probable falla mecanica).
-  4. Pasan UMBRAL_HORAS_ALERTA_CONDUCTOR horas desde que la lampara prendio y
+  4. Pasan UMBRAL_HORAS_ALERTA_CONDUCTOR horas DE MOTOR ENCENDIDO desde que la lampara prendio y
      el interruptor NUNCA se activo -> AVISO INMEDIATO por Telegram: alguien
      tiene que decirle al conductor que regenere, antes de que escale.
 
@@ -54,7 +54,7 @@ de empezar a vigilar en vivo.
 
 USO:
   python vigilancia_cumplimiento_regeneracion.py                       # cada 30 min, todos los vehiculos del alcance
-  python vigilancia_cumplimiento_regeneracion.py --horas-conductor 24  # ya es el default, pedido explicito del usuario
+  python vigilancia_cumplimiento_regeneracion.py --horas-conductor 2   # horas de MOTOR ENCENDIDO (default desde 2026-10-03)
   python vigilancia_cumplimiento_regeneracion.py --intervalo-min 20
 """
 import argparse
@@ -89,7 +89,14 @@ RUTA_ESTADO = CARPETA_HERRAMIENTAS / 'estado_cumplimiento_regeneracion.json'
 RUTA_HISTORICO_CSV = CARPETA_HERRAMIENTAS / 'historico_cumplimiento_regeneracion.csv'
 # Pedido explicito del usuario (2026-09-30): 24h para poder reaccionar e
 # informar a tiempo al conductor, antes de que el problema escale.
-UMBRAL_HORAS_ALERTA_CONDUCTOR = 24
+# CAMBIO (2026-10-03, aprobado por el usuario): ya NO son horas de calendario
+# sino horas con el MOTOR ENCENDIDO, con la lámpara prendida y sin activar el
+# interruptor. Con calendario, un camión que prende la lámpara en la mañana
+# podía pasar el turno entero sin aviso, y uno parqueado avisaba sin sentido
+# (caso real 1092-GVT510: 7 días "de demora", solo 43 min con motor). Medido
+# en 30 días: cuando el conductor regenera a mano, reacciona en una mediana de
+# 10 min de motor y nunca más de 1,1 h -- 2 h deja margen sin falsas alarmas.
+UMBRAL_HORAS_ALERTA_CONDUCTOR = 2
 # Extension razonable del mismo criterio: si el conductor YA activo el
 # interruptor y aun asi no resuelve, otras 24h es cuando vale la pena avisar
 # que el vehiculo necesita revision mecanica (no es lo que el usuario pidio
@@ -206,11 +213,12 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
     margen = timedelta(minutes=MARGEN_REENCENDIDO_MIN)
 
     def cerrar_episodio(fin):
-        nonlocal lamp_on_desde, interruptor_desde, lamp_off_desde
+        nonlocal lamp_on_desde, interruptor_desde, lamp_off_desde, seg_motor, seg_motor_hasta_accion
         # La ventana de revision tiene solape (VENTANA_LOOKBACK_MIN) a
         # proposito para no perder transiciones -- un episodio corto puede
         # volver a aparecer completo en el ciclo siguiente. Se deduplica
         # contra el ultimo cierre ya registrado (por inicio de episodio).
+        acumular_motor(fin)
         clave_episodio = lamp_on_desde.isoformat()
         parpadeo = interruptor_desde is None and (fin - lamp_on_desde) < timedelta(minutes=DURACION_MINIMA_EPISODIO_MIN)
         if not parpadeo and estado_veh.get('ultimo_cierre_registrado') != clave_episodio:
@@ -223,19 +231,44 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
                 'Interruptor activado': interruptor_desde is not None,
                 'Interruptor activado desde': interruptor_desde,
                 'Categoria': categoria,
+                # CAMBIO (2026-10-03): tiempo con motor encendido, la medida
+                # justa de la reacción del conductor (con el motor apagado no
+                # puede regenerar). "Hasta la acción" = hasta activar el
+                # interruptor, o hasta que se resolvió solo si nunca lo activó.
+                'Min motor encendido hasta accion': round((seg_motor_hasta_accion if seg_motor_hasta_accion is not None else seg_motor) / 60),
+                'Min motor encendido episodio': round(seg_motor / 60),
             })
             estado_veh['ultimo_cierre_registrado'] = clave_episodio
         lamp_on_desde = None
         interruptor_desde = None
         lamp_off_desde = None
+        seg_motor = 0.0
+        seg_motor_hasta_accion = None
         estado_veh['alertado_24h'] = False
         estado_veh['alertado_taller'] = False
+
+    # Tiempo con motor encendido dentro del episodio abierto (CAMBIO 2026-10-03).
+    # cursor_motor = hasta dónde ya se contó; solo se cuenta con la lámpara
+    # prendida y sin cierre pendiente.
+    seg_motor = float(estado_veh.get('seg_motor_episodio') or 0.0)
+    seg_motor_hasta_accion = estado_veh.get('seg_motor_hasta_accion')
+    cursor_motor = pd.to_datetime(estado_veh['cursor_motor']) if estado_veh.get('cursor_motor') else None
+
+    def acumular_motor(hasta_t):
+        nonlocal seg_motor, cursor_motor
+        if motor_encendido and lamp_on_desde is not None and lamp_off_desde is None and cursor_motor is not None:
+            inicio = max(cursor_motor, lamp_on_desde)
+            if hasta_t > inicio:
+                seg_motor += (hasta_t - inicio).total_seconds()
+        if cursor_motor is None or hasta_t > cursor_motor:
+            cursor_motor = hasta_t
 
     motor_encendido = estado_veh.get('motor_encendido')  # None = aún no se sabe
     interruptor_activo = bool(estado_veh.get('interruptor_activo'))
     margen_apagado = timedelta(minutes=MARGEN_APAGADO_MOTOR_MIN)
 
     for t, señal, v_val in eventos:
+        acumular_motor(t)
         if señal == 'ignicion':
             motor_encendido = bool(v_val and v_val > 0)
             # Un 0 de lámpara que llegó un instante ANTES del apagado del motor
@@ -257,6 +290,8 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
                     cerrar_episodio(lamp_off_desde)  # estuvo apagada de verdad; este 1 abre otro
                 if lamp_on_desde is None:
                     lamp_on_desde = t
+                    seg_motor = 0.0
+                    seg_motor_hasta_accion = None
                     interruptor_desde = None
                     estado_veh['alertado_24h'] = False
                     estado_veh['alertado_taller'] = False
@@ -271,6 +306,7 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
                 lamp_off_desde = None  # un 0 previo de lámpara era el inicio de la manual, no un cierre
             if v_val and v_val > 0 and lamp_on_desde is not None and interruptor_desde is None:
                 interruptor_desde = t
+                seg_motor_hasta_accion = seg_motor
 
     # Sin lecturas nuevas que lo confirmen: se cierra cuando ya pasó el margen y
     # también la ventana de solape (VENTANA_LOOKBACK_MIN) -- para entonces, un 1
@@ -283,20 +319,30 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
     estado_veh['lamp_off_desde'] = lamp_off_desde.isoformat() if lamp_off_desde is not None else None
     estado_veh['motor_encendido'] = motor_encendido
     estado_veh['interruptor_activo'] = interruptor_activo
+    estado_veh['seg_motor_episodio'] = seg_motor
+    estado_veh['seg_motor_hasta_accion'] = seg_motor_hasta_accion
+    estado_veh['cursor_motor'] = cursor_motor.isoformat() if cursor_motor is not None else None
 
     # Mientras el cierre está pendiente (lámpara en 0 hace poco) no se avisa:
     # puede ser que la regeneración acabe de terminar.
     if lamp_on_desde is not None and lamp_off_desde is None:
         horas_lampara = (ahora_utc - lamp_on_desde).total_seconds() / 3600
+        # Horas de motor hasta AHORA, sin guardarlas: si el motor sigue
+        # encendido se suma el tramo desde la última lectura (provisional, el
+        # siguiente ciclo lo cuenta con datos reales).
+        seg_provisional = seg_motor
+        if motor_encendido and cursor_motor is not None and ahora_utc > cursor_motor:
+            seg_provisional += (ahora_utc - max(cursor_motor, lamp_on_desde)).total_seconds()
+        horas_motor = seg_provisional / 3600
         if interruptor_desde is None:
-            if horas_lampara >= UMBRAL_HORAS_ALERTA_CONDUCTOR and not estado_veh.get('alertado_24h'):
+            if horas_motor >= UMBRAL_HORAS_ALERTA_CONDUCTOR and not estado_veh.get('alertado_24h'):
                 avisos.append({
                     'tipo': 'conductor',
                     'texto': (
                         "🟡 DPF -- regeneración pendiente, avisar al conductor\n"
                         f"Vehículo: {v['name']}\n"
-                        f"Lámpara DPF encendida desde hace {horas_lampara:.0f}h "
-                        f"({lamp_on_desde.astimezone(TZ_BOGOTA).strftime('%Y-%m-%d %H:%M')} hora Bogotá) "
+                        f"Lámpara DPF encendida desde {lamp_on_desde.astimezone(TZ_BOGOTA).strftime('%Y-%m-%d %H:%M')} hora Bogotá: "
+                        f"{horas_motor:.1f} h con el motor encendido ({horas_lampara:.0f} h en total) "
                         "sin que se haya activado el interruptor de regeneración manual.\n"
                         "👉 Informar al conductor que debe realizar la regeneración manual ahora."
                     ),
@@ -402,7 +448,7 @@ def main():
     parser.add_argument('--intervalo-min', type=int, default=30)
     parser.add_argument('--dias-backfill', type=int, default=10, help="Días hacia atrás a reconstruir en el primer arranque (sin estado previo).")
     parser.add_argument('--horas-conductor', type=float, default=UMBRAL_HORAS_ALERTA_CONDUCTOR,
-                         help="Horas con la lámpara encendida y sin interruptor manual antes de avisar al conductor.")
+                         help="Horas CON EL MOTOR ENCENDIDO (no de calendario, cambio 2026-10-03) con la lámpara encendida y sin interruptor manual antes de avisar al conductor.")
     parser.add_argument('--horas-taller', type=float, default=UMBRAL_HORAS_ALERTA_TALLER,
                          help="Horas tras activar el interruptor manual, sin que la lámpara se apague, antes de avisar de posible falla mecánica.")
     args = parser.parse_args()
@@ -432,7 +478,7 @@ def main():
         print("Estado previo cargado, continuando desde ahí.")
 
     print(f"Vigilando cada {args.intervalo_min} minutos. "
-          f"Aviso a conductor tras {UMBRAL_HORAS_ALERTA_CONDUCTOR}h sin intervención, "
+          f"Aviso a conductor tras {UMBRAL_HORAS_ALERTA_CONDUCTOR}h de motor encendido sin intervención, "
           f"aviso de taller tras {UMBRAL_HORAS_ALERTA_TALLER}h más sin resolver. Ctrl+C para detener.\n")
     enviar_telegram(f"👀 Arrancó la vigilancia de cumplimiento de regeneración DPF ({len(vehiculos)} vehículos).")
 
