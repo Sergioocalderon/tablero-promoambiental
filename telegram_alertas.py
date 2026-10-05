@@ -42,6 +42,15 @@ CIUDAD_FILTRO = 'Bogotá'
 # hora. Telegram queda para pruebas. El codigo sigue intacto: True lo reactiva.
 ALERTAS_SOBRE_REVOLUCION = False
 
+# APAGADO (2026-10-05, pedido del usuario): el reporte de excesos de velocidad (PDF por
+# turno y comando /reporte_velocidad). Llevaba vacio desde el 2026-08-28: su regla
+# 'R_LÍMITE DE VELOCIDAD DE 60 KM/H COMPACTADOR Y AMPLIROLL' (id a_12aRYgJmk2husJ3h_mFBQ)
+# se borro ese dia al consolidar las reglas de velocidad en 'V_VELOCIDAD MAYOR A 50 KM/H'
+# (id aY_X-HaqiSEmrNe8vpPlFFA, 50 km/h por 30 s, toda la flota), y la busqueda por nombre
+# devolvia 0 eventos sin avisar. La velocidad ya se sigue en el add-in Operaciones. Para
+# reactivarlo: True, y apuntar NOMBRE_REGLA_VELOCIDAD/UMBRAL_VELOCIDAD_KMH a esa regla.
+REPORTE_VELOCIDAD = False
+
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -265,6 +274,16 @@ def responder_mensajes_nuevos(api, estado):
                 print(f"Bienvenida enviada a chat_id={chat_id}")
             except Exception as e:
                 print(f"*** No se pudo enviar bienvenida a chat_id={chat_id}: {e} ***")
+
+        elif texto.startswith("/reporte_velocidad") and not REPORTE_VELOCIDAD:
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": "El reporte de velocidad está desactivado en Telegram. Consulta los excesos de velocidad en el add-in Operaciones de MyGeotab."},
+                    timeout=15,
+                )
+            except Exception as e:
+                print(f"*** No se pudo responder /reporte_velocidad a chat_id={chat_id}: {e} ***")
 
         elif texto.startswith("/reporte_velocidad"):
             ruta_pdf = None
@@ -2115,9 +2134,10 @@ def enviar_resumenes_por_turno(api, estado):
     caption = f"📄 Fallas activas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
     _enviar_reporte_fallas_completo(api, nombre_archivo, caption)
 
-    nombre_archivo_vel = f"velocidad_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
-    caption_vel = f"🚨 Excesos de velocidad — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
-    _enviar_reporte_velocidad_completo(api, inicio_turno, fin_turno, nombre_archivo_vel, caption_vel)
+    if REPORTE_VELOCIDAD:
+        nombre_archivo_vel = f"velocidad_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
+        caption_vel = f"🚨 Excesos de velocidad — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
+        _enviar_reporte_velocidad_completo(api, inicio_turno, fin_turno, nombre_archivo_vel, caption_vel)
 
 
 # ---------------------------------------------------------------------------
