@@ -1,0 +1,83 @@
+name: Vigilancia regeneracion DPF
+
+# Corre herramientas/vigilancia_cumplimiento_regeneracion.py cada 30 min en la
+# nube (antes corria en un PC que se suspendia y dejaba huecos de horas).
+# Mismo esquema que alertas-telegram.yml: el estado (y aqui tambien el
+# historico) viajan entre corridas con actions/cache.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+# Nunca dos corridas a la vez: compartirian el mismo estado y podrian avisar dos veces.
+concurrency:
+  group: vigilancia-regeneracion-dpf
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install mygeotab pandas requests reportlab python-dotenv
+
+      - name: Restaurar estado e historico de la vigilancia
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            herramientas/estado_cumplimiento_regeneracion.json
+            herramientas/historico_cumplimiento_regeneracion.csv
+          key: vigilancia-dpf-${{ github.run_id }}
+          restore-keys: |
+            vigilancia-dpf-
+
+      - name: Un ciclo de vigilancia
+        working-directory: herramientas
+        run: python vigilancia_cumplimiento_regeneracion.py --una-vez --dias-backfill 13
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado e historico para la proxima corrida
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            herramientas/estado_cumplimiento_regeneracion.json
+            herramientas/historico_cumplimiento_regeneracion.csv
+          key: vigilancia-dpf-${{ github.run_id }}
+
+      # Para poder descargar el historico (episodios, categoria, minutos de
+      # motor hasta la accion) desde la pestaña Actions de GitHub.
+      - name: Publicar historico como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historico-cumplimiento-regeneracion
+          path: herramientas/historico_cumplimiento_regeneracion.csv
+          if-no-files-found: ignore
+          retention-days: 30
+          overwrite: true
+
+      - name: Limpiar caches viejos (evita acumulacion indefinida)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key vigilancia-dpf- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done

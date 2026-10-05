@@ -451,6 +451,15 @@ def main():
                          help="Horas CON EL MOTOR ENCENDIDO (no de calendario, cambio 2026-10-03) con la lámpara encendida y sin interruptor manual antes de avisar al conductor.")
     parser.add_argument('--horas-taller', type=float, default=UMBRAL_HORAS_ALERTA_TALLER,
                          help="Horas tras activar el interruptor manual, sin que la lámpara se apague, antes de avisar de posible falla mecánica.")
+    # CAMBIO (2026-10-05): en este PC la vigilancia se detenía cada vez que el
+    # equipo se suspendía (huecos medidos de 8, 13 y 3 h en dos días). Ahora
+    # corre en GitHub Actions (.github/workflows/vigilancia-regeneracion-dpf.yml),
+    # que la lanza cada 30 min con --una-vez: hace UN ciclo (o el backfill, si
+    # no hay estado) y termina. El estado y el histórico viajan entre corridas
+    # con actions/cache, igual que telegram_estado.json. No manda el mensaje de
+    # "arrancó la vigilancia" en cada corrida (serían 48 al día).
+    parser.add_argument('--una-vez', action='store_true',
+                        help="Hace un solo ciclo y termina (para GitHub Actions). Sin esto, queda en bucle.")
     args = parser.parse_args()
 
     UMBRAL_HORAS_ALERTA_CONDUCTOR = args.horas_conductor
@@ -476,6 +485,11 @@ def main():
         print(f"Estado inicial: {abiertos} vehículo(s) con lámpara encendida en este momento.")
     else:
         print("Estado previo cargado, continuando desde ahí.")
+        if args.una_vez:
+            print(f"[{ahora_bogota_str()}] Consultando (una sola vez)...")
+            revisar_ciclo(api, vehiculos, estado)  # si falla, que falle la corrida: se ve en GitHub
+    if args.una_vez:
+        return
 
     print(f"Vigilando cada {args.intervalo_min} minutos. "
           f"Aviso a conductor tras {UMBRAL_HORAS_ALERTA_CONDUCTOR}h de motor encendido sin intervención, "
