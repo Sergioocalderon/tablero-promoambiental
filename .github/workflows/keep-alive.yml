@@ -1,8 +1,11 @@
 ﻿name: Keep Streamlit App Awake
 
+# SUSPENDIDO (2026-10-05, pedido del usuario): el tablero Streamlit ya no se
+# usa -- su add-in se desmontó de Copiloto el mismo día. Se quita la
+# programación cada 6 h para que la app quede dormida; se deja el disparo
+# manual por si algún día hay que despertarla. Para reactivar, volver a
+# agregar bajo "on:"   schedule: - cron: '0 */6 * * *'
 on:
-  schedule:
-    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
