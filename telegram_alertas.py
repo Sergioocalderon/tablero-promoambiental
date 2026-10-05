@@ -64,6 +64,13 @@ ALERTA_TEMPERATURA_MOTOR = False
 # El PDF de fallas por hora y por turno NO depende de esto y sigue saliendo.
 AVISO_FALLAS_ACTIVAS = False
 
+# APAGADO (2026-10-05, pedido del usuario): el PDF de fallas del resumen por hora y del
+# fin de turno. Con esto (y ALERTAS_SOBRE_REVOLUCION / REPORTE_VELOCIDAD en False) los
+# resumenes por hora y por turno no tienen nada que mandar: main() no los llama, pero
+# sigue adelantando su marca de tiempo en el estado para que, si se reactivan, arranquen
+# desde ese momento (sin rafaga de reportes atrasados ni aviso de "estuvo detenido").
+PDF_FALLAS_RESUMENES = False
+
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -2143,9 +2150,10 @@ def enviar_resumenes_por_turno(api, estado):
         ultimo_turno_fin = fin_turno
         estado['ultimo_turno_fin'] = ultimo_turno_fin.isoformat()
 
-    nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
-    caption = f"📄 Fallas activas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
-    _enviar_reporte_fallas_completo(api, nombre_archivo, caption)
+    if PDF_FALLAS_RESUMENES:
+        nombre_archivo = f"reporte_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
+        caption = f"📄 Fallas activas — turno {nombre_turno} ({inicio_turno.strftime('%H:%M')}-{fin_turno.strftime('%H:%M')})"
+        _enviar_reporte_fallas_completo(api, nombre_archivo, caption)
 
     if REPORTE_VELOCIDAD:
         nombre_archivo_vel = f"velocidad_{nombre_turno}_{fin_turno.strftime('%Y%m%d')}.pdf"
@@ -2400,7 +2408,8 @@ def enviar_resumenes_por_hora(api, estado):
         except Exception as e:
             print(f"*** Error armando/enviando el resumen de revolucion de {ultima_hora.strftime('%H:%M')}: {e} ***")
 
-        _enviar_reporte_fallas(api, ultima_hora, f"antes de las {ultima_hora.strftime('%H:%M')}")
+        if PDF_FALLAS_RESUMENES:
+            _enviar_reporte_fallas(api, ultima_hora, f"antes de las {ultima_hora.strftime('%H:%M')}")
 
         print(f"Resumen por hora procesado: {ultima_hora.strftime('%H:%M')}-{fin_hora.strftime('%H:%M')}")
         ultima_hora = fin_hora
@@ -2466,8 +2475,15 @@ def main():
         except Exception as e:
             print(f"*** Seguimiento de vehiculos puntuales fallo en esta corrida: {e} ***")
 
-        enviar_resumenes_por_hora(api, estado)
-        enviar_resumenes_por_turno(api, estado)
+        ahora_local = datetime.now(ZONA_BOGOTA)
+        if ALERTAS_SOBRE_REVOLUCION or PDF_FALLAS_RESUMENES:
+            enviar_resumenes_por_hora(api, estado)
+        else:
+            estado['ultima_hora_resumen'] = ahora_local.replace(minute=0, second=0, microsecond=0).isoformat()
+        if PDF_FALLAS_RESUMENES or REPORTE_VELOCIDAD:
+            enviar_resumenes_por_turno(api, estado)
+        else:
+            estado['ultimo_turno_fin'] = _limites_turno(ahora_local)[1].isoformat()
     finally:
         guardar_estado(estado)
 
