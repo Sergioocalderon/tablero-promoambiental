@@ -57,6 +57,13 @@ REPORTE_VELOCIDAD = False
 # arfsZ_zRrGU2VeVLkyKKgLg). Para reactivarla: True y apuntar a esa regla por ID.
 ALERTA_TEMPERATURA_MOTOR = False
 
+# APAGADO (2026-10-05, pedido del usuario): el aviso de fallas activas nuevas (un PDF por
+# corrida con las fallas que aparecen). Las fallas se siguen consultando porque
+# /seguir (revisar_seguimiento) las usa, y se siguen anotando como "ya vistas" en el
+# estado para que, si se reactiva, no llegue de golpe un PDF con todo lo acumulado.
+# El PDF de fallas por hora y por turno NO depende de esto y sigue saliendo.
+AVISO_FALLAS_ACTIVAS = False
+
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -2426,9 +2433,15 @@ def main():
         activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla = _obtener_fallas_activas(api)
 
         claves_fallas_previas = set(estado['fallas_activas'])
-        claves_fallas_actuales, _ = revisar_fallas_activas(
-            api, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas
-        )
+        if AVISO_FALLAS_ACTIVAS:
+            claves_fallas_actuales, _ = revisar_fallas_activas(
+                api, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas
+            )
+        else:
+            # Sin enviar nada: solo se anotan como vistas (ver AVISO_FALLAS_ACTIVAS).
+            claves_fallas_actuales = set() if activas.empty else {
+                f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}" for _, row in activas.iterrows()
+            }
         # Union, NO reemplazo -- 'fallas_activas' en el estado es memoria de "ya se
         # notifico" (igual que revolucion_notificados), no "lo que esta activo ahora
         # mismo" (eso siempre se recalcula fresco desde Geotab via
