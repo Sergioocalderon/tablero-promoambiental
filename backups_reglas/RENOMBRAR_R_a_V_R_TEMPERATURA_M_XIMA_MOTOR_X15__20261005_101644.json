@@ -1,0 +1,80 @@
+{
+  "activeFrom": "2026-09-28 14:21:26.859000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Temperatura Máxima Permitida de Operación 107°C [ 224.6°F] del  X15 CM2350 X123B mayor a 10 segundos.",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "a65qBptUZ80uhxeiu0Mfljg",
+              "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+            },
+            "id": "aBGkB4YtUTU-YvWveoZ7WfQ"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000000",
+        "unit": "C",
+        "value": 106.9,
+        "id": "aFgQwtjtFS0qC5wilnmGm7Q"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 10,
+    "id": "ac_yHsNHJekG6MXRiqV4aIg"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "akGPDd0CTHU-wMXKoXfdfLQ"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "aBmi9bOk2-kWJplxxKLydmA"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "akGPDd0CTHU-wMXKoXfdfLQ"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "akFBT2GcNS0u67sOicgnJQA"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "akGPDd0CTHU-wMXKoXfdfLQ",
+  "name": "R_TEMPERATURA MÁXIMA MOTOR (X15)",
+  "groups": [
+    {
+      "id": "b2D08"
+    },
+    {
+      "id": "b2D06"
+    }
+  ],
+  "version": "000000000000367a"
+}

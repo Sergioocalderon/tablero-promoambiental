@@ -1,0 +1,77 @@
+{
+  "activeFrom": "2026-09-28 14:22:31.680000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Temperatura Máxima Permitida de Operación 110°C [ 230°F] del ISF3.8 CM2220 AN e ISF3.8 CM2220 IAN mayor a 10 segundos.",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "a65qBptUZ80uhxeiu0Mfljg",
+              "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+            },
+            "id": "an53OogostUOfStoI_530IA"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000000",
+        "unit": "C",
+        "value": 109.9,
+        "id": "a25onoTi-TE-t_Tupzi9RgQ"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 10,
+    "id": "aIhMLCxqwN0mn7JQEDK1K5Q"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aAMbUVbXpPEGqdCdrXvx7Gw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "a3G_Ojb01kEm0gxxudrHhVg"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aAMbUVbXpPEGqdCdrXvx7Gw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "aNxWp1qqdm0iXfXMjpu4XHg"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aAMbUVbXpPEGqdCdrXvx7Gw",
+  "name": "R_TEMPERATURA MÁXIMA MOTOR (ISF 3.8)",
+  "groups": [
+    {
+      "id": "b2C8F"
+    }
+  ],
+  "version": "000000000000366f"
+}

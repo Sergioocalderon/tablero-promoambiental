@@ -1,0 +1,95 @@
+{
+  "activeFrom": "2026-09-28 14:48:08.541000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Temperatura Máxima Permitida de Operación \t107°C [224.6°F] del  L9 CM2450 L126B mayor a 10 segundos.",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "a65qBptUZ80uhxeiu0Mfljg",
+              "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+            },
+            "id": "aUnkWq_PRcEileAaxuzYjaA"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000000",
+        "unit": "C",
+        "value": 106.9,
+        "id": "aKTHcD9cOTUWj5ACjjj8S5g"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 10,
+    "id": "aUFF-BIkZTkeToWozisG6mQ"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aTCw9v7SumkuYQGyiLSKFeg"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "an6zEtalUkk2vkEnu_guzWw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aTCw9v7SumkuYQGyiLSKFeg"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "aQQIi4Z7YZUywzZElDdl9ww"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aTCw9v7SumkuYQGyiLSKFeg",
+  "name": "R_TEMPERATURA MÁXIMA MOTOR (L9)",
+  "groups": [
+    {
+      "id": "b2DBD"
+    },
+    {
+      "id": "b2DBE"
+    },
+    {
+      "id": "b2C8D"
+    },
+    {
+      "id": "b2D07"
+    },
+    {
+      "id": "b2C93"
+    },
+    {
+      "id": "b2C90"
+    },
+    {
+      "id": "b2DBC"
+    }
+  ],
+  "version": "000000000000367b"
+}

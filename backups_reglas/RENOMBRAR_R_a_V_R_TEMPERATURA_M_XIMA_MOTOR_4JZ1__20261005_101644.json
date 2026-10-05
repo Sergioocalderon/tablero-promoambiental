@@ -1,0 +1,80 @@
+{
+  "activeFrom": "2026-09-28 14:24:18.382000+00:00",
+  "activeTo": "2050-01-01 00:00:00+00:00",
+  "baseType": "Custom",
+  "color": {
+    "a": 255,
+    "b": 17,
+    "g": 26,
+    "r": 197
+  },
+  "comment": "Temperatura Máxima Permitida de Operación 100°C [ 212°F] del  4JZ1 mayor a 10 segundos.",
+  "condition": {
+    "children": [
+      {
+        "children": [
+          {
+            "conditionType": "FilterStatusDataByDiagnostic",
+            "sequence": "0000000000000000",
+            "diagnostic": {
+              "id": "a65qBptUZ80uhxeiu0Mfljg",
+              "unitOfMeasure": "UnitOfMeasureDegreesCelsiusId"
+            },
+            "id": "aYJOZTKGTHUmJobe5ld16Fw"
+          }
+        ],
+        "conditionType": "IsValueMoreThan",
+        "sequence": "0000000000000000",
+        "unit": "C",
+        "value": 99.9,
+        "id": "aApEx5CJXK0yFRSTOyUJBcA"
+      }
+    ],
+    "conditionType": "DurationLongerThan",
+    "sequence": "0000000000000000",
+    "unit": "s",
+    "value": 10,
+    "id": "ayiwxxtIrIUqBR6ZTZtnJmw"
+  },
+  "monitors": [
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aH63nuYePQ0OCBlo30s1SVw"
+      },
+      "monitorPredicate": "Min",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "aP0QzAszGTkKlRUlRFftGWw"
+    },
+    {
+      "rule": {
+        "state": "ExceptionRuleStateActiveId",
+        "reason": "ExceptionRuleReasonNoneId",
+        "id": "aH63nuYePQ0OCBlo30s1SVw"
+      },
+      "monitorPredicate": "Max",
+      "monitorType": "StatusStatistics",
+      "diagnostic": {
+        "id": "a65qBptUZ80uhxeiu0Mfljg"
+      },
+      "id": "ajmL3VG92_U2inYUYWIcE5A"
+    }
+  ],
+  "state": "ExceptionRuleStateActiveId",
+  "reason": "ExceptionRuleReasonNoneId",
+  "id": "aH63nuYePQ0OCBlo30s1SVw",
+  "name": "R_TEMPERATURA MÁXIMA MOTOR (4JZ1)",
+  "groups": [
+    {
+      "id": "b2D03"
+    },
+    {
+      "id": "b2D64"
+    }
+  ],
+  "version": "000000000000367e"
+}
