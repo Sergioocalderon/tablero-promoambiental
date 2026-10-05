@@ -36,6 +36,12 @@ MAX_CLAVES_GUARDADAS = 5000  # evita que el estado de eventos (append-only) crez
 # proceso; poner en None reactiva todas las ciudades sin tocar nad  a mas del codigo.
 CIUDAD_FILTRO = 'Bogotá'
 
+# APAGADO (2026-10-05, pedido del usuario): la sobre-revolucion con PTO ya se sigue en
+# los add-ins de MyGeotab (Analisis PTO y Operaciones), asi que Telegram deja de mandar
+# la alerta individual de cada evento y el texto de sobre-revolucion del resumen por
+# hora. Telegram queda para pruebas. El codigo sigue intacto: True lo reactiva.
+ALERTAS_SOBRE_REVOLUCION = False
+
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -2355,8 +2361,9 @@ def enviar_resumenes_por_hora(api, estado):
     while ultima_hora < hora_actual:
         fin_hora = ultima_hora + timedelta(hours=1)
         try:
-            lineas_revolucion = _construir_resumen_revolucion_hora(api, ultima_hora, fin_hora)
-            _enviar_por_partes(lineas_revolucion)
+            if ALERTAS_SOBRE_REVOLUCION:
+                lineas_revolucion = _construir_resumen_revolucion_hora(api, ultima_hora, fin_hora)
+                _enviar_por_partes(lineas_revolucion)
         except Exception as e:
             print(f"*** Error armando/enviando el resumen de revolucion de {ultima_hora.strftime('%H:%M')}: {e} ***")
 
@@ -2383,9 +2390,10 @@ def main():
         global _CHAT_IDS_SUSCRITOS
         _CHAT_IDS_SUSCRITOS = estado.get('suscriptores', [])
 
-        claves_revolucion_previas = set(estado['revolucion_notificados'])
-        claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
-        estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
+        if ALERTAS_SOBRE_REVOLUCION:
+            claves_revolucion_previas = set(estado['revolucion_notificados'])
+            claves_revolucion_nuevas = revisar_sobre_revolucion(api, claves_revolucion_previas)
+            estado['revolucion_notificados'] = list(claves_revolucion_previas | set(claves_revolucion_nuevas))
 
         # Se pide UNA sola vez y se reparte a revisar_fallas_activas y a
         # revisar_seguimiento -- ver nota en revisar_fallas_activas.
