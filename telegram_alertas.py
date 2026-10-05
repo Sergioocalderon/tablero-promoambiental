@@ -51,6 +51,12 @@ ALERTAS_SOBRE_REVOLUCION = False
 # reactivarlo: True, y apuntar NOMBRE_REGLA_VELOCIDAD/UMBRAL_VELOCIDAD_KMH a esa regla.
 REPORTE_VELOCIDAD = False
 
+# APAGADO (2026-10-05, pedido del usuario): la alerta de temperatura de motor alta.
+# Ademas no estaba avisando: NOMBRE_REGLA_TEMPERATURA_MOTOR apunta a un nombre que ya no
+# existe; la regla hoy es 'V_TEMPERATURA MÁXIMA DE MOTOR (X12)' (id
+# arfsZ_zRrGU2VeVLkyKKgLg). Para reactivarla: True y apuntar a esa regla por ID.
+ALERTA_TEMPERATURA_MOTOR = False
+
 VENTANA_REVISION_HORAS = 2  # margen hacia atras, por si el cron se atrasa o se salta una ejecucion
 
 # --- Sobre-revolucion, umbral bajo (1300 RPM): el nombre de la regla en Geotab sigue
@@ -2437,9 +2443,10 @@ def main():
         claves_dpf_nuevas = revisar_regeneracion_pendiente(api, claves_dpf_previas)
         estado['regeneracion_dpf_notificados'] = list(claves_dpf_previas | set(claves_dpf_nuevas))
 
-        claves_temp_previas = set(estado.get('temperatura_motor_notificados', []))
-        claves_temp_nuevas = revisar_temperatura_motor(api, claves_temp_previas)
-        estado['temperatura_motor_notificados'] = list(claves_temp_previas | set(claves_temp_nuevas))
+        if ALERTA_TEMPERATURA_MOTOR:
+            claves_temp_previas = set(estado.get('temperatura_motor_notificados', []))
+            claves_temp_nuevas = revisar_temperatura_motor(api, claves_temp_previas)
+            estado['temperatura_motor_notificados'] = list(claves_temp_previas | set(claves_temp_nuevas))
 
         try:
             revisar_seguimiento(api, estado, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla)
