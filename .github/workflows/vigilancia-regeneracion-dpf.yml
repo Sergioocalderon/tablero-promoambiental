@@ -5,18 +5,21 @@ name: Vigilancia regeneracion DPF
 # Mismo esquema que alertas-telegram.yml: el estado (y aqui tambien el
 # historico) viajan entre corridas con actions/cache.
 
+# CAMBIO (2026-10-05): sin cron propio. El cron de GitHub casi no lo corria (1 sola
+# corrida, la manual, en horas), asi que la vigilancia paso a correr dentro de
+# alertas-telegram.yml, que se dispara cada 5 min desde afuera. Este queda solo para
+# lanzarlo a mano (Run workflow) si hace falta.
 on:
-  schedule:
-    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
   actions: write
   contents: read
 
-# Nunca dos corridas a la vez: compartirian el mismo estado y podrian avisar dos veces.
+# Mismo grupo que alertas-telegram.yml: comparten el estado de la vigilancia, y dos
+# corridas a la vez podrian avisar lo mismo dos veces.
 concurrency:
-  group: vigilancia-regeneracion-dpf
+  group: alertas-telegram
   cancel-in-progress: false
 
 jobs:

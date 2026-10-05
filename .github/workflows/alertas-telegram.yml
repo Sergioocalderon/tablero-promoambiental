@@ -9,6 +9,11 @@ permissions:
   actions: write
   contents: read
 
+# Nunca dos corridas a la vez (2026-10-05): comparten estado (telegram_estado.json y el
+# de la vigilancia DPF) y dos en paralelo podrian avisar lo mismo dos veces.
+concurrency:
+  group: alertas-telegram
+  cancel-in-progress: false
 
 jobs:
   revisar-y-notificar:
@@ -18,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install mygeotab pandas requests reportlab
+      - run: pip install mygeotab pandas requests reportlab python-dotenv
 
       - name: Restaurar estado de notificaciones ya enviadas
         uses: actions/cache/restore@v4
@@ -43,6 +48,70 @@ jobs:
         with:
           path: telegram_estado.json
           key: telegram-estado-${{ github.run_id }}
+
+      # --- Vigilancia de regeneracion DPF (2026-10-05) ---------------------------
+      # Va aqui y no solo en su propio workflow porque este se dispara de forma
+      # confiable cada 5 min desde afuera (workflow_dispatch); el cron de GitHub de
+      # vigilancia-regeneracion-dpf.yml casi no corria. Mismo estado (cache
+      # vigilancia-dpf-), asi que continua donde quedo. continue-on-error: si la
+      # vigilancia falla, el resto de este workflow no se entera.
+      - name: Restaurar estado e historico de la vigilancia DPF
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            herramientas/estado_cumplimiento_regeneracion.json
+            herramientas/historico_cumplimiento_regeneracion.csv
+          key: vigilancia-dpf-${{ github.run_id }}
+          restore-keys: |
+            vigilancia-dpf-
+
+      - name: Un ciclo de vigilancia DPF
+        if: always()
+        continue-on-error: true
+        working-directory: herramientas
+        run: python vigilancia_cumplimiento_regeneracion.py --una-vez --dias-backfill 13
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado e historico de la vigilancia DPF
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            herramientas/estado_cumplimiento_regeneracion.json
+            herramientas/historico_cumplimiento_regeneracion.csv
+          key: vigilancia-dpf-${{ github.run_id }}
+
+      - name: Publicar historico de la vigilancia DPF como artefacto
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: historico-cumplimiento-regeneracion
+          path: herramientas/historico_cumplimiento_regeneracion.csv
+          if-no-files-found: ignore
+          retention-days: 30
+          overwrite: true
+
+      - name: Limpiar caches viejos de la vigilancia DPF
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key vigilancia-dpf- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done
 
       - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
         if: always()
