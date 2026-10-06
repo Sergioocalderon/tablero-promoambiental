@@ -25,6 +25,17 @@ el 2026-10-05/06:
 OJO: en los International Geotab guarda el NOx solo cada ~30 min; por eso el
 reporte es de periodo (por defecto 7 dias), no de tiempo real.
 
+Niveles de medicion (2026-10-06, pedido del usuario: toda la flota en
+seguimiento, dejando claro que se mide completo y que es parcial):
+  - COMPLETO: envia los sensores de NOx -> eficiencia + fallas + DEF.
+  - PARCIAL: tiene SCR (envia nivel de DEF, temperatura del SCR o tuvo fallas
+    del sistema) pero NO envia los sensores de NOx -> solo fallas, DEF y
+    temperatura; sin eficiencia. Hoy: Mercedes Atego, Chevrolet NHR, Kenworth
+    T380 de Ser Ambiental, 1307/1308.
+  - NO MEDIBLE: no envia ninguna senal del SCR (confirmar en ficha tecnica si
+    lo tiene) o el GPS no esta comunicando. Se lista igual, con el motivo, para
+    que ningun vehiculo quede invisible.
+
 Linea base por vehiculo: cada corrida guarda su resultado en
 reportes/historico_scr_nox.csv (una fila por vehiculo y fecha de corte). La
 linea base es la mediana de las corridas anteriores de ese vehiculo; una caida
@@ -73,6 +84,8 @@ ID_NOX_ENTRADA = 'a711Snkq7uUiCvzA2uVX-VQ'   # "Ingesta de NOx" (ppm)
 ID_NOX_SALIDA = 'aUjE9RmcGKUaGJOB-Fv2wLA'    # "Salida NOx" (ppm)
 ID_TEMP_SALIDA_SCR = 'ao4dEeskEskqN5QDjfLkcxw'  # "Postratamiento 1 Temperatura del gas de salida del catalizador SCR"
 ID_NIVEL_DEF = 'DiagnosticDieselExhaustFluidId'  # "Nivel de DEF" (%)
+ID_TEMP_TANQUE_DEF = 'a_EUvYP1K4kGWomA68ZBh_g'  # "Temperatura del tanque de DEF" -- prueba que hay SCR (TUCAN66 solo envia esta)
+DIAS_BUSQUEDA_SENALES = 30  # antes de declarar "no medible", buscar senales del SCR en este tramo
 
 NOX_ENTRADA_MIN, NOX_ENTRADA_MAX = 50, 3000
 NOX_NO_LISTO = -199
@@ -83,6 +96,20 @@ UMBRAL_LECTURA_BAJA = 80        # % -- una lectura por debajo cuenta como "baja"
 CAIDA_ALERTA_PP = 3             # puntos de caida vs. la linea base del propio vehiculo
 NIVEL_DEF_BAJO = 15             # %
 HORAS_FALLA_RECIENTE = 48
+HORAS_SIN_COMUNICAR = 48        # GPS sin reportar mas de esto -> "no medible: GPS sin comunicar"
+
+NIVELES = {
+    'completo': ('Medición completa',
+                 'Envía los sensores de NOx de entrada y salida. Se mide la eficiencia del SCR, '
+                 'la salud de los sensores, las fallas del sistema y el nivel de DEF.'),
+    'parcial': ('Medición parcial',
+                'Tiene SCR (envía nivel o temperatura de DEF, temperatura del SCR o tuvo fallas del sistema), pero NO envía '
+                'los sensores de NOx. Se vigilan las fallas del sistema SCR/DEF, el nivel de DEF y la temperatura '
+                'del SCR cuando la envía. NO se puede calcular la eficiencia.'),
+    'no_medible': ('No medible',
+                   'No envía ninguna señal del SCR, o el GPS no está comunicando. No se puede evaluar; '
+                   'se lista con el motivo para resolverlo.'),
+}
 
 # Parametros por marca. Arrancan iguales para todas (pedido del usuario: empezar
 # con un umbral general y afinar por marca con 4-6 semanas de historico). Para
@@ -235,8 +262,27 @@ def clasificar(r, p):
     return 'verde', []
 
 
+def clasificar_parcial(r):
+    """Sin eficiencia: solo fallas del sistema y nivel de DEF."""
+    rojo, amarillo = [], []
+    if r.get('fallas_recientes'):
+        rojo.append(f"Falla del sistema en las últimas {HORAS_FALLA_RECIENTE} h")
+    elif r.get('fallas_periodo'):
+        amarillo.append('Fallas del sistema en el período')
+    if r.get('def_min') is not None and r['def_min'] < NIVEL_DEF_BAJO:
+        amarillo.append(f"Nivel de DEF bajó a {r['def_min']:.0f} %")
+    if r.get('sin_senales_periodo'):
+        amarillo.append(f"No envió señales del SCR en el período (sí en los {DIAS_BUSQUEDA_SENALES} días anteriores): "
+                        "revisar la conexión del GPS al motor")
+    if rojo:
+        return 'rojo', rojo + amarillo
+    if amarillo:
+        return 'amarillo', amarillo
+    return 'verde', ['Sin fallas del sistema SCR/DEF en el período']
+
+
 def actualizar_historico(filas, fecha_corte):
-    nuevas = pd.DataFrame([{'fecha_corte': fecha_corte, 'vehiculo': f['vehiculo'], 'marca': f['marca'],
+    nuevas = pd.DataFrame([{'fecha_corte': fecha_corte, 'vehiculo': f['vehiculo'], 'marca': f['marca'], 'nivel': f['nivel'],
                             'eficiencia': f.get('eficiencia'), 'pct_bajas': f.get('pct_bajas'),
                             'pares_validos': f.get('pares_validos'), 'estado': f['estado']} for f in filas])
     if RUTA_HISTORICO.exists():
@@ -257,6 +303,7 @@ def actualizar_historico(filas, fecha_corte):
 # ---------------------------------------------------------------------------
 
 ETIQUETA = {'rojo': 'Revisar', 'amarillo': 'Vigilar', 'verde': 'Bien', 'gris': 'Sin datos'}
+ETIQUETA_PARCIAL = {'rojo': 'Revisar', 'amarillo': 'Vigilar', 'verde': 'Sin fallas'}
 ORDEN = {'rojo': 0, 'amarillo': 1, 'gris': 2, 'verde': 3}
 
 
@@ -275,17 +322,51 @@ def mini_barras(diaria, p):
     return f'<div class="spark">{"".join(barras)}</div>'
 
 
+def _atributos_fila(f):
+    texto = (f['vehiculo'] + ' ' + f['marca'] + ' ' + f['ciudad']).lower()
+    return f'class="filtrable" data-estado="{f["estado"]}" data-texto="{html.escape(texto)}"'
+
+
+def _celda_vehiculo(f):
+    return (f'<td class="veh">{html.escape(f["vehiculo"])}'
+            f'<div class="sub">{html.escape(f["marca"])} · {html.escape(f["ciudad"])}</div></td>')
+
+
+def _celda_motivos(f):
+    motivos = ''.join(f'<li>{html.escape(m)}</li>' for m in f['motivos'])
+    fallas = ''.join(f'<li>{html.escape(x)}</li>' for x in f.get('fallas_resumen', []))
+    return f'<td><ul class="motivos">{motivos}</ul>{"<ul class=fallas>" + fallas + "</ul>" if fallas else ""}</td>'
+
+
+def _chips(si, no=()):
+    return ''.join(f'<span class="chip si">✓ {html.escape(x)}</span>' for x in si) + \
+        ''.join(f'<span class="chip no">✗ {html.escape(x)}</span>' for x in no)
+
+
 def generar_html(filas, fallas_detalle, resumen_marca, meta):
-    conteo = {k: sum(1 for f in filas if f['estado'] == k) for k in ORDEN}
-    filas_html = []
-    for f in sorted(filas, key=lambda f: (ORDEN[f['estado']], f.get('eficiencia') or 999)):
+    por_nivel = {n: [f for f in filas if f['nivel'] == n] for n in NIVELES}
+    conteo = {k: sum(1 for f in filas if f['nivel'] != 'no_medible' and f['estado'] == k) for k in ORDEN}
+
+    def desglose(nivel):
+        fs = por_nivel[nivel]
+        if nivel == 'no_medible':
+            return ''
+        partes = [(k, sum(1 for f in fs if f['estado'] == k)) for k in ('rojo', 'amarillo', 'verde', 'gris')]
+        return ' '.join(f'<span class="pill {k}">{n} {(ETIQUETA_PARCIAL if nivel == "parcial" else ETIQUETA).get(k, ETIQUETA[k])}</span>'
+                        for k, n in partes if n)
+
+    cobertura_html = ''.join(f"""
+<a class="cob {n}" href="#sec-{n}"><div class="n">{len(por_nivel[n])}</div><div class="t">{NIVELES[n][0]}</div>
+<div class="d">{html.escape(NIVELES[n][1])}</div><div class="des">{desglose(n)}</div></a>""" for n in NIVELES)
+
+    # --- 1. completo
+    filas_c = []
+    for f in sorted(por_nivel['completo'], key=lambda f: (ORDEN[f['estado']], f.get('eficiencia') or 999)):
         p = parametros(f['marca'])
-        motivos = ''.join(f'<li>{html.escape(m)}</li>' for m in f['motivos'])
-        fallas = ''.join(f'<li>{html.escape(x)}</li>' for x in f.get('fallas_resumen', []))
-        filas_html.append(f"""
-<tr data-estado="{f['estado']}" data-texto="{html.escape((f['vehiculo'] + ' ' + f['marca'] + ' ' + f['ciudad']).lower())}">
+        filas_c.append(f"""
+<tr {_atributos_fila(f)}>
   <td><span class="pill {f['estado']}">{ETIQUETA[f['estado']]}</span></td>
-  <td class="veh">{html.escape(f['vehiculo'])}<div class="sub">{html.escape(f['marca'])} · {html.escape(f['ciudad'])}</div></td>
+  {_celda_vehiculo(f)}
   <td class="num fuerte">{fmt(f.get('eficiencia'), ' %')}</td>
   <td>{mini_barras(f.get('diaria'), p)}</td>
   <td class="num">{fmt(f.get('linea_base'), ' %')}</td>
@@ -294,18 +375,47 @@ def generar_html(filas, fallas_detalle, resumen_marca, meta):
   <td class="num">{fmt(f.get('nox_entrada_med'))} → {fmt(f.get('nox_salida_med'))}</td>
   <td class="num">{fmt(f.get('temp_scr_med'), ' °C')}</td>
   <td class="num">{fmt(f.get('def_ultimo'), ' %')}</td>
-  <td><ul class="motivos">{motivos}</ul>{'<ul class="fallas">' + fallas + '</ul>' if fallas else ''}</td>
+  {_celda_motivos(f)}
 </tr>""")
 
+    # --- 2. parcial
+    filas_p = []
+    for f in sorted(por_nivel['parcial'], key=lambda f: (ORDEN[f['estado']], f['vehiculo'])):
+        filas_p.append(f"""
+<tr {_atributos_fila(f)}>
+  <td><span class="pill {f['estado']}">{ETIQUETA_PARCIAL[f['estado']]}</span></td>
+  {_celda_vehiculo(f)}
+  <td>{_chips(f['senales_si'], f['senales_no'])}</td>
+  <td class="num">{fmt(f.get('def_ultimo'), ' %')}</td>
+  <td class="num">{fmt(None if f.get('def_min') is None else round(f['def_min']), ' %')}</td>
+  <td class="num">{fmt(f.get('temp_scr_max'), ' °C')}</td>
+  {_celda_motivos(f)}
+</tr>""")
+
+    # --- 3. no medible
+    filas_n = []
+    for f in sorted(por_nivel['no_medible'], key=lambda f: (f['marca'], f['vehiculo'])):
+        filas_n.append(f"""
+<tr {_atributos_fila(f)}>
+  <td><span class="pill gris">No medible</span></td>
+  {_celda_vehiculo(f)}
+  <td>{html.escape(f['motivos'][0])}</td>
+  <td>{html.escape(f.get('ultima_comunicacion') or '—')}</td>
+</tr>""")
+
+    vacio = lambda n: f'<tr><td colspan="{n}" class="vacio">Ningún vehículo en este nivel.</td></tr>'
+
     marca_html = ''.join(
-        f"<tr><td>{html.escape(m['marca'])}</td><td class='num'>{m['vehiculos']}</td><td class='num'>{m['medidos']}</td>"
+        f"<tr><td>{html.escape(m['marca'])}</td><td class='num'>{m['vehiculos']}</td>"
+        f"<td class='num'>{m['completo']}</td><td class='num'>{m['parcial']}</td><td class='num'>{m['no_medible']}</td>"
         f"<td class='num fuerte'>{fmt(m['eficiencia_tipica'], ' %')}</td><td class='num'>{fmt(m['rango'])}</td>"
         f"<td class='num'>{m['con_fallas']}</td></tr>" for m in resumen_marca)
 
     fallas_html = ''.join(
-        f"<tr><td>{html.escape(x['vehiculo'])}</td><td>{html.escape(x['diagnostico'])}</td><td class='num'>{x['spn']}</td>"
+        f"<tr><td>{html.escape(x['vehiculo'])}</td><td>{html.escape(NIVELES[x['nivel']][0]) if x['nivel'] else '—'}</td>"
+        f"<td>{html.escape(x['diagnostico'])}</td><td class='num'>{x['spn']}</td>"
         f"<td class='num'>{x['registros']}</td><td>{x['primera']}</td><td>{x['ultima']}</td></tr>" for x in fallas_detalle) \
-        or '<tr><td colspan="6" class="vacio">Sin fallas del sistema SCR/NOx/DEF en el período.</td></tr>'
+        or '<tr><td colspan="7" class="vacio">Sin fallas del sistema SCR/NOx/DEF en el período.</td></tr>'
 
     return f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -313,70 +423,101 @@ def generar_html(filas, fallas_detalle, resumen_marca, meta):
 <style>
 :root {{ --bg:#f6f7f9; --card:#fff; --tx:#1d2330; --tx2:#5b6475; --bd:#e3e6ec;
   --verde:#1f8a4c; --verde-bg:#e3f4ea; --amarillo:#a86b00; --amarillo-bg:#fdf1d8;
-  --rojo:#c0352b; --rojo-bg:#fbe4e2; --gris:#6b7280; --gris-bg:#eceef1; --acento:#2457c5; }}
+  --rojo:#c0352b; --rojo-bg:#fbe4e2; --gris:#6b7280; --gris-bg:#eceef1; --acento:#2457c5; --acento-bg:#e6edfb; }}
 @media (prefers-color-scheme: dark) {{ :root {{ --bg:#14171d; --card:#1c2029; --tx:#e7eaf0; --tx2:#9aa3b2; --bd:#2c3240;
   --verde:#4cc782; --verde-bg:#183324; --amarillo:#f0b54a; --amarillo-bg:#3a2e14;
-  --rojo:#f07167; --rojo-bg:#3d1d1b; --gris:#a0a7b4; --gris-bg:#262b35; --acento:#7aa2ff; }} }}
+  --rojo:#f07167; --rojo-bg:#3d1d1b; --gris:#a0a7b4; --gris-bg:#262b35; --acento:#7aa2ff; --acento-bg:#1d2740; }} }}
 * {{ box-sizing:border-box }}
 body {{ margin:0; background:var(--bg); color:var(--tx); font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif }}
 main {{ max-width:1400px; margin:0 auto; padding:24px 16px 48px }}
-h1 {{ font-size:22px; margin:0 0 4px }} h2 {{ font-size:16px; margin:32px 0 10px }}
+h1 {{ font-size:22px; margin:0 0 4px }} h2 {{ font-size:17px; margin:36px 0 6px }}
 .meta {{ color:var(--tx2); margin-bottom:20px }}
-.kpis {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px }}
-.kpi {{ background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:14px 16px; cursor:pointer }}
-.kpi .n {{ font-size:28px; font-weight:700 }} .kpi .l {{ color:var(--tx2) }}
-.kpi.rojo .n {{ color:var(--rojo) }} .kpi.amarillo .n {{ color:var(--amarillo) }} .kpi.verde .n {{ color:var(--verde) }} .kpi.gris .n {{ color:var(--gris) }}
+.lead {{ color:var(--tx2); margin:0 0 12px; max-width:900px }}
+.cobs {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px }}
+.cob {{ display:block; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--bd);
+  border-top:4px solid var(--acento); border-radius:10px; padding:14px 16px }}
+.cob.parcial {{ border-top-color:var(--amarillo) }} .cob.no_medible {{ border-top-color:var(--gris) }}
+.cob .n {{ font-size:30px; font-weight:700 }} .cob .t {{ font-weight:700; margin-bottom:4px }}
+.cob .d {{ color:var(--tx2); font-size:13px; margin-bottom:8px }} .cob .des .pill {{ margin:0 4px 4px 0 }}
+.kpis {{ display:flex; gap:8px; flex-wrap:wrap; align-items:center }}
+.kpi {{ background:var(--card); border:1px solid var(--bd); border-radius:99px; padding:6px 14px; cursor:pointer; font-weight:600 }}
+.kpi.rojo {{ color:var(--rojo) }} .kpi.amarillo {{ color:var(--amarillo) }} .kpi.verde {{ color:var(--verde) }} .kpi.gris {{ color:var(--gris) }}
 .kpi.activo {{ outline:2px solid var(--acento) }}
 .card {{ background:var(--card); border:1px solid var(--bd); border-radius:10px; overflow-x:auto }}
 table {{ width:100%; border-collapse:collapse }}
 th, td {{ padding:8px 10px; border-bottom:1px solid var(--bd); text-align:left; vertical-align:top }}
-th {{ font-size:12px; color:var(--tx2); font-weight:600; position:sticky; top:0; background:var(--card) }}
-td.num {{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums }} .fuerte {{ font-weight:700 }}
+th {{ font-size:12px; color:var(--tx2); font-weight:600; background:var(--card) }}
+th.num, td.num {{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums }} .fuerte {{ font-weight:700 }}
 .veh {{ font-weight:600; white-space:nowrap }} .sub {{ font-weight:400; color:var(--tx2); font-size:12px }}
 .pill {{ display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:600; white-space:nowrap }}
 .pill.rojo {{ background:var(--rojo-bg); color:var(--rojo) }} .pill.amarillo {{ background:var(--amarillo-bg); color:var(--amarillo) }}
 .pill.verde {{ background:var(--verde-bg); color:var(--verde) }} .pill.gris {{ background:var(--gris-bg); color:var(--gris) }}
+.chip {{ display:inline-block; padding:1px 8px; border-radius:6px; font-size:12px; margin:0 4px 4px 0; white-space:nowrap }}
+.chip.si {{ background:var(--verde-bg); color:var(--verde) }} .chip.no {{ background:var(--gris-bg); color:var(--gris) }}
+.mide {{ display:flex; flex-wrap:wrap; gap:4px; margin:0 0 10px }}
 ul.motivos, ul.fallas {{ margin:0; padding-left:16px }} ul.fallas {{ color:var(--tx2); font-size:12px }}
 .spark {{ display:flex; align-items:flex-end; gap:2px; height:28px; min-width:60px }}
 .spark .b {{ width:7px; border-radius:2px 2px 0 0 }} .b.verde {{ background:var(--verde) }} .b.amarillo {{ background:var(--amarillo) }} .b.rojo {{ background:var(--rojo) }}
-.filtros {{ display:flex; gap:10px; margin:24px 0 10px; flex-wrap:wrap }}
-input[type=search] {{ flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--bd); border-radius:8px; background:var(--card); color:var(--tx) }}
+.filtros {{ display:flex; gap:10px; margin:24px 0 0; flex-wrap:wrap; align-items:center }}
+input[type=search] {{ flex:1; min-width:220px; padding:8px 10px; border:1px solid var(--bd); border-radius:8px; background:var(--card); color:var(--tx) }}
 .vacio {{ color:var(--tx2); text-align:center }}
 .nota {{ color:var(--tx2); font-size:13px }} .nota li {{ margin-bottom:4px }}
 </style></head><body><main>
 <h1>Estado del sistema SCR / NOx</h1>
-<div class="meta">{html.escape(meta['periodo'])} · {meta['vehiculos']} vehículos con sensores NOx · generado {meta['generado']}</div>
+<div class="meta">{html.escape(meta['periodo'])} · {meta['vehiculos']} vehículos activos · generado {meta['generado']}</div>
 
-<div class="kpis">
-  <div class="kpi rojo" data-f="rojo"><div class="n">{conteo['rojo']}</div><div class="l">Revisar</div></div>
-  <div class="kpi amarillo" data-f="amarillo"><div class="n">{conteo['amarillo']}</div><div class="l">Vigilar</div></div>
-  <div class="kpi verde" data-f="verde"><div class="n">{conteo['verde']}</div><div class="l">Funcionando bien</div></div>
-  <div class="kpi gris" data-f="gris"><div class="n">{conteo['gris']}</div><div class="l">Sin datos suficientes</div></div>
+<div class="cobs">{cobertura_html}</div>
+
+<div class="filtros">
+  <input type="search" id="buscar" placeholder="Buscar vehículo, marca o ciudad…">
+  <div class="kpis">
+    <span class="kpi rojo" data-f="rojo">Revisar {conteo['rojo']}</span>
+    <span class="kpi amarillo" data-f="amarillo">Vigilar {conteo['amarillo']}</span>
+    <span class="kpi verde" data-f="verde">Bien / sin fallas {conteo['verde']}</span>
+    <span class="kpi gris" data-f="gris">Sin datos suficientes {conteo['gris']}</span>
+  </div>
 </div>
 
-<div class="filtros"><input type="search" id="buscar" placeholder="Buscar vehículo, marca o ciudad…"></div>
-<div class="card"><table id="tabla">
-<thead><tr><th>Estado</th><th>Vehículo</th><th style="text-align:right">Eficiencia</th><th>Por día</th>
-<th style="text-align:right">Línea base</th><th style="text-align:right">Lecturas &lt; 80 %</th><th style="text-align:right">Lecturas válidas</th>
-<th style="text-align:right">NOx entrada → salida (ppm)</th><th style="text-align:right">Temp. SCR</th><th style="text-align:right">DEF</th><th>Motivo / fallas</th></tr></thead>
-<tbody>{''.join(filas_html)}</tbody></table></div>
+<h2 id="sec-completo">1. Medición completa — {len(por_nivel['completo'])} vehículos</h2>
+<p class="lead">{html.escape(NIVELES['completo'][1])}</p>
+<div class="mide">{_chips(['Eficiencia del SCR', 'Sensores NOx', 'Fallas del sistema', 'Nivel de DEF', 'Línea base propia'])}</div>
+<div class="card"><table>
+<thead><tr><th>Estado</th><th>Vehículo</th><th class="num">Eficiencia</th><th>Por día</th>
+<th class="num">Línea base</th><th class="num">Lecturas &lt; 80 %</th><th class="num">Lecturas válidas</th>
+<th class="num">NOx entrada → salida (ppm)</th><th class="num">Temp. SCR</th><th class="num">DEF</th><th>Motivo / fallas</th></tr></thead>
+<tbody>{''.join(filas_c) or vacio(11)}</tbody></table></div>
+
+<h2 id="sec-parcial">2. Medición parcial — {len(por_nivel['parcial'])} vehículos</h2>
+<p class="lead">{html.escape(NIVELES['parcial'][1])} Un estado "Sin fallas" aquí significa que no hubo fallas ni DEF bajo; <b>no</b> garantiza que el catalizador esté limpiando bien.</p>
+<div class="mide">{_chips(['Fallas del sistema', 'Nivel y temperatura de DEF (si los envía)', 'Temperatura del SCR (si la envía)'], ['Eficiencia del SCR', 'Sensores NOx'])}</div>
+<div class="card"><table>
+<thead><tr><th>Estado</th><th>Vehículo</th><th>Señales que envía</th><th class="num">DEF último</th><th class="num">DEF mínimo</th>
+<th class="num">Temp. SCR máx.</th><th>Motivo / fallas</th></tr></thead>
+<tbody>{''.join(filas_p) or vacio(7)}</tbody></table></div>
+
+<h2 id="sec-no_medible">3. No medible — {len(por_nivel['no_medible'])} vehículos</h2>
+<p class="lead">{html.escape(NIVELES['no_medible'][1])}</p>
+<div class="card"><table>
+<thead><tr><th>Estado</th><th>Vehículo</th><th>Motivo</th><th>Última comunicación del GPS</th></tr></thead>
+<tbody>{''.join(filas_n) or vacio(4)}</tbody></table></div>
 
 <h2>Resumen por marca</h2>
 <div class="card"><table>
-<thead><tr><th>Marca</th><th style="text-align:right">Vehículos</th><th style="text-align:right">Con medición</th>
-<th style="text-align:right">Eficiencia típica</th><th style="text-align:right">Rango</th><th style="text-align:right">Con fallas</th></tr></thead>
+<thead><tr><th>Marca</th><th class="num">Vehículos</th><th class="num">Completo</th><th class="num">Parcial</th><th class="num">No medible</th>
+<th class="num">Eficiencia típica</th><th class="num">Rango</th><th class="num">Con fallas</th></tr></thead>
 <tbody>{marca_html}</tbody></table></div>
 
 <h2>Fallas del sistema SCR / NOx / DEF en el período</h2>
 <div class="card"><table>
-<thead><tr><th>Vehículo</th><th>Diagnóstico</th><th style="text-align:right">SPN</th><th style="text-align:right">Registros</th><th>Primera</th><th>Última</th></tr></thead>
+<thead><tr><th>Vehículo</th><th>Nivel</th><th>Diagnóstico</th><th class="num">SPN</th><th class="num">Registros</th><th>Primera</th><th>Última</th></tr></thead>
 <tbody>{fallas_html}</tbody></table></div>
 
 <h2>Cómo se calcula</h2>
 <ul class="nota">
-<li><b>Eficiencia</b> = (NOx entrada − NOx salida) / NOx entrada. Es la mediana de las lecturas del período.</li>
+<li><b>Eficiencia</b> (solo medición completa) = (NOx entrada − NOx salida) / NOx entrada. Es la mediana de las lecturas del período.</li>
 <li>Solo cuentan lecturas con el catalizador caliente (salida del SCR ≥ 250 °C) y NOx de entrada entre 50 y 3000 ppm. Se descartan −200 (sensor calentando) y 3012,75 (tope del sensor). En frío el SCR no convierte por diseño, así que esas lecturas no indican falla.</li>
-<li><b>Revisar</b>: eficiencia &lt; 80 %, falta un sensor o hay una falla del sistema en las últimas {HORAS_FALLA_RECIENTE} h. <b>Vigilar</b>: eficiencia &lt; 90 %, ≥ 20 % de lecturas por debajo de 80 %, caída ≥ {CAIDA_ALERTA_PP} pts frente a su línea base, fallas en el período o DEF &lt; {NIVEL_DEF_BAJO} %.</li>
+<li><b>Revisar</b>: eficiencia &lt; 80 %, falta un sensor o hay una falla del sistema en las últimas {HORAS_FALLA_RECIENTE} h. <b>Vigilar</b>: eficiencia &lt; 90 %, ≥ 20 % de lecturas por debajo de 80 %, caída ≥ {CAIDA_ALERTA_PP} pts frente a su línea base, fallas en el período o DEF &lt; {NIVEL_DEF_BAJO} %. En la medición parcial solo aplican las fallas y el DEF.</li>
+<li><b>Fallas del sistema</b>: sensores de NOx, dosificación de DEF, inducción del operador de SCR, calidad, nivel y calentadores de DEF. No incluye el DPF (hollín/regeneración), que tiene su propio seguimiento.</li>
 <li><b>Línea base</b>: mediana de los reportes anteriores del mismo vehículo. Se llena a medida que se generan reportes.</li>
 <li>En los International, Geotab guarda el NOx cada ~30 min, así que el reporte mide el período completo y no el tiempo real. Las barras "por día" muestran la eficiencia diaria; pasa el cursor para ver el valor.</li>
 </ul>
@@ -384,7 +525,7 @@ input[type=search] {{ flex:1; min-width:200px; padding:8px 10px; border:1px soli
 <script>
 (function () {{
   var filtro = null, buscar = document.getElementById('buscar');
-  var filas = Array.prototype.slice.call(document.querySelectorAll('#tabla tbody tr'));
+  var filas = Array.prototype.slice.call(document.querySelectorAll('tr.filtrable'));
   function aplicar() {{
     var q = buscar.value.trim().toLowerCase();
     filas.forEach(function (tr) {{
@@ -442,14 +583,22 @@ def chat_ids_destino():
 
 
 def texto_resumen(filas, meta):
-    conteo = {k: [f for f in filas if f['estado'] == k] for k in ORDEN}
+    por_nivel = {n: [f for f in filas if f['nivel'] == n] for n in NIVELES}
+    medibles = por_nivel['completo'] + por_nivel['parcial']
+    conteo = {k: [f for f in medibles if f['estado'] == k] for k in ORDEN}
     lineas = [f"🧪 Estado del sistema SCR / NOx — {meta['periodo']}",
+              f"Cobertura: {len(por_nivel['completo'])} medición completa · {len(por_nivel['parcial'])} parcial "
+              f"(sin eficiencia) · {len(por_nivel['no_medible'])} no medibles",
               f"🔴 Revisar {len(conteo['rojo'])} · 🟡 Vigilar {len(conteo['amarillo'])} · "
-              f"🟢 Bien {len(conteo['verde'])} · ⚪ Sin datos {len(conteo['gris'])}"]
+              f"🟢 Bien/sin fallas {len(conteo['verde'])} · ⚪ Sin datos {len(conteo['gris'])}"]
     for estado, icono in (('rojo', '🔴'), ('amarillo', '🟡')):
-        for f in sorted(conteo[estado], key=lambda f: f.get('eficiencia') or 999):
-            lineas.append(f"\n{icono} {f['vehiculo']} ({f['marca']}) — eficiencia {fmt(f.get('eficiencia'), ' %')}")
+        for f in sorted(conteo[estado], key=lambda f: (f['nivel'] != 'completo', f.get('eficiencia') or 999)):
+            medida = (f"eficiencia {fmt(f.get('eficiencia'), ' %')}" if f['nivel'] == 'completo'
+                      else 'medición parcial, sin eficiencia')
+            lineas.append(f"\n{icono} {f['vehiculo']} ({f['marca']}) — {medida}")
             lineas += [f"   • {m}" for m in f['motivos'][:3]]
+    if por_nivel['no_medible']:
+        lineas.append('\n⚪ No medibles: ' + ', '.join(sorted(f['vehiculo'] for f in por_nivel['no_medible'])))
     lineas.append('\nDetalle completo en el HTML adjunto.')
     texto = '\n'.join(lineas)
     return texto if len(texto) <= 4000 else texto[:3950] + '\n… (ver HTML adjunto)'
@@ -513,7 +662,8 @@ def main():
     dout = bajar_statusdata(api, ID_NOX_SALIDA, desde, hasta)
     dtemp = bajar_statusdata(api, ID_TEMP_SALIDA_SCR, desde, hasta)
     ddef = bajar_statusdata(api, ID_NIVEL_DEF, desde, hasta)
-    print(f'  lecturas: entrada {len(din)}, salida {len(dout)}, temp SCR {len(dtemp)}, DEF {len(ddef)}')
+    dtanque = bajar_statusdata(api, ID_TEMP_TANQUE_DEF, desde, hasta)
+    print(f'  lecturas: entrada {len(din)}, salida {len(dout)}, temp SCR {len(dtemp)}, DEF {len(ddef)}, temp tanque DEF {len(dtanque)}')
 
     print('Descargando fallas del período...')
     fallas = bajar_fallas(api, desde, hasta)
@@ -530,39 +680,85 @@ def main():
     for veh, nombre, spn, t in fallas_scr:
         fallas_por_veh[veh][(nombre, spn)].append(t)
 
-    vehiculos_nox = set(din.veh) | set(dout.veh)
+    # Ultima comunicacion de cada GPS (para separar "no envia SCR" de "GPS apagado")
+    ultima_com = {}
+    for s in api.get('DeviceStatusInfo'):
+        if s.get('dateTime'):
+            ultima_com[gc.obtener_id(s['device'])] = pd.Timestamp(s['dateTime'])
+    limite_com = pd.Timestamp(hasta) - pd.Timedelta(hours=HORAS_SIN_COMUNICAR)
+
+    con_nox = set(din.veh) | set(dout.veh)
+    con_def, con_temp = set(ddef.veh), set(dtemp[dtemp.v > 0].veh)  # temp en 0 = no soportada (ver encabezado)
+    con_tanque = set(dtanque.veh)
+
+    def senal_scr_previa(veh):
+        """True si en los DIAS_BUSQUEDA_SENALES anteriores al periodo envio NOx, nivel o temp. de DEF:
+        el vehiculo tiene SCR aunque esta semana no haya llegado nada (p.ej. 11006-NGY805)."""
+        for diag in (ID_NOX_ENTRADA, ID_NIVEL_DEF, ID_TEMP_TANQUE_DEF):
+            if api.get('StatusData', search={'deviceSearch': {'id': veh}, 'diagnosticSearch': {'id': diag},
+                                             'fromDate': desde - timedelta(days=DIAS_BUSQUEDA_SENALES), 'toDate': desde},
+                       resultsLimit=1):
+                return True
+        return False
     filas = []
-    for veh in vehiculos_nox:
-        dev = activos.get(veh)
-        if not dev:
-            continue
+    for veh, dev in activos.items():
         marca, ciudad = resolver_grupos(dev, grupos_por_id, padre_de, raiz_hijos)
         if args.ciudad and ciudad.lower() != args.ciudad.lower():
             continue
         p = parametros(marca)
-        r = eficiencia_vehiculo(din[din.veh == veh], dout[dout.veh == veh], dtemp[dtemp.veh == veh], p['temp_min_scr'])
-        r.update(vehiculo=dev['name'], marca=marca, ciudad=ciudad)
+        fv = fallas_por_veh.get(veh, {})
+        r = {'_id': veh, 'vehiculo': dev['name'], 'marca': marca, 'ciudad': ciudad,
+             'fallas_periodo': bool(fv),
+             'fallas_recientes': any(max(ts) >= reciente for ts in fv.values()),
+             'fallas_resumen': [f"SPN {spn} · {nombre} ({len(ts)}, última {max(ts).tz_convert(TZ_LOCAL):%d-%b %H:%M})"
+                                for (nombre, spn), ts in sorted(fv.items(), key=lambda x: -len(x[1]))]}
         dv = ddef[ddef.veh == veh]
         r['def_ultimo'] = round(float(dv.v.iloc[-1])) if len(dv) else None
         r['def_min'] = float(dv.v.min()) if len(dv) else None
-        fv = fallas_por_veh.get(veh, {})
-        r['fallas_periodo'] = bool(fv)
-        r['fallas_recientes'] = any(max(ts) >= reciente for ts in fv.values())
-        r['fallas_resumen'] = [f"SPN {spn} · {nombre} ({len(ts)}, última {max(ts).tz_convert(TZ_LOCAL):%d-%b %H:%M})"
-                               for (nombre, spn), ts in sorted(fv.items(), key=lambda x: -len(x[1]))]
+        uc = ultima_com.get(veh)
+        r['ultima_comunicacion'] = f'{uc.tz_convert(TZ_LOCAL):%d-%b-%Y %H:%M}' if uc is not None else 'Nunca'
+
+        if veh in con_nox:
+            r['nivel'] = 'completo'
+            r.update(eficiencia_vehiculo(din[din.veh == veh], dout[dout.veh == veh], dtemp[dtemp.veh == veh], p['temp_min_scr']))
+        elif veh in con_def or veh in con_temp or veh in con_tanque or fv or (
+                uc is not None and uc >= limite_com and senal_scr_previa(veh)):
+            # GPS apagado + nada del SCR en el periodo -> "no medible: GPS sin comunicar", no parcial
+            r['nivel'] = 'parcial'
+            r['sin_senales_periodo'] = not (veh in con_def or veh in con_temp or veh in con_tanque or fv)
+            senales = (('Nivel de DEF', veh in con_def), ('Temp. tanque DEF', veh in con_tanque),
+                       ('Temp. SCR', veh in con_temp))
+            r['senales_si'] = [n for n, ok in senales if ok] + ['Fallas']
+            r['senales_no'] = ['Sensores NOx'] + [n for n, ok in senales if not ok]
+            t = dtemp[(dtemp.veh == veh) & (dtemp.v > 0)]
+            r['temp_scr_max'] = round(float(t.v.max())) if len(t) else None
+        else:
+            r['nivel'] = 'no_medible'
         filas.append(r)
 
     # linea base (corridas anteriores) -> caida -> semaforo -> guardar esta corrida
+    def clasificar_todo():
+        for r in filas:
+            if r['nivel'] == 'completo':
+                r['estado'], r['motivos'] = clasificar(r, parametros(r['marca']))
+            elif r['nivel'] == 'parcial':
+                r['estado'], r['motivos'] = clasificar_parcial(r)
+            else:
+                uc = ultima_com.get(r['_id'])
+                r['estado'] = 'no_medible'
+                r['motivos'] = [f"GPS sin comunicar desde {r['ultima_comunicacion']}" if uc is None or uc < limite_com
+                                else f'El GPS comunica, pero el motor no envía ninguna señal del SCR (NOx, DEF ni temperaturas) en los últimos {DIAS_BUSQUEDA_SENALES + args.dias} días. '
+                                     'Confirmar en ficha técnica si el vehículo tiene SCR.']
+
     fecha_corte = datetime.now(TZ_LOCAL).strftime('%Y-%m-%d')
-    for r in filas:
-        r['estado'], r['motivos'] = clasificar(r, parametros(r['marca']))  # provisional para el historico
+    clasificar_todo()  # provisional, para el historico
     base = actualizar_historico(filas, fecha_corte)
     for r in filas:
-        if r['vehiculo'] in base.index:
+        if r['nivel'] == 'completo' and r['vehiculo'] in base.index:
             r['linea_base'] = round(float(base.loc[r['vehiculo'], 'median']), 1)
             if r.get('eficiencia') is not None:
                 r['caida'] = round(r['linea_base'] - r['eficiencia'], 1)
-        r['estado'], r['motivos'] = clasificar(r, parametros(r['marca']))
+    clasificar_todo()
     actualizar_historico(filas, fecha_corte)  # reescribe la fila de hoy con el estado final
 
     por_marca = defaultdict(list)
@@ -570,20 +766,22 @@ def main():
         por_marca[r['marca']].append(r)
     resumen_marca = []
     for marca, rs in sorted(por_marca.items(), key=lambda x: -len(x[1])):
-        efis = [r['eficiencia'] for r in rs if r.get('eficiencia') is not None and r['pares_validos'] >= MIN_LECTURAS_VALIDAS]
-        resumen_marca.append({'marca': marca, 'vehiculos': len(rs), 'medidos': len(efis),
+        efis = [r['eficiencia'] for r in rs if r.get('eficiencia') is not None and r.get('pares_validos', 0) >= MIN_LECTURAS_VALIDAS]
+        resumen_marca.append({'marca': marca, 'vehiculos': len(rs),
+                              **{n: sum(1 for r in rs if r['nivel'] == n) for n in NIVELES},
                               'eficiencia_tipica': round(float(pd.Series(efis).median()), 1) if efis else None,
                               'rango': f'{min(efis)} – {max(efis)}' if efis else None,
                               'con_fallas': sum(1 for r in rs if r['fallas_periodo'])})
 
-    nombres = {veh: (activos.get(veh) or {}).get('name', veh) for veh in fallas_por_veh}
-    incluidos = {r['vehiculo'] for r in filas}
+    nivel_de = {r['vehiculo']: r['nivel'] for r in filas}
     fallas_detalle = []
     for veh, fv in fallas_por_veh.items():
-        if nombres[veh] not in incluidos and args.ciudad:
+        nombre_veh = (activos.get(veh) or {}).get('name', veh)
+        if args.ciudad and nombre_veh not in nivel_de:
             continue
         for (nombre, spn), ts in fv.items():
-            fallas_detalle.append({'vehiculo': nombres[veh], 'diagnostico': nombre or '?', 'spn': spn, 'registros': len(ts),
+            fallas_detalle.append({'vehiculo': nombre_veh, 'nivel': nivel_de.get(nombre_veh), 'diagnostico': nombre or '?',
+                                   'spn': spn, 'registros': len(ts),
                                    'primera': f"{min(ts).tz_convert(TZ_LOCAL):%d-%b %H:%M}",
                                    'ultima': f"{max(ts).tz_convert(TZ_LOCAL):%d-%b %H:%M}", '_u': max(ts)})
     fallas_detalle.sort(key=lambda x: x['_u'], reverse=True)
@@ -602,9 +800,13 @@ def main():
     except OSError as e:
         print(f'(no se pudo copiar a Descargas: {e})')
 
-    for estado in ORDEN:
-        lista = [r['vehiculo'] for r in filas if r['estado'] == estado]
-        print(f"{ETIQUETA[estado]:10s} {len(lista):3d}  {', '.join(sorted(lista))[:200]}")
+    for nivel in NIVELES:
+        fs = [r for r in filas if r['nivel'] == nivel]
+        print(f"\n{NIVELES[nivel][0]}: {len(fs)}")
+        for estado in list(ORDEN) + ['no_medible']:
+            lista = sorted(r['vehiculo'] for r in fs if r['estado'] == estado)
+            if lista:
+                print(f"   {estado:10s} {len(lista):3d}  {', '.join(lista)[:180]}")
 
     if args.telegram:
         enviado = enviar_por_telegram(texto_resumen(filas, meta), RUTA_HTML)
