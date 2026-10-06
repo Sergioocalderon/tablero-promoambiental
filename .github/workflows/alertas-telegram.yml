@@ -113,6 +113,72 @@ jobs:
             gh cache delete "$id" || echo "  -> ya no existia: $id"
           done
 
+      # --- Reporte semanal SCR / NOx (2026-10-06) -------------------------------
+      # Corre en cada disparo pero el script sale enseguida (sin tocar Geotab)
+      # salvo el lunes >= 07:00 Bogota si esa semana aun no se envio. El historico
+      # (linea base por vehiculo) y la marca de "semana enviada" viajan en el cache
+      # scr-nox-; solo se guarda cache cuando hubo corrida real.
+      - name: Restaurar historico del reporte SCR/NOx
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            reportes/historico_scr_nox.csv
+            reportes/estado_envio_scr_nox.json
+          key: scr-nox-${{ github.run_id }}
+          restore-keys: |
+            scr-nox-
+
+      - name: Reporte semanal SCR/NOx
+        id: scr
+        if: always()
+        continue-on-error: true
+        working-directory: herramientas
+        run: python reporte_scr_nox.py --semanal --telegram
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar historico del reporte SCR/NOx
+        if: always() && steps.scr.outputs.generado == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            reportes/historico_scr_nox.csv
+            reportes/estado_envio_scr_nox.json
+          key: scr-nox-${{ github.run_id }}
+
+      - name: Publicar reporte e historico SCR/NOx como artefacto
+        if: always() && steps.scr.outputs.generado == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-scr-nox
+          path: |
+            reportes/estado_scr_nox.html
+            reportes/historico_scr_nox.csv
+          if-no-files-found: ignore
+          retention-days: 90
+          overwrite: true
+
+      - name: Limpiar caches viejos del reporte SCR/NOx
+        if: always() && steps.scr.outputs.generado == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key scr-nox- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done
+
       - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
         if: always()
         env:
