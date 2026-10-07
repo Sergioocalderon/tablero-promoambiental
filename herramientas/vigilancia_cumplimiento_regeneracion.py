@@ -39,10 +39,12 @@ interruptor manual se activo o no:
   4. Pasan UMBRAL_HORAS_ALERTA_CONDUCTOR horas DE MOTOR ENCENDIDO desde que la lampara prendio y
      el interruptor NUNCA se activo -> AVISO INMEDIATO por Telegram: alguien
      tiene que decirle al conductor que regenere, antes de que escale.
+  4b. Si llega a UMBRAL_HORAS_ESCALADO_CONDUCTOR horas de motor y el interruptor
+     sigue sin activarse -> SEGUNDO aviso, escalado (2026-10-06).
 
 Los cierres de episodio (1 y 2) se registran en un CSV historico para poder
 sacar despues un % de cumplimiento, pero NO generan alerta de Telegram (evitar
-fatiga de alertas por casos buenos). Los avisos 3 y 4 SI son por Telegram.
+fatiga de alertas por casos buenos). Los avisos 3, 4 y 4b SI son por Telegram.
 
 Estado persistente en estado_cumplimiento_regeneracion.json (mismo principio
 que telegram_estado.json -- gitignored, no es una base de datos real) para que
@@ -97,6 +99,12 @@ RUTA_HISTORICO_CSV = CARPETA_HERRAMIENTAS / 'historico_cumplimiento_regeneracion
 # en 30 días: cuando el conductor regenera a mano, reacciona en una mediana de
 # 10 min de motor y nunca más de 1,1 h -- 2 h deja margen sin falsas alarmas.
 UMBRAL_HORAS_ALERTA_CONDUCTOR = 2
+# CAMBIO (2026-10-06, aprobado por el usuario): segundo aviso, escalado, si a
+# las 4 h de motor la lampara sigue prendida y nadie activo el interruptor. Caso
+# real que lo motivo: 3804-GVU088 el 05-oct -- el aviso de las 2 h salio a las
+# 20:25 (fuera del turno de quien lo gestiona) y la lampara siguio 4,8 h de
+# motor sin interruptor. Un solo aviso por episodio, igual que el primero.
+UMBRAL_HORAS_ESCALADO_CONDUCTOR = 4
 # Extension razonable del mismo criterio: si el conductor YA activo el
 # interruptor y aun asi no resuelve, otras 24h es cuando vale la pena avisar
 # que el vehiculo necesita revision mecanica (no es lo que el usuario pidio
@@ -200,6 +208,13 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
     # cierre anterior a la de inicio (duracion negativa, caso real visto:
     # 3098-GVT565 con -1.5h). Se ignora cualquier muestra que no sea mas
     # reciente que la ultima ya procesada para este vehiculo.
+    # Episodios ya abiertos y avisados ANTES de existir el aviso escalado
+    # (estado sin la clave): no se escalan de golpe al desplegar -- caso real
+    # 1802-GVU037, senal pegada desde el 22-sep, pendiente de confirmar en su
+    # ciudad. Los episodios nuevos siempre arrancan con la clave en False.
+    if 'alertado_escalado' not in estado_veh:
+        estado_veh['alertado_escalado'] = bool(estado_veh.get('alertado_24h'))
+
     ultima_vista = pd.to_datetime(estado_veh['ultima_muestra_vista']) if estado_veh.get('ultima_muestra_vista') else None
     if ultima_vista is not None:
         eventos = [e for e in eventos if e[0] > ultima_vista]
@@ -245,6 +260,7 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
         seg_motor = 0.0
         seg_motor_hasta_accion = None
         estado_veh['alertado_24h'] = False
+        estado_veh['alertado_escalado'] = False
         estado_veh['alertado_taller'] = False
 
     # Tiempo con motor encendido dentro del episodio abierto (CAMBIO 2026-10-03).
@@ -294,6 +310,7 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
                     seg_motor_hasta_accion = None
                     interruptor_desde = None
                     estado_veh['alertado_24h'] = False
+                    estado_veh['alertado_escalado'] = False
                     estado_veh['alertado_taller'] = False
             elif lamp_on_desde is not None:
                 if lamp_off_desde is None:
@@ -348,6 +365,23 @@ def procesar_vehiculo(v, estado_veh, eventos, ahora_utc):
                     ),
                 })
                 estado_veh['alertado_24h'] = True
+            # elif: nunca los dos avisos en el mismo ciclo (p.ej. al retomar tras
+            # un hueco); el escalado sale en el ciclo siguiente.
+            elif (horas_motor >= UMBRAL_HORAS_ESCALADO_CONDUCTOR and estado_veh.get('alertado_24h')
+                  and not estado_veh.get('alertado_escalado')):
+                avisos.append({
+                    'tipo': 'escalado',
+                    'texto': (
+                        "🟠 DPF -- SEGUNDO AVISO: el conductor aún no regenera\n"
+                        f"Vehículo: {v['name']}\n"
+                        f"Lámpara DPF encendida desde {lamp_on_desde.astimezone(TZ_BOGOTA).strftime('%Y-%m-%d %H:%M')} hora Bogotá: "
+                        f"ya son {horas_motor:.1f} h con el motor encendido ({horas_lampara:.0f} h en total) "
+                        f"y el interruptor de regeneración manual sigue sin activarse "
+                        f"(el primer aviso salió a las {UMBRAL_HORAS_ALERTA_CONDUCTOR:g} h).\n"
+                        "👉 Contactar al conductor o al supervisor del turno: hacer la regeneración manual ya."
+                    ),
+                })
+                estado_veh['alertado_escalado'] = True
         else:
             horas_desde_interruptor = (ahora_utc - interruptor_desde).total_seconds() / 3600
             if horas_desde_interruptor >= UMBRAL_HORAS_ALERTA_TALLER and not estado_veh.get('alertado_taller'):
@@ -433,6 +467,8 @@ def revisar_ciclo(api, vehiculos, estado):
                 # Mismo principio que telegram_alertas.py: no marcar como avisado si el envio fallo.
                 if aviso['tipo'] == 'conductor':
                     estado_veh['alertado_24h'] = False
+                elif aviso['tipo'] == 'escalado':
+                    estado_veh['alertado_escalado'] = False
                 else:
                     estado_veh['alertado_taller'] = False
 
@@ -443,12 +479,14 @@ def revisar_ciclo(api, vehiculos, estado):
 
 
 def main():
-    global UMBRAL_HORAS_ALERTA_CONDUCTOR, UMBRAL_HORAS_ALERTA_TALLER
+    global UMBRAL_HORAS_ALERTA_CONDUCTOR, UMBRAL_HORAS_ESCALADO_CONDUCTOR, UMBRAL_HORAS_ALERTA_TALLER
     parser = argparse.ArgumentParser(description="Vigilancia en vivo de cumplimiento de regeneración DPF (lámpara vs. interruptor manual).")
     parser.add_argument('--intervalo-min', type=int, default=30)
     parser.add_argument('--dias-backfill', type=int, default=10, help="Días hacia atrás a reconstruir en el primer arranque (sin estado previo).")
     parser.add_argument('--horas-conductor', type=float, default=UMBRAL_HORAS_ALERTA_CONDUCTOR,
                          help="Horas CON EL MOTOR ENCENDIDO (no de calendario, cambio 2026-10-03) con la lámpara encendida y sin interruptor manual antes de avisar al conductor.")
+    parser.add_argument('--horas-escalado', type=float, default=UMBRAL_HORAS_ESCALADO_CONDUCTOR,
+                         help="Horas de motor encendido para el SEGUNDO aviso (escalado) si el interruptor sigue sin activarse.")
     parser.add_argument('--horas-taller', type=float, default=UMBRAL_HORAS_ALERTA_TALLER,
                          help="Horas tras activar el interruptor manual, sin que la lámpara se apague, antes de avisar de posible falla mecánica.")
     # CAMBIO (2026-10-05): en este PC la vigilancia se detenía cada vez que el
@@ -463,6 +501,7 @@ def main():
     args = parser.parse_args()
 
     UMBRAL_HORAS_ALERTA_CONDUCTOR = args.horas_conductor
+    UMBRAL_HORAS_ESCALADO_CONDUCTOR = args.horas_escalado
     UMBRAL_HORAS_ALERTA_TALLER = args.horas_taller
 
     print("Conectando a Geotab...")
