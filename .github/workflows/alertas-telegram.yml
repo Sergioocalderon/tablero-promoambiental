@@ -179,6 +179,56 @@ jobs:
             gh cache delete "$id" || echo "  -> ya no existia: $id"
           done
 
+      # --- Vigilancia de senales del motor (2026-10-10) -------------------------
+      # Avisa si un vehiculo DEJA DE ENVIAR senales que antes enviaba (caso 11006-NGY805:
+      # perdio 19 senales el 11-sep y nadie lo noto en un mes). Corre en cada disparo pero
+      # el script sale enseguida (sin tocar Geotab) salvo una vez al dia, despues de las
+      # 07:00 Bogota. Solo manda Telegram si hay novedad; el estado (que senales ya se
+      # avisaron) viaja en el cache senales-motor-.
+      - name: Restaurar estado de la vigilancia de señales del motor
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: herramientas/estado_senales_motor.json
+          key: senales-motor-${{ github.run_id }}
+          restore-keys: |
+            senales-motor-
+
+      - name: Vigilancia de señales del motor
+        id: senales
+        if: always()
+        continue-on-error: true
+        working-directory: herramientas
+        run: python vigilancia_senales_motor.py --diario
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado de la vigilancia de señales del motor
+        if: always() && steps.senales.outputs.generado == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: herramientas/estado_senales_motor.json
+          key: senales-motor-${{ github.run_id }}
+
+      - name: Limpiar caches viejos de la vigilancia de señales del motor
+        if: always() && steps.senales.outputs.generado == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key senales-motor- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done
+
       - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
         if: always()
         env:

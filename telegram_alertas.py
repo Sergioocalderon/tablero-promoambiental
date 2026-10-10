@@ -187,7 +187,19 @@ def _chat_ids_destino():
     auto-suscribieron escribiendole /start al bot (ver
     _CHAT_IDS_SUSCRITOS/responder_mensajes_nuevos), sin duplicados."""
     chat_ids_fijos = [c.strip() for c in os.environ["TELEGRAM_CHAT_ID"].split(",") if c.strip()]
-    return list(dict.fromkeys(chat_ids_fijos + _CHAT_IDS_SUSCRITOS))
+    suscritos = _CHAT_IDS_SUSCRITOS
+    if not suscritos:
+        # CAMBIO (2026-10-10): _CHAT_IDS_SUSCRITOS solo se llena dentro de main() de este
+        # script. Los otros procesos que importan enviar_telegram (la vigilancia DPF y la
+        # de senales del motor, que corren como pasos aparte del workflow) mandaban SOLO a
+        # los chats fijos: quien se suscribia con /start no recibia sus avisos. Se lee la
+        # lista del estado persistido (junto a este archivo, sin depender del cwd).
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ESTADO_PATH), encoding="utf-8") as f:
+                suscritos = [str(c) for c in json.load(f).get("suscriptores", [])]
+        except (OSError, ValueError):
+            suscritos = []
+    return list(dict.fromkeys(chat_ids_fijos + suscritos))
 
 
 def enviar_telegram(texto):

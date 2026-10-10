@@ -3,6 +3,8 @@
 *.xlsx
 ~$*.xlsx
 telegram_estado.json
+herramientas/estado_cumplimiento_regeneracion.json
+herramientas/estado_senales_motor.json
 __pycache__/
 reportes/
 .claude/settings.local.json
