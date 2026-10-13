@@ -229,6 +229,56 @@ jobs:
             gh cache delete "$id" || echo "  -> ya no existia: $id"
           done
 
+      # --- Regeneracion DPF por ciudad (2026-10-13) --------------------------------
+      # Un mensaje por ciudad con los vehiculos que deben regenerar (lampara encendida) y los
+      # proximos (hollin desde 80 %), para los coordinadores. Corre en cada disparo pero el
+      # script sale enseguida (sin tocar Geotab) salvo una vez al dia, despues de las 06:00
+      # Bogota. Si un envio falla, reintenta solo lo que falta. El estado (que ya se envio hoy)
+      # viaja en el cache regen-ciudades-.
+      - name: Restaurar estado del envio de regeneracion por ciudad
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: reportes/estado_envio_regeneracion_ciudades.json
+          key: regen-ciudades-${{ github.run_id }}
+          restore-keys: |
+            regen-ciudades-
+
+      - name: Regeneracion DPF por ciudad
+        id: regen
+        if: always()
+        continue-on-error: true
+        working-directory: herramientas
+        run: python reporte_regeneracion_ciudades.py --diario --telegram
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado del envio de regeneracion por ciudad
+        if: always() && steps.regen.outputs.generado == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: reportes/estado_envio_regeneracion_ciudades.json
+          key: regen-ciudades-${{ github.run_id }}
+
+      - name: Limpiar caches viejos del envio de regeneracion por ciudad
+        if: always() && steps.regen.outputs.generado == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key regen-ciudades- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done
+
       - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
         if: always()
         env:
