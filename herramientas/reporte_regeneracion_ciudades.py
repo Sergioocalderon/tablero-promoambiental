@@ -249,13 +249,95 @@ def enviar_por_ciudad(mensajes_por_ciudad, hay_novedad, hoy, enviar):
     return todo_ok
 
 
+RUTA_ESTADO_CRUCES = CARPETA_REPO / 'reportes' / 'estado_cruces_hollin.json'
+HISTERESIS_HOLLIN = 15            # el hollin debe bajar de (umbral - 15) para que un nuevo cruce vuelva a avisar
+VENTANA_CRUCES_HORAS = 3          # el hollin llega cada ~30 min por vehiculo: 3 h de lecturas alcanzan de sobra
+
+
+def revisar_cruces(api, ahora, umbral, enviar):
+    """Avisa en cuanto un vehiculo CRUZA el umbral de hollin (por defecto 80 %), sin esperar al mensaje
+    diario. Un solo aviso por cruce: el vehiculo queda "notificado" hasta que su hollin baje de
+    (umbral - HISTERESIS_HOLLIN), por ejemplo tras regenerar; ahi un nuevo cruce vuelve a avisar.
+    Primera corrida (sin estado): los vehiculos que YA estan por encima se marcan como notificados
+    sin mandar nada (los cubre el mensaje diario), para no mandar un diluvio al activarlo.
+    Devuelve True si el estado cambio (para que el workflow guarde el cache solo entonces)."""
+    try:
+        estado = json.loads(RUTA_ESTADO_CRUCES.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        estado = {}
+    notificados = dict(estado.get('notificados', {}))
+    dispositivos = {d['id']: d for d in api.get('Device') if not d.get('activeTo') or pd.Timestamp(d['activeTo']) > ahora}
+    lecturas = api.get('StatusData', search={'diagnosticSearch': {'id': dd.ID_DIAGNOSTICO_HOLLIN},
+                                             'fromDate': fm(ahora - timedelta(hours=VENTANA_CRUCES_HORAS)), 'toDate': fm(ahora)},
+                       resultsLimit=50000) or []
+    ultimo = {}
+    for x in lecturas:
+        v = gc.obtener_id(x['device'])
+        try:
+            val = float(x['data'])
+        except (TypeError, ValueError):
+            continue
+        t = pd.Timestamp(x['dateTime'])
+        if v in dispositivos and val < HOLLIN_MAX_VALIDO and (v not in ultimo or t > ultimo[v][1]):
+            ultimo[v] = (val, t)
+    cambio = False
+
+    if not estado.get('sembrado'):
+        notificados = {dispositivos[v]['name']: ahora.isoformat() for v, (val, _) in ultimo.items() if val >= umbral}
+        guardar = {'sembrado': True, 'notificados': notificados}
+        RUTA_ESTADO_CRUCES.parent.mkdir(parents=True, exist_ok=True)
+        RUTA_ESTADO_CRUCES.write_text(json.dumps(guardar, ensure_ascii=False), encoding='utf-8')
+        print(f'Primera corrida: {len(notificados)} vehículos ya estaban sobre {umbral:g} % y quedan como avisados (los cubre el mensaje diario).')
+        return True
+
+    for nombre in list(notificados):                      # los que bajaron de verdad (regeneraron) vuelven a poder avisar
+        v = next((i for i, d in dispositivos.items() if d['name'] == nombre), None)
+        if v in ultimo and ultimo[v][0] < umbral - HISTERESIS_HOLLIN:
+            del notificados[nombre]
+            cambio = True
+
+    nuevos = [(v, val) for v, (val, _) in ultimo.items() if val >= umbral and dispositivos[v]['name'] not in notificados]
+    if nuevos:
+        gpi, padre, _ = gc.obtener_arbol_grupos(api)
+        raiz = next((g for g in gpi.values() if (g.get('name') or '').strip().startswith('*')), None)
+        raiz_hijos = {gc.obtener_id(h) for h in (raiz or {}).get('children') or []}
+        por_ciudad = {}
+        for v, val in nuevos:
+            ciudad, _ = ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos)
+            por_ciudad.setdefault(ciudad, []).append((dispositivos[v]['name'], round(val)))
+        lineas = [f'🟡 DPF PRÓXIMO A REGENERAR — hollín desde {umbral:g} %']
+        for ciudad in sorted(por_ciudad):
+            lineas.append(f'• {ciudad}: ' + ', '.join(f'{n} ({val} %)' for n, val in sorted(por_ciudad[ciudad], key=lambda x: -x[1])))
+        lineas.append('La lámpara se enciende cuando el hollín llega a 125 % o más. Conviene planear la regeneración.')
+        if enviar('\n'.join(lineas)):
+            for v, _ in nuevos:
+                notificados[dispositivos[v]['name']] = ahora.isoformat()
+            cambio = True
+            print(f'Avisados {len(nuevos)} vehículos que cruzaron {umbral:g} %: ' + ', '.join(dispositivos[v]['name'] for v, _ in nuevos))
+        else:
+            print('*** No se pudo enviar el aviso de cruce; se reintenta en la siguiente corrida ***')
+    else:
+        print(f'Sin cruces nuevos de {umbral:g} % ({len(ultimo)} vehículos con hollín reciente).')
+    if cambio:
+        RUTA_ESTADO_CRUCES.write_text(json.dumps({'sembrado': True, 'notificados': notificados}, ensure_ascii=False), encoding='utf-8')
+    return cambio
+
+
 def main():
     ap = argparse.ArgumentParser(description='Vehículos que necesitan regenerar el DPF, por ciudad.')
     ap.add_argument('--hollin-proximo', type=float, default=HOLLIN_PROXIMO_DEFECTO, help='Hollín mínimo (%%) para la lista de próximos.')
     ap.add_argument('--dias', type=int, default=14, help='Días de historia para reconstruir el estado de la lámpara.')
     ap.add_argument('--telegram', action='store_true', help='Mandar un mensaje por ciudad al bot de Telegram.')
     ap.add_argument('--diario', action='store_true', help=f'Solo corre despues de las {HORA_ENVIO_DIARIO}:00 (Bogota) y una vez al dia; sin Excel.')
+    ap.add_argument('--cruces', action='store_true', help='Solo avisa (Telegram) de los vehículos que ACABAN de cruzar el umbral de hollín; para correr cada 5 min.')
     args = ap.parse_args()
+
+    if args.cruces:
+        ahora = pd.Timestamp(datetime.now(timezone.utc))
+        api = gc.conectar_geotab()
+        cambio = revisar_cruces(api, ahora, args.hollin_proximo, vg.enviar_telegram)
+        avisar_github(cambio)
+        return
 
     hoy = datetime.now(TZ).strftime('%Y-%m-%d')
     if args.diario:

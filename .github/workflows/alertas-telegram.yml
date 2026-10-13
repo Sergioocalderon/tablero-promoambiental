@@ -279,6 +279,55 @@ jobs:
             gh cache delete "$id" || echo "  -> ya no existia: $id"
           done
 
+      # --- Aviso inmediato al cruzar 80 % de hollin (2026-10-13) --------------------
+      # En cada corrida (cada 5 min) mira el hollin de las ultimas 3 h y avisa SOLO de los
+      # vehiculos que acaban de cruzar el umbral, una vez por cruce (el mensaje diario por
+      # ciudad cubre a los que ya estaban arriba). El estado (a quien ya se aviso) viaja en el
+      # cache cruces-hollin-; solo se guarda cuando cambia.
+      - name: Restaurar estado de cruces de hollin
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: reportes/estado_cruces_hollin.json
+          key: cruces-hollin-${{ github.run_id }}
+          restore-keys: |
+            cruces-hollin-
+
+      - name: Aviso de cruces de hollin
+        id: cruces
+        if: always()
+        continue-on-error: true
+        working-directory: herramientas
+        run: python reporte_regeneracion_ciudades.py --cruces
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado de cruces de hollin
+        if: always() && steps.cruces.outputs.generado == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: reportes/estado_cruces_hollin.json
+          key: cruces-hollin-${{ github.run_id }}
+
+      - name: Limpiar caches viejos de cruces de hollin
+        if: always() && steps.cruces.outputs.generado == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key cruces-hollin- --limit 100 --json id,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done
+
       - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
         if: always()
         env:
