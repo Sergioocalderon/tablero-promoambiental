@@ -9,10 +9,11 @@ Dos listas por ciudad:
                    Mismo criterio de episodio que la vigilancia de cumplimiento
                    (vigilancia_cumplimiento_regeneracion.py): un 0 de la lampara con el
                    motor apagado o con el interruptor manual activo NO la apaga.
-  PROXIMOS      -- lampara apagada pero hollin >= --hollin-proximo (80 % por defecto).
-                   Medido en esta flota: la lampara se enciende cuando el hollin llega a
-                   125-148 % (mediana 138 %), asi que 80 % es "se viene": sirve para
-                   planear la regeneracion manual antes de que la lampara se encienda.
+  PROXIMOS      -- lampara apagada pero hollin sobre el umbral DE SU MARCA: International 80 %
+                   (--hollin-proximo), Foton 95 %, Kenworth 100 %. Medido en esta flota con 30 dias
+                   de hollin: la lampara de los International se enciende hacia 125-148 % (mediana
+                   138 %) y el 80 % da ~5 h de adelanto; los Foton no pasan de ~102 % (regeneran hacia
+                   100 %) y los Kenworth casi no acumulan, asi que con 80 % solo daban ruido.
 
 Salida (en reportes/ y copia en Descargas):
   regeneracion_por_ciudad.xlsx   resumen + una hoja por ciudad
@@ -22,6 +23,8 @@ Uso:
     python reporte_regeneracion_ciudades.py
     python reporte_regeneracion_ciudades.py --hollin-proximo 90 --dias 14
     python reporte_regeneracion_ciudades.py --telegram          # ademas manda un mensaje por ciudad al bot
+    python reporte_regeneracion_ciudades.py --cruces            # aviso inmediato al cruzar el umbral (cada 5 min, 12 h entre avisos del mismo vehiculo)
+    python reporte_regeneracion_ciudades.py --cronicos          # vehiculos con hollin alto recurrente (lista para el taller)
     python reporte_regeneracion_ciudades.py --diario --telegram
         # lo que corre alertas-telegram.yml cada 5 min: solo actua despues de las 06:00
         # (Bogota) y UNA vez al dia; si no, sale enseguida sin conectarse a Geotab. No genera
@@ -57,7 +60,13 @@ import detectar_regeneracion_dpf as dd  # noqa: E402
 import vigilancia_cumplimiento_regeneracion as vg  # noqa: E402
 
 TZ = ZoneInfo('America/Bogota')
-HOLLIN_PROXIMO_DEFECTO = 80
+HOLLIN_PROXIMO_DEFECTO = 80      # International y las demas marcas
+# Umbral de "proximo a regenerar" por marca (validado con 30 dias de hollin, 2026-10-14): los
+# International suben hasta 198 % y el 80 % da ~5 h de adelanto antes de la lampara (125 %); los Foton
+# no pasan de ~102 % (regeneran hacia 100 %, la lampara nunca se les vio) y los Kenworth casi no
+# acumulan: con 80 % solo generaban ruido.
+UMBRAL_HOLLIN_POR_MARCA = (('foton', 95), ('kenworth', 100))
+COOLDOWN_AVISO_HORAS = 12        # un mismo vehiculo no vuelve a avisar antes de esto, aunque baje y vuelva a cruzar
 HOLLIN_MAX_VALIDO = 150          # lecturas >= 150 se descartan como ruido en el ultimo dato (ver detectar_regeneracion_dpf)
 HORAS_HOLLIN_RECIENTE = 48       # el ultimo hollin debe ser de las ultimas 48 h para contar
 MARCAS = ('international', 'kenworth', 'foton', 'chevrolet', 'mercedes', 'volks', 'freightliner', 'hino')
@@ -119,6 +128,15 @@ def fmt_h(h):
     return f'{h:.1f}'.replace('.', ',')
 
 
+def umbral_marca(marca, base=HOLLIN_PROXIMO_DEFECTO):
+    """Umbral de hollin (%) para 'proximo a regenerar' segun la marca; `base` aplica a las demas."""
+    m = (marca or '').lower()
+    for prefijo, umbral in UMBRAL_HOLLIN_POR_MARCA:
+        if m.startswith(prefijo):
+            return umbral
+    return base
+
+
 def construir_filas(api, vehiculos, ahora, dias, hollin_proximo):
     devs = {d['id']: d for d in api.get('Device')}
     gpi, padre, _ = gc.obtener_arbol_grupos(api)
@@ -155,9 +173,10 @@ def construir_filas(api, vehiculos, ahora, dias, hollin_proximo):
             filas.append({**base, 'Prioridad': 'REGENERAR YA', 'Lámpara desde': fmt_fecha(desde),
                           'Horas con lámpara': round(horas_total, 1), 'Horas de motor con lámpara': round(horas_motor, 1),
                           'Observación': '; '.join(obs)})
-        elif h and h[0] >= hollin_proximo:
-            filas.append({**base, 'Prioridad': 'PRÓXIMO', 'Lámpara desde': '', 'Horas con lámpara': None,
-                          'Horas de motor con lámpara': None, 'Observación': f'hollín desde {hollin_proximo} %, lámpara aún apagada'})
+        elif h and h[0] >= umbral_marca(marca, hollin_proximo):
+            u = umbral_marca(marca, hollin_proximo)
+            filas.append({**base, 'Prioridad': 'PRÓXIMO', 'Umbral': u, 'Lámpara desde': '', 'Horas con lámpara': None,
+                          'Horas de motor con lámpara': None, 'Observación': f'hollín sobre {u} % (umbral de {marca}), lámpara aún apagada'})
     return filas, sin_hollin, total_por_ciudad
 
 
@@ -174,21 +193,21 @@ def mensaje_ciudad(ciudad, filas, ahora, hollin_proximo, total=0, sin_dato=0):
             L.append(f"• {f['Vehículo']} · desde {f['Lámpara desde']} · {fmt_h(f['Horas de motor con lámpara'])} h de motor{extra}{man}{nota}")
         L.append('')
     if prox:
-        L.append(f'🟡 PRÓXIMOS — hollín desde {hollin_proximo} %, lámpara apagada ({len(prox)})')
+        L.append(f'🟡 PRÓXIMOS — hollín sobre el umbral de su marca, lámpara apagada ({len(prox)})')
         for f in prox:
-            L.append(f"• {f['Vehículo']} · hollín {f['Hollín %']} %")
+            L.append(f"• {f['Vehículo']} · hollín {f['Hollín %']} % (umbral {f['Umbral']} %)")
         L.append('')
     if not ya and not prox:
         L.append('✅ Sin vehículos para regenerar por ahora.')
         L.append('')
-    L.append('La lámpara se enciende cuando el hollín llega a 125 % o más.')
+    L.append(f'Umbral de "próximo": International {hollin_proximo:g} %, Foton 95 %, Kenworth 100 %. La lámpara se enciende hacia 125 % o más.')
     if sin_dato:
         L.append(f'({sin_dato} de {total} vehículos de esta ciudad no reportan hollín: solo se les detecta la lámpara encendida.)')
     return '\n'.join(L)
 
 
 def escribir_excel(resumen, df, todas_ciudades):
-    cols = ['Prioridad', 'Vehículo', 'Marca', 'Hollín %', 'Hollín leído', 'Lámpara desde', 'Horas con lámpara', 'Horas de motor con lámpara', 'Observación']
+    cols = ['Prioridad', 'Vehículo', 'Marca', 'Hollín %', 'Umbral', 'Hollín leído', 'Lámpara desde', 'Horas con lámpara', 'Horas de motor con lámpara', 'Observación']
     RUTA_XLSX.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(RUTA_XLSX, engine='openpyxl') as w:
         pd.DataFrame(resumen).to_excel(w, sheet_name='Resumen', index=False)
@@ -254,10 +273,12 @@ HISTERESIS_HOLLIN = 15            # el hollin debe bajar de (umbral - 15) para q
 VENTANA_CRUCES_HORAS = 3          # el hollin llega cada ~30 min por vehiculo: 3 h de lecturas alcanzan de sobra
 
 
-def revisar_cruces(api, ahora, umbral, enviar):
-    """Avisa en cuanto un vehiculo CRUZA el umbral de hollin (por defecto 80 %), sin esperar al mensaje
-    diario. Un solo aviso por cruce: el vehiculo queda "notificado" hasta que su hollin baje de
-    (umbral - HISTERESIS_HOLLIN), por ejemplo tras regenerar; ahi un nuevo cruce vuelve a avisar.
+def revisar_cruces(api, ahora, umbral_base, enviar):
+    """Avisa en cuanto un vehiculo CRUZA el umbral de hollin de SU marca (International 80 %, Foton 95 %,
+    Kenworth 100 %), sin esperar al mensaje diario. Un solo aviso por cruce: el vehiculo queda
+    "notificado" hasta que su hollin baje de (umbral - HISTERESIS_HOLLIN), por ejemplo tras regenerar,
+    y ademas no vuelve a avisar antes de COOLDOWN_AVISO_HORAS aunque baje y vuelva a subir (los
+    vehiculos que oscilan alrededor del umbral generaban la mayoria del ruido).
     Primera corrida (sin estado): los vehiculos que YA estan por encima se marcan como notificados
     sin mandar nada (los cubre el mensaje diario), para no mandar un diluvio al activarlo.
     Devuelve True si el estado cambio (para que el workflow guarde el cache solo entonces)."""
@@ -266,6 +287,7 @@ def revisar_cruces(api, ahora, umbral, enviar):
     except (OSError, ValueError):
         estado = {}
     notificados = dict(estado.get('notificados', {}))
+    ultimo_aviso = dict(estado.get('ultimo_aviso', {}))     # nombre -> ISO del ultimo aviso (para el cooldown)
     dispositivos = {d['id']: d for d in api.get('Device') if not d.get('activeTo') or pd.Timestamp(d['activeTo']) > ahora}
     lecturas = api.get('StatusData', search={'diagnosticSearch': {'id': dd.ID_DIAGNOSTICO_HOLLIN},
                                              'fromDate': fm(ahora - timedelta(hours=VENTANA_CRUCES_HORAS)), 'toDate': fm(ahora)},
@@ -280,47 +302,112 @@ def revisar_cruces(api, ahora, umbral, enviar):
         t = pd.Timestamp(x['dateTime'])
         if v in dispositivos and val < HOLLIN_MAX_VALIDO and (v not in ultimo or t > ultimo[v][1]):
             ultimo[v] = (val, t)
+
+    gpi, padre, _ = gc.obtener_arbol_grupos(api)
+    raiz = next((g for g in gpi.values() if (g.get('name') or '').strip().startswith('*')), None)
+    raiz_hijos = {gc.obtener_id(h) for h in (raiz or {}).get('children') or []}
+    ciudad_marca = {v: ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos) for v in ultimo}
+    umbral = {v: umbral_marca(ciudad_marca[v][1], umbral_base) for v in ultimo}
+    nombre_de = {v: dispositivos[v]['name'] for v in ultimo}
     cambio = False
 
-    if not estado.get('sembrado'):
-        notificados = {dispositivos[v]['name']: ahora.isoformat() for v, (val, _) in ultimo.items() if val >= umbral}
-        guardar = {'sembrado': True, 'notificados': notificados}
+    def guardar():
         RUTA_ESTADO_CRUCES.parent.mkdir(parents=True, exist_ok=True)
-        RUTA_ESTADO_CRUCES.write_text(json.dumps(guardar, ensure_ascii=False), encoding='utf-8')
-        print(f'Primera corrida: {len(notificados)} vehículos ya estaban sobre {umbral:g} % y quedan como avisados (los cubre el mensaje diario).')
+        RUTA_ESTADO_CRUCES.write_text(json.dumps({'sembrado': True, 'notificados': notificados, 'ultimo_aviso': ultimo_aviso},
+                                                 ensure_ascii=False), encoding='utf-8')
+
+    if not estado.get('sembrado'):
+        notificados = {nombre_de[v]: ahora.isoformat() for v, (val, _) in ultimo.items() if val >= umbral[v]}
+        ultimo_aviso = dict(notificados)
+        guardar()
+        print(f'Primera corrida: {len(notificados)} vehículos ya estaban sobre el umbral de su marca y quedan como avisados (los cubre el mensaje diario).')
         return True
 
     for nombre in list(notificados):                      # los que bajaron de verdad (regeneraron) vuelven a poder avisar
-        v = next((i for i, d in dispositivos.items() if d['name'] == nombre), None)
-        if v in ultimo and ultimo[v][0] < umbral - HISTERESIS_HOLLIN:
+        v = next((i for i in ultimo if nombre_de[i] == nombre), None)
+        if v is not None and ultimo[v][0] < umbral[v] - HISTERESIS_HOLLIN:
+            ultimo_aviso.setdefault(nombre, notificados[nombre])       # conserva la hora del ultimo aviso para el cooldown
             del notificados[nombre]
             cambio = True
 
-    nuevos = [(v, val) for v, (val, _) in ultimo.items() if val >= umbral and dispositivos[v]['name'] not in notificados]
+    def en_cooldown(nombre):
+        t = ultimo_aviso.get(nombre)
+        return t is not None and (ahora - pd.Timestamp(t)) < timedelta(hours=COOLDOWN_AVISO_HORAS)
+
+    nuevos = [(v, val) for v, (val, _) in ultimo.items()
+              if val >= umbral[v] and nombre_de[v] not in notificados and not en_cooldown(nombre_de[v])]
     if nuevos:
-        gpi, padre, _ = gc.obtener_arbol_grupos(api)
-        raiz = next((g for g in gpi.values() if (g.get('name') or '').strip().startswith('*')), None)
-        raiz_hijos = {gc.obtener_id(h) for h in (raiz or {}).get('children') or []}
         por_ciudad = {}
         for v, val in nuevos:
-            ciudad, _ = ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos)
-            por_ciudad.setdefault(ciudad, []).append((dispositivos[v]['name'], round(val)))
-        lineas = [f'🟡 DPF PRÓXIMO A REGENERAR — hollín desde {umbral:g} %']
+            por_ciudad.setdefault(ciudad_marca[v][0], []).append((nombre_de[v], round(val), umbral[v]))
+        lineas = ['🟡 DPF PRÓXIMO A REGENERAR — hollín sobre el umbral de su marca']
         for ciudad in sorted(por_ciudad):
-            lineas.append(f'• {ciudad}: ' + ', '.join(f'{n} ({val} %)' for n, val in sorted(por_ciudad[ciudad], key=lambda x: -x[1])))
-        lineas.append('La lámpara se enciende cuando el hollín llega a 125 % o más. Conviene planear la regeneración.')
+            lineas.append(f'• {ciudad}: ' + ', '.join(f'{n} ({val} %)' for n, val, _ in sorted(por_ciudad[ciudad], key=lambda x: -x[1])))
+        lineas.append(f'Umbral: International {umbral_base:g} %, Foton 95 %, Kenworth 100 %. La lámpara se enciende hacia 125 % o más; conviene planear la regeneración.')
         if enviar('\n'.join(lineas)):
             for v, _ in nuevos:
-                notificados[dispositivos[v]['name']] = ahora.isoformat()
+                notificados[nombre_de[v]] = ahora.isoformat()
+                ultimo_aviso[nombre_de[v]] = ahora.isoformat()
             cambio = True
-            print(f'Avisados {len(nuevos)} vehículos que cruzaron {umbral:g} %: ' + ', '.join(dispositivos[v]['name'] for v, _ in nuevos))
+            print(f'Avisados {len(nuevos)} vehículos que cruzaron el umbral de su marca: ' + ', '.join(nombre_de[v] for v, _ in nuevos))
         else:
             print('*** No se pudo enviar el aviso de cruce; se reintenta en la siguiente corrida ***')
     else:
-        print(f'Sin cruces nuevos de {umbral:g} % ({len(ultimo)} vehículos con hollín reciente).')
+        print(f'Sin cruces nuevos ({len(ultimo)} vehículos con hollín reciente).')
     if cambio:
-        RUTA_ESTADO_CRUCES.write_text(json.dumps({'sembrado': True, 'notificados': notificados}, ensure_ascii=False), encoding='utf-8')
+        guardar()
     return cambio
+
+
+def lista_cronicos(api, ahora, dias=30, min_cruces=8, umbral_base=HOLLIN_PROXIMO_DEFECTO):
+    """Vehiculos cuyo hollin cruza el umbral de su marca con mucha frecuencia (>= min_cruces en `dias`):
+    su filtro se llena una y otra vez. Candidatos a revision de taller (DPF, sensor o ciclo de operacion).
+    Un cruce empieza cuando el hollin llega al umbral de la marca y termina cuando baja de (umbral - 15)."""
+    dispositivos = {d['id']: d for d in api.get('Device')}
+    gpi, padre, _ = gc.obtener_arbol_grupos(api)
+    raiz = next((g for g in gpi.values() if (g.get('name') or '').strip().startswith('*')), None)
+    raiz_hijos = {gc.obtener_id(h) for h in (raiz or {}).get('children') or []}
+    llamadas = [('Get', {'typeName': 'StatusData', 'search': {
+        'diagnosticSearch': {'id': dd.ID_DIAGNOSTICO_HOLLIN},
+        'fromDate': fm(ahora - timedelta(days=k + 1)), 'toDate': fm(ahora - timedelta(days=k))}, 'resultsLimit': 50000})
+        for k in range(dias)]
+    por_veh = {}
+    for lote in gc._multi_call_con_reintentos(api, llamadas, f'hollin {dias} dias'):
+        for x in lote or []:
+            try:
+                por_veh.setdefault(gc.obtener_id(x['device']), []).append((pd.Timestamp(x['dateTime']).to_pydatetime(), float(x['data'])))
+            except (TypeError, ValueError):
+                continue
+    filas = []
+    for v, lect in por_veh.items():
+        if v not in dispositivos:
+            continue
+        ciudad, marca = ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos)
+        u = umbral_marca(marca, umbral_base)
+        cruces, arriba = [], False
+        for t, val in dd.limpiar_lecturas_hollin(sorted(lect)):
+            if not arriba and val >= u:
+                arriba, ini, mx = True, t, val
+            elif arriba:
+                mx = max(mx, val)
+                if val < u - HISTERESIS_HOLLIN:
+                    cruces.append(((t - ini).total_seconds() / 3600, mx))
+                    arriba = False
+        if len(cruces) >= min_cruces:
+            horas = pd.Series([h for h, _ in cruces])
+            picos = pd.Series([p for _, p in cruces])
+            filas.append({'Vehículo': dispositivos[v]['name'], 'Ciudad': ciudad, 'Marca': marca, 'Umbral %': u, 'Cruces': len(cruces),
+                          'Horas por encima (mediana)': round(float(horas.median()), 1), 'Pico mediano %': round(float(picos.median())),
+                          'Pico máximo %': round(float(picos.max())), '% que llegó a 125 % o más': round(float((picos >= 125).mean() * 100))})
+    return sorted(filas, key=lambda f: -f['Cruces'])
+
+
+def texto_cronicos(filas, dias, min_cruces):
+    L = [f'🔩 VEHÍCULOS CON HOLLÍN ALTO RECURRENTE — últimos {dias} días', f'(cruzan el umbral de hollín de su marca {min_cruces} veces o más)', '']
+    for f in filas:
+        L.append(f"• {f['Vehículo']} ({f['Ciudad']}) · {f['Cruces']} cruces · mediana {fmt_h(f['Horas por encima (mediana)'])} h por encima · pico mediano {f['Pico mediano %']} %")
+    L += ['', 'Su filtro se llena una y otra vez: conviene revisarlos en taller (DPF, sensor de hollín o ciclo de operación).']
+    return '\n'.join(L)
 
 
 def main():
@@ -329,8 +416,28 @@ def main():
     ap.add_argument('--dias', type=int, default=14, help='Días de historia para reconstruir el estado de la lámpara.')
     ap.add_argument('--telegram', action='store_true', help='Mandar un mensaje por ciudad al bot de Telegram.')
     ap.add_argument('--diario', action='store_true', help=f'Solo corre despues de las {HORA_ENVIO_DIARIO}:00 (Bogota) y una vez al dia; sin Excel.')
+    ap.add_argument('--cronicos', action='store_true', help='Lista de vehículos con hollín alto recurrente (para el taller): Excel + texto.')
+    ap.add_argument('--dias-cronicos', type=int, default=30, help='Ventana (días) de la lista de crónicos.')
+    ap.add_argument('--min-cruces', type=int, default=8, help='Cruces mínimos del umbral para considerar a un vehículo crónico.')
     ap.add_argument('--cruces', action='store_true', help='Solo avisa (Telegram) de los vehículos que ACABAN de cruzar el umbral de hollín; para correr cada 5 min.')
     args = ap.parse_args()
+
+    if args.cronicos:
+        ahora = pd.Timestamp(datetime.now(timezone.utc))
+        filas_c = lista_cronicos(gc.conectar_geotab(), ahora, args.dias_cronicos, args.min_cruces, args.hollin_proximo)
+        texto = texto_cronicos(filas_c, args.dias_cronicos, args.min_cruces)
+        ruta_x, ruta_t = CARPETA_REPO / 'reportes' / 'vehiculos_hollin_cronico.xlsx', CARPETA_REPO / 'reportes' / 'vehiculos_hollin_cronico.txt'
+        ruta_x.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(filas_c).to_excel(ruta_x, index=False)
+        ruta_t.write_text(texto, encoding='utf-8')
+        for ruta in (ruta_x, ruta_t):
+            try:
+                shutil.copyfile(ruta, DESCARGAS / ruta.name)
+            except OSError as e:
+                print(f'(no se pudo copiar {ruta.name} a Descargas: {e})')
+        print(pd.DataFrame(filas_c).to_string(index=False)); print(); print(texto)
+        print(f'Guardado: {ruta_x}  y  {ruta_t}  (copias en {DESCARGAS})')
+        return
 
     if args.cruces:
         ahora = pd.Timestamp(datetime.now(timezone.utc))
