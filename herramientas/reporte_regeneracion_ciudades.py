@@ -24,6 +24,7 @@ Uso:
     python reporte_regeneracion_ciudades.py --hollin-proximo 90 --dias 14
     python reporte_regeneracion_ciudades.py --telegram          # ademas manda un mensaje por ciudad al bot
     python reporte_regeneracion_ciudades.py --cruces            # aviso inmediato al cruzar el umbral (cada 5 min, 12 h entre avisos del mismo vehiculo)
+    python reporte_regeneracion_ciudades.py --regen-activa      # aviso al encenderse el testigo de regeneracion (hollin >= 60 %) y si a los 75 min no bajo
     python reporte_regeneracion_ciudades.py --cronicos          # vehiculos con hollin alto recurrente (lista para el taller)
     python reporte_regeneracion_ciudades.py --diario --telegram
         # lo que corre alertas-telegram.yml cada 5 min: solo actua despues de las 06:00
@@ -359,6 +360,157 @@ def revisar_cruces(api, ahora, umbral_base, enviar):
     return cambio
 
 
+RUTA_ESTADO_REGEN_ACTIVA = CARPETA_REPO / 'reportes' / 'estado_regen_activa.json'
+# Aviso del testigo de "regeneracion activa" (pedido del usuario, 2026-10-14: el 1151-NWX183 mostro el
+# testigo y no llego nada a Telegram). Medido en 7 dias de flota: el testigo se activa ~29 veces al dia
+# (205 eventos, 49 vehiculos), casi siempre sin lampara; con hollin previo >= 60 % son ~9 al dia, y en
+# ~1/3 de ellos el hollin NO baja despues (regeneracion que no surte efecto, o testigo pegado).
+# Por eso: aviso al activarse solo si el hollin ya estaba en REGEN_HOLLIN_MIN_AVISO, 6 h entre avisos del
+# mismo vehiculo, y un segundo aviso, una sola vez, si a los REGEN_EVALUAR_MIN el hollin no bajo.
+REGEN_HOLLIN_MIN_AVISO = 60
+REGEN_COOLDOWN_HORAS = 6
+REGEN_EVALUAR_MIN = 75
+REGEN_CAIDA_MIN_PP = 10
+VENTANA_REGEN_HORAS = 4
+
+
+def revisar_regeneracion_activa(api, ahora, enviar):
+    """Avisa cuando el testigo "regeneracion activa" se enciende en un vehiculo con hollin >= 60 %, y avisa
+    una vez mas si 75 min despues el hollin no bajo >= 10 puntos. Primera corrida (sin estado) y testigos que
+    ya venian pegados en 1 antes de la ventana: se registran sin avisar. Devuelve True si el estado cambio."""
+    try:
+        estado = json.loads(RUTA_ESTADO_REGEN_ACTIVA.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        estado = {}
+    activos = dict(estado.get('activos', {}))
+    ultimo_aviso = dict(estado.get('ultimo_aviso', {}))
+    sembrado = bool(estado.get('sembrado'))
+    ini_ventana = ahora - timedelta(hours=VENTANA_REGEN_HORAS)
+    dispositivos = {d['id']: d for d in api.get('Device') if not d.get('activeTo') or pd.Timestamp(d['activeTo']) > ahora}
+    regen = api.get('StatusData', search={'diagnosticSearch': {'id': dd.ID_DIAGNOSTICO_REGEN_ACTIVA},
+                                          'fromDate': fm(ini_ventana), 'toDate': fm(ahora)}, resultsLimit=50000) or []
+    hollin = api.get('StatusData', search={'diagnosticSearch': {'id': dd.ID_DIAGNOSTICO_HOLLIN},
+                                           'fromDate': fm(ini_ventana), 'toDate': fm(ahora)}, resultsLimit=50000) or []
+    r_por, h_por = {}, {}
+    for x in regen:
+        try:
+            r_por.setdefault(gc.obtener_id(x['device']), []).append((pd.Timestamp(x['dateTime']), float(x['data'])))
+        except (TypeError, ValueError):
+            continue
+    for x in hollin:
+        try:
+            val = float(x['data'])
+        except (TypeError, ValueError):
+            continue
+        if val < HOLLIN_MAX_VALIDO:
+            h_por.setdefault(gc.obtener_id(x['device']), []).append((pd.Timestamp(x['dateTime']), val))
+    for lista in list(r_por.values()) + list(h_por.values()):
+        lista.sort()
+
+    gpi, padre, _ = gc.obtener_arbol_grupos(api)
+    raiz = next((g for g in gpi.values() if (g.get('name') or '').strip().startswith('*')), None)
+    raiz_hijos = {gc.obtener_id(h) for h in (raiz or {}).get('children') or []}
+    cambio = False
+
+    def en_cooldown(nombre):
+        t = ultimo_aviso.get(nombre)
+        return t is not None and (ahora - pd.Timestamp(t)) < timedelta(hours=REGEN_COOLDOWN_HORAS)
+
+    # 1) testigos que se acaban de encender
+    nuevos = []
+    for v, lect in r_por.items():
+        if v not in dispositivos or lect[-1][1] < 1:
+            continue
+        nombre = dispositivos[v]['name']
+        if nombre in activos:
+            continue
+        i = len(lect) - 1
+        while i > 0 and lect[i - 1][1] >= 1:
+            i -= 1
+        inicio = lect[i][0]
+        antes = [val for t, val in h_por.get(v, []) if t <= inicio]
+        hollin_antes = antes[-1] if antes else (h_por[v][-1][1] if h_por.get(v) else None)
+        # si la racha de 1 llega hasta el borde de la ventana, el testigo ya venia encendido: no es un evento nuevo
+        ya_venia = (i == 0 and lect[0][0] - ini_ventana < timedelta(minutes=45)) or not sembrado
+        if ya_venia or hollin_antes is None or hollin_antes < REGEN_HOLLIN_MIN_AVISO or en_cooldown(nombre):
+            activos[nombre] = {'inicio': inicio.isoformat(), 'hollin_antes': hollin_antes, 'avisado': False, 'evaluado': True}
+            cambio = True
+        else:
+            nuevos.append((v, nombre, inicio, hollin_antes))
+    if nuevos:
+        por_ciudad = {}
+        for v, nombre, inicio, h in nuevos:
+            por_ciudad.setdefault(ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos)[0], []).append((nombre, round(h), inicio))
+        lineas = ['🔥 REGENERACIÓN EN CURSO — se activó el testigo de regeneración']
+        for ciudad in sorted(por_ciudad):
+            lineas.append(f'• {ciudad}: ' + ', '.join(f"{n} (hollín {h} %, desde {inicio.astimezone(TZ).strftime('%H:%M')})"
+                                                      for n, h, inicio in sorted(por_ciudad[ciudad], key=lambda x: -x[1])))
+        lineas.append(f'Si a los {REGEN_EVALUAR_MIN} min el hollín no ha bajado, te aviso otra vez.')
+        if enviar('\n'.join(lineas)):
+            for v, nombre, inicio, h in nuevos:
+                activos[nombre] = {'inicio': inicio.isoformat(), 'hollin_antes': h, 'avisado': True, 'evaluado': False}
+                ultimo_aviso[nombre] = ahora.isoformat()
+            cambio = True
+            print('Regeneración en curso avisada: ' + ', '.join(n for _, n, _, _ in nuevos))
+        else:
+            print('*** No se pudo enviar el aviso de regeneración en curso; se reintenta en la siguiente corrida ***')
+
+    # 2) seguimiento: a los REGEN_EVALUAR_MIN, ¿bajo el hollin?
+    id_de = {d['name']: v for v, d in dispositivos.items()}
+    sin_efecto = []
+    for nombre, e in activos.items():
+        if e.get('evaluado'):
+            continue
+        inicio = pd.Timestamp(e['inicio'])
+        minutos = (ahora - inicio).total_seconds() / 60
+        if minutos < REGEN_EVALUAR_MIN:
+            continue
+        v = id_de.get(nombre)
+        despues = [val for t, val in h_por.get(v, []) if t >= inicio]
+        if not despues and minutos < 180:
+            continue                                     # el hollin llega cada ~30 min: se espera un poco mas
+        if despues and e['hollin_antes'] - min(despues) < REGEN_CAIDA_MIN_PP:
+            sin_efecto.append((v, nombre, e, min(despues), minutos))
+        else:
+            e['evaluado'] = True
+            cambio = True
+    if sin_efecto:
+        por_ciudad = {}
+        for v, nombre, e, mn, minutos in sin_efecto:
+            por_ciudad.setdefault(ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos)[0], []).append(
+                f"{nombre} ({round(e['hollin_antes'])} % → {round(mn)} %, {round(minutos)} min)")
+        lineas = ['⚠️ REGENERACIÓN SIN EFECTO — el testigo sigue activo y el hollín no bajó']
+        for ciudad in sorted(por_ciudad):
+            lineas.append(f'• {ciudad}: ' + ', '.join(por_ciudad[ciudad]))
+        lineas.append('Puede que la regeneración no esté completando (motor parado, baja temperatura o falla): conviene revisar el vehículo.')
+        if enviar('\n'.join(lineas)):
+            for _, nombre, e, _, _ in sin_efecto:
+                e['evaluado'] = True
+            cambio = True
+            print('Regeneración sin efecto avisada: ' + ', '.join(n for _, n, _, _, _ in sin_efecto))
+        else:
+            print('*** No se pudo enviar el aviso de regeneración sin efecto; se reintenta en la siguiente corrida ***')
+
+    # 3) limpieza: testigo ya apagado y evaluado, o entradas viejas
+    for nombre in list(activos):
+        v = id_de.get(nombre)
+        apagado = bool(r_por.get(v)) and r_por[v][-1][1] < 1
+        viejo = (ahora - pd.Timestamp(activos[nombre]['inicio'])) > timedelta(hours=48)
+        if (apagado and activos[nombre].get('evaluado')) or viejo:
+            del activos[nombre]
+            cambio = True
+    if not sembrado:
+        print(f'Primera corrida: {len(activos)} vehículos con el testigo ya encendido quedan registrados sin avisar.')
+    elif not nuevos and not sin_efecto:
+        print(f'Sin novedades de regeneración activa ({len(activos)} en seguimiento).')
+    if cambio or not sembrado:
+        RUTA_ESTADO_REGEN_ACTIVA.parent.mkdir(parents=True, exist_ok=True)
+        RUTA_ESTADO_REGEN_ACTIVA.write_text(json.dumps({'sembrado': True, 'activos': activos, 'ultimo_aviso': ultimo_aviso},
+                                                       ensure_ascii=False), encoding='utf-8')
+        cambio = True
+    return cambio
+
+
 def lista_cronicos(api, ahora, dias=30, min_cruces=8, umbral_base=HOLLIN_PROXIMO_DEFECTO):
     """Vehiculos cuyo hollin cruza el umbral de su marca con mucha frecuencia (>= min_cruces en `dias`):
     su filtro se llena una y otra vez. Candidatos a revision de taller (DPF, sensor o ciclo de operacion).
@@ -419,6 +571,7 @@ def main():
     ap.add_argument('--cronicos', action='store_true', help='Lista de vehículos con hollín alto recurrente (para el taller): Excel + texto.')
     ap.add_argument('--dias-cronicos', type=int, default=30, help='Ventana (días) de la lista de crónicos.')
     ap.add_argument('--min-cruces', type=int, default=8, help='Cruces mínimos del umbral para considerar a un vehículo crónico.')
+    ap.add_argument('--regen-activa', action='store_true', help='Avisa (Telegram) cuando se enciende el testigo de regeneración activa con hollín >= 60 %%, y si a los 75 min no bajó; para correr cada 5 min.')
     ap.add_argument('--cruces', action='store_true', help='Solo avisa (Telegram) de los vehículos que ACABAN de cruzar el umbral de hollín; para correr cada 5 min.')
     args = ap.parse_args()
 
@@ -437,6 +590,12 @@ def main():
                 print(f'(no se pudo copiar {ruta.name} a Descargas: {e})')
         print(pd.DataFrame(filas_c).to_string(index=False)); print(); print(texto)
         print(f'Guardado: {ruta_x}  y  {ruta_t}  (copias en {DESCARGAS})')
+        return
+
+    if args.regen_activa:
+        ahora = pd.Timestamp(datetime.now(timezone.utc))
+        cambio = revisar_regeneracion_activa(gc.conectar_geotab(), ahora, vg.enviar_telegram)
+        avisar_github(cambio)
         return
 
     if args.cruces:

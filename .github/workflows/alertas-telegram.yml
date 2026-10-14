@@ -328,6 +328,53 @@ jobs:
             gh cache delete "$id" || echo "  -> ya no existia: $id"
           done
 
+      # --- Aviso de regeneracion activa (testigo del DPF) -------------------------------------
+      # En cada corrida (cada 5 min) avisa de los vehiculos cuyo testigo de regeneracion acaba de
+      # encenderse con hollin >= 60 %, y una vez mas si a los 75 min el hollin no bajo. El estado
+      # viaja en el cache regen-activa-; solo se guarda cuando cambia.
+      - name: Restaurar estado de regeneracion activa
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: reportes/estado_regen_activa.json
+          key: regen-activa-${{ github.run_id }}
+          restore-keys: |
+            regen-activa-
+
+      - name: Aviso de regeneracion activa
+        id: regenactiva
+        if: always()
+        continue-on-error: true
+        working-directory: herramientas
+        run: python reporte_regeneracion_ciudades.py --regen-activa
+        env:
+          GEOTAB_USUARIO: ${{ secrets.GEOTAB_USUARIO }}
+          GEOTAB_CONTRASENA: ${{ secrets.GEOTAB_CONTRASENA }}
+          GEOTAB_DATABASE: ${{ secrets.GEOTAB_DATABASE }}
+          GEOTAB_SERVER: ${{ secrets.GEOTAB_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado de regeneracion activa
+        if: always() && steps.regenactiva.outputs.generado == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: reportes/estado_regen_activa.json
+          key: regen-activa-${{ github.run_id }}
+
+      - name: Limpiar caches viejos de regeneracion activa
+        if: always() && steps.regenactiva.outputs.generado == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IDS_A_BORRAR=$(gh cache list --key regen-activa- --limit 100 --json id,createdAt             | jq -r 'sort_by(.createdAt) | reverse | .[1:][] | .id')
+          for id in $IDS_A_BORRAR; do
+            gh cache delete "$id" || echo "  -> ya no existia: $id"
+          done
+
       - name: Limpiar caches viejos de estado (evita acumulacion indefinida)
         if: always()
         env:
