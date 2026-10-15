@@ -24,7 +24,7 @@ Uso:
     python reporte_regeneracion_ciudades.py --hollin-proximo 90 --dias 14
     python reporte_regeneracion_ciudades.py --telegram          # ademas manda un mensaje por ciudad al bot
     python reporte_regeneracion_ciudades.py --cruces            # aviso inmediato al cruzar el umbral (cada 5 min, 12 h entre avisos del mismo vehiculo)
-    python reporte_regeneracion_ciudades.py --regen-activa      # aviso al encenderse el testigo de regeneracion (hollin >= 60 %) y si a los 75 min no bajo
+    python reporte_regeneracion_ciudades.py --regen-activa      # aviso al encenderse el testigo de regeneracion (hollin >= 60 %) y si a los 150 min no bajo
     python reporte_regeneracion_ciudades.py --cronicos          # vehiculos con hollin alto recurrente (lista para el taller)
     python reporte_regeneracion_ciudades.py --diario --telegram
         # lo que corre alertas-telegram.yml cada 5 min: solo actua despues de las 06:00
@@ -365,18 +365,26 @@ RUTA_ESTADO_REGEN_ACTIVA = CARPETA_REPO / 'reportes' / 'estado_regen_activa.json
 # testigo y no llego nada a Telegram). Medido en 7 dias de flota: el testigo se activa ~29 veces al dia
 # (205 eventos, 49 vehiculos), casi siempre sin lampara; con hollin previo >= 60 % son ~9 al dia, y en
 # ~1/3 de ellos el hollin NO baja despues (regeneracion que no surte efecto, o testigo pegado).
+# CAMBIO (2026-10-15, validado con 14 dias: 111 eventos con hollin previo >= 60 %): a los 75 min el aviso
+# de "sin efecto" salia de mas, porque hay regeneraciones lentas (el 1151 bajo 77 -> 66 % en 2 h). El % de
+# eventos que bajan >= 10 pp segun la espera: 60 min 56 %, 90 min 69 %, 120 min 76 %, 150 min 78 %, 180 min
+# 78 %, 240 min 79 %: se estabiliza en 150 min (24 sin efecto reales, casi todos testigos pegados > 10 h con
+# el hollin subiendo). Ademas la temperatura de entrada al DPF separa bien: las regeneraciones que bajan
+# llegan a 532 C de mediana (75 % pasa de 500 C); las que no, a 431 C (solo 12 % pasa de 500 C).
 # Por eso: aviso al activarse solo si el hollin ya estaba en REGEN_HOLLIN_MIN_AVISO, 6 h entre avisos del
 # mismo vehiculo, y un segundo aviso, una sola vez, si a los REGEN_EVALUAR_MIN el hollin no bajo.
 REGEN_HOLLIN_MIN_AVISO = 60
 REGEN_COOLDOWN_HORAS = 6
-REGEN_EVALUAR_MIN = 75
+REGEN_EVALUAR_MIN = 150
+REGEN_TEMP_EFECTIVA_C = 500          # una regeneracion efectiva suele pasar de esta temperatura a la entrada del DPF
+ID_TEMP_ENTRADA_DPF = 'a4EQ0_7ZN40eiRAgigUMXtw'
 REGEN_CAIDA_MIN_PP = 10
 VENTANA_REGEN_HORAS = 4
 
 
 def revisar_regeneracion_activa(api, ahora, enviar):
     """Avisa cuando el testigo "regeneracion activa" se enciende en un vehiculo con hollin >= 60 %, y avisa
-    una vez mas si 75 min despues el hollin no bajo >= 10 puntos. Primera corrida (sin estado) y testigos que
+    una vez mas si 150 min despues el hollin no bajo >= 10 puntos. Primera corrida (sin estado) y testigos que
     ya venian pegados en 1 antes de la ventana: se registran sin avisar. Devuelve True si el estado cambio."""
     try:
         estado = json.loads(RUTA_ESTADO_REGEN_ACTIVA.read_text(encoding='utf-8'))
@@ -391,6 +399,14 @@ def revisar_regeneracion_activa(api, ahora, enviar):
                                           'fromDate': fm(ini_ventana), 'toDate': fm(ahora)}, resultsLimit=50000) or []
     hollin = api.get('StatusData', search={'diagnosticSearch': {'id': dd.ID_DIAGNOSTICO_HOLLIN},
                                            'fromDate': fm(ini_ventana), 'toDate': fm(ahora)}, resultsLimit=50000) or []
+    temp = api.get('StatusData', search={'diagnosticSearch': {'id': ID_TEMP_ENTRADA_DPF},
+                                         'fromDate': fm(ini_ventana), 'toDate': fm(ahora)}, resultsLimit=50000) or []
+    t_por = {}
+    for x in temp:
+        try:
+            t_por.setdefault(gc.obtener_id(x['device']), []).append((pd.Timestamp(x['dateTime']), float(x['data'])))
+        except (TypeError, ValueError):
+            continue
     r_por, h_por = {}, {}
     for x in regen:
         try:
@@ -470,24 +486,28 @@ def revisar_regeneracion_activa(api, ahora, enviar):
         if not despues and minutos < 180:
             continue                                     # el hollin llega cada ~30 min: se espera un poco mas
         if despues and e['hollin_antes'] - min(despues) < REGEN_CAIDA_MIN_PP:
-            sin_efecto.append((v, nombre, e, min(despues), minutos))
+            tmax = max((val for t, val in t_por.get(v, []) if t >= inicio), default=None)
+            sin_efecto.append((v, nombre, e, min(despues), minutos, tmax))
         else:
             e['evaluado'] = True
             cambio = True
     if sin_efecto:
         por_ciudad = {}
-        for v, nombre, e, mn, minutos in sin_efecto:
+        for v, nombre, e, mn, minutos, tmax in sin_efecto:
+            temp_txt = '' if tmax is None else f', temp. máx. {round(tmax)} °C'
             por_ciudad.setdefault(ciudad_y_marca(dispositivos[v], gpi, padre, raiz_hijos)[0], []).append(
-                f"{nombre} ({round(e['hollin_antes'])} % → {round(mn)} %, {round(minutos)} min)")
-        lineas = ['⚠️ REGENERACIÓN SIN EFECTO — el testigo sigue activo y el hollín no bajó']
+                f"{nombre} ({round(e['hollin_antes'])} % → {round(mn)} %, {round(minutos)} min{temp_txt})")
+        lineas = ['⚠️ REGENERACIÓN SIN EFECTO — se activó el testigo de regeneración y el hollín no bajó']
         for ciudad in sorted(por_ciudad):
             lineas.append(f'• {ciudad}: ' + ', '.join(por_ciudad[ciudad]))
-        lineas.append('Puede que la regeneración no esté completando (motor parado, baja temperatura o falla): conviene revisar el vehículo.')
+        if any(tm is not None and tm < REGEN_TEMP_EFECTIVA_C for *_, tm in sin_efecto):
+            lineas.append(f'Una regeneración efectiva suele pasar de {REGEN_TEMP_EFECTIVA_C} °C a la entrada del DPF: donde no llegó, el escape no está calentando lo suficiente.')
+        lineas.append('Puede que la regeneración no esté completando (motor parado, ciclo corto de operación o falla): conviene revisar el vehículo.')
         if enviar('\n'.join(lineas)):
-            for _, nombre, e, _, _ in sin_efecto:
+            for _, nombre, e, *_ in sin_efecto:
                 e['evaluado'] = True
             cambio = True
-            print('Regeneración sin efecto avisada: ' + ', '.join(n for _, n, _, _, _ in sin_efecto))
+            print('Regeneración sin efecto avisada: ' + ', '.join(n for _, n, *_ in sin_efecto))
         else:
             print('*** No se pudo enviar el aviso de regeneración sin efecto; se reintenta en la siguiente corrida ***')
 
@@ -571,7 +591,7 @@ def main():
     ap.add_argument('--cronicos', action='store_true', help='Lista de vehículos con hollín alto recurrente (para el taller): Excel + texto.')
     ap.add_argument('--dias-cronicos', type=int, default=30, help='Ventana (días) de la lista de crónicos.')
     ap.add_argument('--min-cruces', type=int, default=8, help='Cruces mínimos del umbral para considerar a un vehículo crónico.')
-    ap.add_argument('--regen-activa', action='store_true', help='Avisa (Telegram) cuando se enciende el testigo de regeneración activa con hollín >= 60 %%, y si a los 75 min no bajó; para correr cada 5 min.')
+    ap.add_argument('--regen-activa', action='store_true', help='Avisa (Telegram) cuando se enciende el testigo de regeneración activa con hollín >= 60 %%, y si a los 150 min no bajó; para correr cada 5 min.')
     ap.add_argument('--cruces', action='store_true', help='Solo avisa (Telegram) de los vehículos que ACABAN de cruzar el umbral de hollín; para correr cada 5 min.')
     args = ap.parse_args()
 
