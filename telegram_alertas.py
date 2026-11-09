@@ -108,7 +108,18 @@ def conectar_geotab():
         database=os.environ["GEOTAB_DATABASE"],
         server=os.environ.get("GEOTAB_SERVER", "my.geotab.com"),
     )
-    api.authenticate()
+    # Un error transitorio de red/Geotab aqui tumbaba toda la corrida (exit 1 en GitHub Actions
+    # y un correo de fallo); se reintenta igual que api_get_con_reintentos.
+    for intento in range(1, 4):
+        try:
+            api.authenticate()
+            break
+        except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as e:
+            print(f"*** Error de red autenticando en Geotab (intento {intento}/3): {e} ***")
+            if intento == 3:
+                raise
+            time.sleep(5)
     return api
 
 
@@ -421,7 +432,7 @@ def responder_mensajes_nuevos(api, estado):
                 texto_resp = "Escribe la placa a seguir, ej: /seguir 1152-NWX541"
             else:
                 try:
-                    devices = {d['id']: d for d in api.get('Device')}
+                    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
                     vehiculo, parecidos = _buscar_vehiculo_por_texto(devices, busqueda)
                 except Exception as e:
                     print(f"*** No se pudo buscar el vehiculo para /seguir (chat_id={chat_id}): {e} ***")
@@ -549,13 +560,13 @@ def _obtener_eventos_regla(api, nombre_regla, f_inicio, f_fin, duracion_minima_s
     filtra por duracion minima y, si aplica, por PTO cercano. No dedupea contra
     notificaciones previas -- eso lo maneja quien llame a esta funcion, segun el caso
     (alerta individual vs. resumen consolidado por hora)."""
-    reglas = api.get('Rule')
+    reglas = api_get_con_reintentos(api, 'Rule')
     regla = next((r for r in reglas if r.get('name', '').strip().upper() == nombre_regla.strip().upper()), None)
     if not regla:
         print(f"*** No se encontro la regla '{nombre_regla}' ***")
         return []
 
-    eventos = api.get('ExceptionEvent', search={
+    eventos = api_get_con_reintentos(api, 'ExceptionEvent', search={
         'ruleSearch': {'id': regla['id']},
         'fromDate': f_inicio.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
         'toDate': f_fin.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -660,7 +671,7 @@ def revisar_sobre_revolucion(api, claves_ya_notificadas):
     """Solo la regla SOBRE REVOLUCIÓN CON PTO -- la de L9/X12 (RPM alto en recorrido,
     sin exigir vehiculo detenido) mide algo distinto y se dejo fuera de las alertas
     individuales, igual que ya se hizo en el tablero (app.py)."""
-    devices = {d['id']: d for d in api.get('Device')}
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
     mapa_grupos = obtener_mapa_grupos(api)
 
     claves_nuevas = _revisar_regla_revolucion(
@@ -688,7 +699,7 @@ NOMBRE_REGLA_TEMPERATURA_MOTOR = 'R_TEMPERATURA DE MOTOR MÁXIMA (X12)'
 
 
 def revisar_temperatura_motor(api, claves_ya_notificadas):
-    devices = {d['id']: d for d in api.get('Device')}
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
     mapa_grupos = obtener_mapa_grupos(api)
 
     f_fin = datetime.now(timezone.utc)
@@ -754,7 +765,7 @@ def obtener_mapa_grupos(api):
     tipologia (tipo de vehiculo) a las que pertenece -- mismo criterio que
     app.py (obtener_mapa_grupos/resolver_ciudad_marca), extendido para
     tambien capturar la tipologia."""
-    grupos = api.get('Group')
+    grupos = api_get_con_reintentos(api, 'Group')
     by_id = {g['id']: g for g in grupos if isinstance(g, dict)}
     raiz = next((g for g in grupos if g.get('name', '').strip().startswith('*')), None)
     if not raiz:
@@ -906,7 +917,7 @@ def _obtener_fallas_activas(api):
     individuales, el resumen por hora y el reporte PDF -- todos usan cualquier
     criticidad (ALTA/MEDIA/BAJA), para que coincida con lo que se ve directo en
     Geotab en vez de solo una parte."""
-    devices = {d['id']: d for d in api.get('Device')}
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
     dic_diag, dic_fm = obtener_catalogos_diagnosticos(api)
     mapa_grupos = obtener_mapa_grupos(api)
 
@@ -1201,7 +1212,7 @@ def revisar_regeneracion_pendiente(api, claves_ya_notificadas):
     episodio se notifica UNA sola vez aunque el testigo siga encendido en las
     siguientes corridas del cron (misma logica anti-duplicados que fallas y
     sobre-revolucion)."""
-    devices = {d['id']: d for d in api.get('Device')}
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
     mapa_grupos = obtener_mapa_grupos(api)
     f_fin = datetime.now(timezone.utc)
     f_inicio = f_fin - timedelta(hours=VENTANA_REVISION_HORAS)
@@ -1671,7 +1682,7 @@ def generar_pdf_reporte_velocidad(api, ruta_salida, desde_local, hasta_local):
     (tarjeta por vehiculo, encabezado oscuro, fondo gris). A diferencia del reporte de
     fallas (foto del estado actual), este SIEMPRE es sobre una ventana de tiempo -- un
     exceso de velocidad es un evento puntual, no un estado que sigue 'activo'."""
-    devices = {d['id']: d for d in api.get('Device')}
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
     mapa_grupos = obtener_mapa_grupos(api)
     desde_utc = desde_local.astimezone(timezone.utc)
     hasta_utc = hasta_local.astimezone(timezone.utc)
@@ -2364,7 +2375,7 @@ def _construir_resumen_revolucion_hora(api, inicio_local, fin_local):
     ALTA) el texto se volvia largo y dificil de leer rapido en el celular; van en un
     PDF aparte (ver _enviar_reporte_fallas), con el mismo agrupado por
     ciudad/criticidad/sistema que ya usa /reporte y el reporte de turno."""
-    devices = {d['id']: d for d in api.get('Device')}
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
     mapa_grupos = obtener_mapa_grupos(api)
     inicio_utc = inicio_local.astimezone(timezone.utc)
     fin_utc = fin_local.astimezone(timezone.utc)
