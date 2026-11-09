@@ -92,6 +92,7 @@ UMBRAL_RPM_MERCEDES_PTO = 1500
 # --- Fallas criticas: severidad tomada directo de las luces que reporta Geotab
 # (mismo criterio que app.py: ALTA = roja o proteccion motor, MEDIA = ambar). ---
 VENTANA_FALLAS_DIAS = 30  # rango amplio para no perder fallas activas de hace tiempo; se filtra por faultState
+CONFIRMACION_HORAS = 24  # una falla 'Active' cuyo ultimo registro es mas viejo que esto NO se trata como activa (ver _obtener_fallas_activas)
 
 REFERENCIA_MOTOR_POR_MARCA = {
     "volkswagen": "ISF 3.8", "volskwagen": "ISF 3.8", "mercedes": "OM926",
@@ -852,6 +853,12 @@ def obtener_catalogos_diagnosticos(api):
     return dic_diag, dic_fm
 
 
+def _codigo_o_desconocido(valor):
+    """SPN/FMI para mostrar. El 0 es un código válido (FMI 0 = dato por encima del rango normal, el nivel más severo):
+    con `valor or '?'` el cero se perdía y la clase más grave salía como "FMI ?"."""
+    return '?' if valor is None or valor == '' else valor
+
+
 LIMITE_PAGINA_FAULTDATA = 50000  # tope real que devuelve la API de Geotab por llamada a
 # Get FaultData -- si el rango pedido tiene mas registros que esto (facil con
 # VENTANA_FALLAS_DIAS=30 dias, TODA la flota y TODOS los diagnosticos), la respuesta se
@@ -929,6 +936,22 @@ def _obtener_fallas_activas(api):
         subset=['id_camion', 'diag_id', 'fm_id'], keep='last'
     )
     activas = df[df['faultState'] == 'Active']
+
+    # "Active" en Geotab es solo el ULTIMO estado que llego, no que la falla siga presente:
+    # Geotab no registra todas las desactivaciones (caso 1226-FXW563, 2026-10-29: un unico
+    # registro de hace 11 dias con luz roja se mostraba como activa y el taller no encontro
+    # nada). Un codigo realmente vivo se vuelve a reportar; con mas de CONFIRMACION_HORAS sin
+    # reportarse deja de contar como activo. Mismo corte que "Confirmado" del add-in Alertas
+    # por Severidad (v1.20). Los dispositivos caidos tampoco reportan, pero eso se
+    # distingue en el add-in (ahi si se consulta viajes/estado del equipo); aqui solo se
+    # evita afirmar que una falla vieja esta activa.
+    if not activas.empty:
+        corte = pd.Timestamp(f_fin) - pd.Timedelta(hours=CONFIRMACION_HORAS)
+        vigentes = activas[activas['dateTime'] >= corte]
+        if len(vigentes) < len(activas):
+            print(f"Fallas 'Active' con mas de {CONFIRMACION_HORAS} h sin reportarse "
+                  f"(no se tratan como activas): {len(activas) - len(vigentes)} de {len(activas)}.")
+        activas = vigentes
 
     if CIUDAD_FILTRO and not activas.empty:
         def _ciudad_del_vehiculo(id_camion):
@@ -1494,8 +1517,8 @@ def generar_pdf_reporte_fallas(api, ruta_salida, desde_local=None, hasta_local=N
                     nombre += f" — {fm_info['nombre']}"
                 items.append({
                     'nombre': nombre,
-                    'spn': diag_info.get('codigo') or '?',
-                    'fmi': fm_info.get('codigo') or '?',
+                    'spn': _codigo_o_desconocido(diag_info.get('codigo')),
+                    'fmi': _codigo_o_desconocido(fm_info.get('codigo')),
                     'criticidad': fila['criticidad'],
                     'hora': fila['dateTime'].tz_convert(ZONA_BOGOTA).strftime('%d/%m/%Y'),
                     'categoria': categoria,
