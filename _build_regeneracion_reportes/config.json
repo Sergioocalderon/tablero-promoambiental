@@ -1,0 +1,15 @@
+{
+    "name": "Reportes de Regeneraciones DPF",
+    "supportEmail": "sergio.calderon@promoambientaldistrito.com",
+    "version": "1.2",
+    "enableViewSecurityId": true,
+    "items": [
+        {
+            "url": "reportesRegeneracion.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Reportes de Regeneraciones DPF"
+            }
+        }
+    ]
+}

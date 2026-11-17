@@ -17,6 +17,19 @@
    Estilo: Geotab elimina los <style> tags del HTML, asi que todo el CSS se
    aplica programaticamente via element.style.* (CSSOM), igual que en
    sobreRevolucionPTO.js.
+
+   Confirmación (v1.20): solo es "confirmado" un código reportado en las últimas 24 h. Uno más viejo queda "por verificar" si el
+   dispositivo comunica, el vehículo se movió >= 5 km y llegan señales del motor; si falla alguna de esas tres pruebas queda
+   "sin evidencia" (no se afirma que esté activo ni que no). Lo no confirmado se ve atenuado, no suena y no cuenta en los
+   indicadores críticos. FMI 0 ya no se pierde como "?" (v1.18).
+   v1.21: lo "sin evidencia" se separa por causa: "falla de dispositivo" (sin comunicar o sin señal del motor), "vehículo parado"
+   y "no consultado"; cada uno con su filtro, su enlace en la tarjeta de códigos y el motivo visible en la fila.
+
+   Pantalla (v1.16): tema oscuro "centro de control" (objeto D, ESTILO_NIVEL):
+   KPI, barra de control unificada, tabla con filas tintadas por nivel y
+   acciones que se encienden al pasar el cursor. Iconos en SVG propio
+   (ICONOS) -- sin Tailwind ni FontAwesome. Los expedientes que se descargan
+   conservan su HTML claro.
    ============================================================================ */
 
 geotab.addin.alertasFallas = function () {
@@ -26,6 +39,10 @@ geotab.addin.alertasFallas = function () {
   var CLAVE_LOCALSTORAGE = 'alertasFallas_rango';
   var CLAVE_LOCALSTORAGE_ALARMA = 'alertasFallas_alarmadas';
   var INTERVALO_AUTO_REFRESCO_MS = 5 * 60 * 1000; // 5 minutos, igual que el add-in de PTO
+  // El refresco automático no interrumpe: si se está usando la hoja (mouse, scroll, teclado, toque) queda en pausa y se hace
+  // cuando pasan INACTIVIDAD_MS sin actividad. REVISION_PAUSA_MS = cada cuánto se revisa si ya se puede.
+  var INACTIVIDAD_MS = 30 * 1000;
+  var REVISION_PAUSA_MS = 5 * 1000;
   var NIVELES_ALARMA = { ALTA: true, MEDIA: true }; // BAJA no dispara alarma sonora
 
   // "Activas ahora" necesita mirar bastante mas atras que el rango que el usuario
@@ -50,6 +67,20 @@ geotab.addin.alertasFallas = function () {
     'chevrolet': 'Sin confirmar'
   };
   var NOMBRE_GRUPO_TIPOLOGIA = 'tipologia';
+
+  // Confirmación de que un código sigue vivo (v1.20, validada el 2026-11-03 con 45 días de la flota). Un código vivo se
+  // reporta varias veces al día: con el último reporte de menos de 24 h el 77-96 % se repite en las 24 h siguientes; con 1 a 3
+  // días solo el 29 %. Por eso:
+  //   - Confirmado: último reporte de menos de CONFIRMACION_HORAS.
+  //   - Por verificar: más viejo, y hay evidencia de que SI debió reportarse: el dispositivo comunica, el vehículo recorrió
+  //     MOVIMIENTO_KM_MIN o más desde el reporte (la ignición sola engaña: un motor encendido en el patio no es evidencia) y
+  //     llegan señales del motor (si el GPS sigue vivo pero el motor dejó de enviar señales, la falta de reportes no significa
+  //     nada: caso 11006-NGY805).
+  //   - Sin evidencia: más viejo y falla alguna de las tres condiciones: no se afirma que esté activo ni que no lo esté.
+  // Un fallo del dispositivo (o de la consulta) nunca cuenta como prueba de que el código desapareció.
+  var CONFIRMACION_HORAS = 24;
+  var MOVIMIENTO_KM_MIN = 5;
+  var ID_DIAG_RPM_MOTOR = 'aW3Nmy-ktfEuvrdkya4z0yg';   // RPM del motor que sí reporta seguido (el genérico reporta muy poco)
 
   // Mismos valores que ORDEN_CRITICIDAD / COLOR_POR_CRITICIDAD / COLOR_DESTACADO
   // en telegram_alertas.py -- consistencia total con el PDF que ya se manda por Telegram.
@@ -151,16 +182,6 @@ geotab.addin.alertasFallas = function () {
     return el;
   }
 
-  function crearChip(simbolo, colorFondo, colorTexto, tamano) {
-    var lado = tamano || '34px';
-    return crear('div', {
-      width: lado, height: lado, minWidth: lado,
-      borderRadius: T.radius.sm, background: colorFondo, color: colorTexto,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '1rem', fontWeight: '700'
-    }, simbolo);
-  }
-
   function crearPanel(estilosExtra) {
     var base = {
       background: T.color.surface, borderRadius: T.radius.md,
@@ -168,6 +189,96 @@ geotab.addin.alertasFallas = function () {
     };
     for (var k in estilosExtra) { base[k] = estilosExtra[k]; }
     return crear('div', base);
+  }
+
+  // --- Tema oscuro del "centro de control" (lo que se ve dentro de MyGeotab) ---
+  // Mismos roles que T pero sobre fondo oscuro. Los expedientes que se descargan
+  // siguen con su propio HTML claro (plantillas embebidas más abajo): esto NO los toca.
+  var D = {
+    bg: '#131722', panel: '#1E222D', panelAlt: '#1A1D24', border: '#2A2E39', borderStrong: '#3B4150',
+    text: '#E2E8F0', textSoft: '#CBD5E1', muted: '#94A3B8', faint: '#64748B',
+    verde: '#00D084', rojo: '#FF4D4F', naranja: '#FAAD14', azul: '#60A5FA',
+    sombra: '0 4px 14px rgba(0,0,0,0.25)'
+  };
+
+  // Un solo lugar para el look de cada nivel: pastilla, tinte de fila ("mapa de
+  // calor") y color del texto de la descripción.
+  var ESTILO_NIVEL = {
+    ALTA: {
+      color: '#FF4D4F', fondo: 'rgba(255,77,79,0.18)', borde: 'rgba(255,77,79,0.45)', texto: '#FECACA',
+      fila: 'rgba(255,77,79,0.10)', filaHover: 'rgba(255,77,79,0.17)', descripcion: '#FECACA'
+    },
+    MEDIA: {
+      color: '#FAAD14', fondo: 'rgba(250,173,20,0.18)', borde: 'rgba(250,173,20,0.45)', texto: '#FDE68A',
+      fila: 'rgba(250,173,20,0.08)', filaHover: 'rgba(250,173,20,0.15)', descripcion: '#FDE68A'
+    },
+    BAJA: {
+      color: '#64748B', fondo: 'rgba(148,163,184,0.14)', borde: 'rgba(148,163,184,0.35)', texto: '#CBD5E1',
+      fila: 'transparent', filaHover: 'rgba(255,255,255,0.04)', descripcion: '#94A3B8'
+    }
+  };
+
+  // Iconos propios en SVG (trazo, 24x24): FontAwesome/Tailwind por CDN no se pueden
+  // usar aquí. Son constantes del código, no llevan datos de Geotab.
+  var ICONOS = {
+    alerta: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    circulo: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    barras: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+    calendario: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+    buscar: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    actualizar: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+    hoja: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+    historial: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/>',
+    expediente: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/>',
+    capas: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+    campana: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+    cerrar: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+  };
+
+  function crearIcono(nombre, lado, color) {
+    var envoltorio = crear('span', { display: 'inline-flex', width: lado, height: lado, flex: 'none' });
+    if (color) envoltorio.style.color = color;
+    envoltorio.setAttribute('aria-hidden', 'true');
+    envoltorio.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" ' +
+      'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONOS[nombre] + '</svg>';
+    return envoltorio;
+  }
+
+  function limpiarNodo(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  // Animaciones por la Web Animations API: Geotab quita los <style>, así que no
+  // hay @keyframes disponibles.
+  function pulsar(el) {
+    if (el.animate) {
+      el.animate([{ transform: 'scale(1)', opacity: 0.7 }, { transform: 'scale(2.6)', opacity: 0 }],
+        { duration: 1600, iterations: Infinity, easing: 'ease-out' });
+    }
+  }
+
+  function girar(el) {
+    return el.animate ? el.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+      { duration: 900, iterations: Infinity }) : null;
+  }
+
+  // Los botones de "generar expediente" cambian su texto mientras trabajan; con
+  // iconos dentro hay que guardar los hijos y devolverlos, no solo el textContent.
+  // Devuelve la función que restaura el botón.
+  function marcarOcupado(boton) {
+    var hijos = Array.prototype.slice.call(boton.childNodes);
+    boton.textContent = boton.getAttribute('data-compacto') ? '⏳' : '⏳ Generando…';
+    return function () {
+      boton.textContent = '';
+      hijos.forEach(function (h) { boton.appendChild(h); });
+    };
+  }
+
+  // "28/10, 2:15 a. m." -- el valor completo queda en el title de la celda.
+  function fechaCorta(fecha) {
+    return fecha.toLocaleString('es-CO', {
+      timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true
+    });
   }
 
   // --- Utilidades de fecha ----------------------------------------------
@@ -506,8 +617,8 @@ geotab.addin.alertasFallas = function () {
         var diagInfo = catalogos.dicDiag[f.idDiagnostico] || { nombre: 'Diagnóstico desconocido', codigo: null };
         var fmInfo = catalogos.dicFm[f.idFailureMode] || { nombre: '', codigo: null };
         f.criticidad = clasificarCriticidadEvento(f);
-        f.spn = diagInfo.codigo || '?';
-        f.fmi = fmInfo.codigo || '?';
+        f.spn = valorODesconocido(diagInfo.codigo);
+        f.fmi = valorODesconocido(fmInfo.codigo);
         f.categoria = categorizarFalla(diagInfo.nombre);
         f.destacado = !!CATEGORIAS_DESTACADAS[f.categoria];
         f.nombreFalla = diagInfo.nombre + (fmInfo.nombre ? ' — ' + fmInfo.nombre : '');
@@ -516,6 +627,103 @@ geotab.addin.alertasFallas = function () {
       });
       return fallasActivas;
     });
+  }
+
+  // El código 0 es válido: FMI 0 = "dato por encima del rango normal, nivel más severo". Con `|| '?'` el cero se perdía y la
+  // clase más grave salía como "FMI ?" y "Significado no disponible" (caso 1226-FXW563).
+  function valorODesconocido(v) {
+    return (v === null || v === undefined || v === '') ? '?' : v;
+  }
+
+  // --- Confirmación: ¿el código se sigue reportando? -------------------------------------------
+  // Marca cada falla con estadoConf ('confirmado' | 'por-verificar' | 'sin-evidencia'), horasSinReporte, kmDesde y motivo,
+  // y deja sinConfirmar = (estadoConf !== 'confirmado'). Solo consulta a los vehículos con algún código de más de 24 h.
+  function agregarConfirmacion(fallasActivas) {
+    var ahora = Date.now(), HORA = 60 * 60 * 1000;
+    var desdePorVeh = {};
+    fallasActivas.forEach(function (f) {
+      var t = f.fecha.getTime();
+      if ((ahora - t) / HORA < CONFIRMACION_HORAS) return;
+      if (!(f.idVehiculo in desdePorVeh) || t < desdePorVeh[f.idVehiculo]) desdePorVeh[f.idVehiculo] = t;
+    });
+    var ids = Object.keys(desdePorVeh);
+
+    // evidencia: { idVehiculo: { viajes: [[inicioMs, km]], comunica: bool, motor24h: bool } } o null si no se pudo consultar
+    function marcar(evidencia) {
+      fallasActivas.forEach(function (f) {
+        var horas = (ahora - f.fecha.getTime()) / HORA;
+        f.horasSinReporte = horas;
+        f.diasSinReporte = horas / 24;
+        f.kmDesde = null;
+        f.motivo = '';
+        f.tipoSE = '';          // 'parado' | 'dispositivo' | 'consulta' (solo si estadoConf = 'sin-evidencia')
+        f.motivoCorto = '';
+        if (horas < CONFIRMACION_HORAS) { f.estadoConf = 'confirmado'; }
+        else {
+          var ev = evidencia ? evidencia[f.idVehiculo] : null;
+          if (!ev) { f.estadoConf = 'sin-evidencia'; f.tipoSE = 'consulta'; f.motivoCorto = 'No se pudo consultar'; f.motivo = 'no se pudo consultar el estado del vehículo'; }
+          else {
+            var t0 = f.fecha.getTime();
+            f.kmDesde = ev.viajes.reduce(function (s, v) { return v[0] > t0 ? s + v[1] : s; }, 0);
+            if (!ev.comunica) { f.estadoConf = 'sin-evidencia'; f.tipoSE = 'dispositivo'; f.motivoCorto = 'Dispositivo sin comunicar'; f.motivo = 'el dispositivo no ha comunicado en las últimas ' + CONFIRMACION_HORAS + ' h'; }
+            else if (f.kmDesde < MOVIMIENTO_KM_MIN) {
+              f.estadoConf = 'sin-evidencia'; f.tipoSE = 'parado'; f.motivoCorto = 'Sin movimiento';
+              f.motivo = 'el vehículo casi no se ha movido desde entonces (' + Math.round(f.kmDesde) + ' km)';
+            }
+            else if (!ev.motor24h) { f.estadoConf = 'sin-evidencia'; f.tipoSE = 'dispositivo'; f.motivoCorto = 'Sin señal del motor'; f.motivo = 'no llegan señales del motor (últimas ' + CONFIRMACION_HORAS + ' h)'; }
+            else f.estadoConf = 'por-verificar';
+          }
+        }
+        f.sinConfirmar = f.estadoConf !== 'confirmado';
+      });
+      return fallasActivas;
+    }
+    if (!ids.length) return Promise.resolve(marcar({}));
+
+    var desde24h = new Date(ahora - CONFIRMACION_HORAS * HORA).toISOString(), hasta = new Date(ahora).toISOString();
+    var llamadas = [];
+    ids.forEach(function (id) {
+      llamadas.push(['Get', { typeName: 'Trip', search: { deviceSearch: { id: id }, fromDate: new Date(desdePorVeh[id]).toISOString(), toDate: hasta }, resultsLimit: LIMITE_PAGINA_FAULTDATA }]);
+      llamadas.push(['Get', { typeName: 'DeviceStatusInfo', search: { deviceSearch: { id: id } } }]);
+      llamadas.push(['Get', { typeName: 'StatusData', search: { deviceSearch: { id: id }, diagnosticSearch: { id: ID_DIAG_RPM_MOTOR }, fromDate: desde24h, toDate: hasta }, resultsLimit: 1 }]);
+    });
+    return apiMultiCall(llamadas).then(function (resp) {
+      var evidencia = {};
+      ids.forEach(function (id, i) {
+        var viajes = resp[3 * i] || [], estado = (resp[3 * i + 1] || [])[0], motor = resp[3 * i + 2] || [];
+        var ultCom = estado && estado.dateTime ? Date.parse(estado.dateTime) : NaN;
+        evidencia[id] = {
+          viajes: viajes.map(function (v) { return [Date.parse(v.start), Number(v.distance) || 0]; }).filter(function (v) { return !isNaN(v[0]); }),
+          comunica: !!estado && (!!estado.isDeviceCommunicating || (!isNaN(ultCom) && (ahora - ultCom) <= CONFIRMACION_HORAS * HORA)),
+          motor24h: motor.length > 0
+        };
+      });
+      return marcar(evidencia);
+    }).catch(function (err) {
+      console.error('Alertas: no se pudo consultar el estado de los vehículos para confirmar los códigos:', err);
+      return marcar(null);
+    });
+  }
+
+  // Rótulo de la pastilla / filtro de un código no confirmado.
+  function etiquetaConfirmacion(it) {
+    if (it.estadoConf !== 'sin-evidencia') return 'Por verificar';
+    return it.tipoSE === 'dispositivo' ? 'Falla de dispositivo' : it.tipoSE === 'consulta' ? 'No consultado' : 'Vehículo parado';
+  }
+
+  function textoAntiguedad(horas) {
+    return horas < 48 ? Math.round(horas) + ' h' : Math.round(horas / 24) + ' d';
+  }
+
+  function textoSinConfirmar(it) {
+    var ant = textoAntiguedad(it.horasSinReporte);
+    if (it.estadoConf === 'sin-evidencia') {
+      return 'No se puede confirmar ni descartar: el último reporte fue hace ' + ant + ' y ' + it.motivo +
+        '. Es el último estado conocido: verificar con escáner.';
+    }
+    return 'Sin confirmación reciente: hace ' + ant + ' que no se reporta y el vehículo recorrió ' + Math.round(it.kmDesde) +
+      ' km desde entonces, con el dispositivo y el motor transmitiendo. Probablemente ya no está activo: verificar con escáner, ' +
+      'incluyendo los códigos inactivos o almacenados.';
   }
 
   // --- Agrupa por vehiculo, oculta categorias irrelevantes, ordena --------
@@ -539,6 +747,7 @@ geotab.addin.alertasFallas = function () {
       if (items.length === 0) return; // este vehiculo solo tenia fallas de categorias ocultas
 
       items.sort(function (a, b) {
+        if (!!a.sinConfirmar !== !!b.sinConfirmar) return a.sinConfirmar ? 1 : -1;   // lo confirmado primero
         var diff = (ORDEN_CRITICIDAD[b.criticidad] || 0) - (ORDEN_CRITICIDAD[a.criticidad] || 0);
         if (diff !== 0) return diff;
         return a.fecha - b.fecha; // mismo criterio que 'hora' ascendente en el PDF
@@ -551,12 +760,15 @@ geotab.addin.alertasFallas = function () {
         ciudad: items[0].ciudad,
         referenciaMotor: items[0].referenciaMotor,
         nMotor: items[0].nMotor,
-        criticidad: items[0].criticidad, // el mas critico queda primero tras el sort
+        // La criticidad del vehículo es la del código CONFIRMADO más crítico; si todos están por verificar, no cuenta como crítico.
+        criticidad: items[0].sinConfirmar ? 'BAJA' : items[0].criticidad,
+        soloPorVerificar: !!items[0].sinConfirmar,
         items: items
       });
     });
 
     vehiculos.sort(function (a, b) {
+      if (a.soloPorVerificar !== b.soloPorVerificar) return a.soloPorVerificar ? 1 : -1;
       var diff = (ORDEN_CRITICIDAD[b.criticidad] || 0) - (ORDEN_CRITICIDAD[a.criticidad] || 0);
       if (diff !== 0) return diff;
       return a.claveVehiculo.localeCompare(b.claveVehiculo);
@@ -643,38 +855,62 @@ geotab.addin.alertasFallas = function () {
     }, INTERVALO_REPETICION_ALARMA_MS);
   }
 
+  // La campana del encabezado refleja el banner: punto rojo mientras haya códigos
+  // nuevos sin marcar como vistos; un clic en ella los marca (cierra el banner y
+  // detiene la repetición del sonido).
+  function actualizarCampana(hayNuevos) {
+    if (!elementos.puntoCampana) return;
+    elementos.puntoCampana.style.display = hayNuevos ? 'block' : 'none';
+    var texto = hayNuevos ? 'Hay códigos nuevos. Clic para marcarlos como vistos.' : 'Sin códigos nuevos';
+    elementos.campana.title = texto;
+    elementos.campana.setAttribute('aria-label', texto);
+  }
+
+  function cerrarBannerAlarma() {
+    if (elementos.bannerAlarma) elementos.bannerAlarma.style.display = 'none';
+    detenerRepeticionAlarma();
+    actualizarCampana(false);
+  }
+
   function mostrarBannerAlarma(nuevos) {
     if (!elementos.bannerAlarma) return;
     var banner = elementos.bannerAlarma;
-    while (banner.firstChild) banner.removeChild(banner.firstChild);
+    limpiarNodo(banner);
 
     var hayAlta = nuevos.some(function (it) { return it.criticidad === 'ALTA'; });
+    var estilo = ESTILO_NIVEL[hayAlta ? 'ALTA' : 'MEDIA'];
     aplicarEstilo(banner, {
       display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px',
-      background: hayAlta ? T.color.dangerSoft : '#FFFBEB',
-      border: '1px solid ' + (hayAlta ? T.color.dangerBorder : '#FDE68A'),
-      borderRadius: T.radius.md, padding: '12px 16px', marginBottom: '16px'
+      background: estilo.fondo, border: '1px solid ' + estilo.borde, borderLeft: '4px solid ' + estilo.color,
+      borderRadius: T.radius.sm, padding: '12px 16px', marginBottom: '14px'
     });
 
-    var texto = crear('div', { fontSize: '0.85rem', color: T.color.textoOscuro });
-    texto.appendChild(crear('div', { fontWeight: '700', marginBottom: '4px' },
-      (hayAlta ? '🚨' : '⚠️') + ' ' + nuevos.length + ' código(s) nuevo(s)'));
-    var detalle = crear('div', { color: T.color.body, fontSize: '0.8rem' });
+    var contenido = crear('div', { display: 'flex', alignItems: 'flex-start', gap: '12px' });
+    contenido.appendChild(crearIcono(hayAlta ? 'alerta' : 'circulo', '22px', estilo.color));
+
+    var texto = crear('div', { fontSize: '0.85rem' });
+    texto.appendChild(crear('div', { fontWeight: '700', marginBottom: '4px', color: '#FFFFFF' }, nuevos.length + ' código(s) nuevo(s)'));
+    var detalle = crear('div', { color: D.textSoft, fontSize: '0.8rem' });
     nuevos.slice(0, 5).forEach(function (it) {
       detalle.appendChild(crear('div', {}, '• ' + it.claveVehiculo + ' — ' + it.nombreFalla + ' (' + it.criticidad + ')'));
     });
     if (nuevos.length > 5) detalle.appendChild(crear('div', {}, '… y ' + (nuevos.length - 5) + ' más.'));
     texto.appendChild(detalle);
-    banner.appendChild(texto);
+    contenido.appendChild(texto);
+    banner.appendChild(contenido);
 
     var botonCerrar = crear('button', {
-      background: 'transparent', border: 'none', color: T.color.body, cursor: 'pointer',
-      fontSize: '1rem', fontWeight: '700', lineHeight: '1'
-    }, '×');
-    botonCerrar.addEventListener('click', function () { banner.style.display = 'none'; detenerRepeticionAlarma(); });
+      background: 'transparent', border: 'none', color: D.muted, cursor: 'pointer', padding: '2px', display: 'flex'
+    });
+    botonCerrar.type = 'button';
+    botonCerrar.title = 'Marcar como vistos';
+    botonCerrar.setAttribute('aria-label', 'Marcar como vistos');
+    botonCerrar.appendChild(crearIcono('cerrar', '18px'));
+    botonCerrar.addEventListener('click', cerrarBannerAlarma);
     banner.appendChild(botonCerrar);
 
     banner.style.display = 'flex';
+    actualizarCampana(true);
   }
 
 
@@ -687,7 +923,7 @@ geotab.addin.alertasFallas = function () {
     var candidatos = [];
     vehiculos.forEach(function (v) {
       v.items.forEach(function (it) {
-        if (!NIVELES_ALARMA[it.criticidad]) return;
+        if (!NIVELES_ALARMA[it.criticidad] || it.sinConfirmar) return;   // lo por verificar no suena
         var clave = it.idVehiculo + '|' + it.idDiagnostico + '|' + it.idFailureMode;
         activasAhora[clave] = true;
         if (!clavesAlertadas[clave]) candidatos.push({ clave: clave, item: it });
@@ -870,24 +1106,37 @@ geotab.addin.alertasFallas = function () {
     return { codigo: partes[0], placa: partes.slice(1).join('-') };
   }
 
-  function construirControlTripulaciones(contenedor, onCargado) {
-    var panel = crearPanel({
-      display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
-      padding: '10px 16px', marginBottom: '12px', fontSize: '0.78rem', color: T.color.textoGris
-    });
-
-    var textoEstado = crear('span');
-    function actualizarTextoEstado() {
-      if (tripulacionesMetaCache && tripulacionesCache.length) {
-        textoEstado.textContent = '📋 Tripulaciones: ' + tripulacionesMetaCache.nombreArchivo +
-          ' — ' + tripulacionesCache.length + ' turnos (cargado ' + tripulacionesMetaCache.cargadoEn + ')';
-        textoEstado.style.color = T.color.textoGris;
-      } else {
-        textoEstado.textContent = '⚠️ Sin archivo de tripulaciones cargado — el conductor no se puede identificar.';
-        textoEstado.style.color = T.color.muted || T.color.textoGris;
-      }
+  function textoEstadoTripulaciones() {
+    if (tripulacionesMetaCache && tripulacionesCache.length) {
+      return 'Tripulaciones: ' + tripulacionesMetaCache.nombreArchivo +
+        ' — ' + tripulacionesCache.length + ' turnos (cargado ' + tripulacionesMetaCache.cargadoEn + ')';
     }
-    actualizarTextoEstado();
+    return 'Sin archivo de tripulaciones cargado — el conductor no se puede identificar.';
+  }
+
+  // Botón "Excel" de la barra de control. El <input type=file> va FUERA del botón
+  // (en un envoltorio): dentro, el clic sintético sobre el input burbujearía al
+  // botón y volvería a abrirse en bucle.
+  function crearBotonTripulaciones(onCargado) {
+    var envoltorio = crear('span', { display: 'inline-flex' });
+
+    var boton = crear('button', {
+      display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', cursor: 'pointer',
+      background: 'transparent', border: '1px solid ' + D.borderStrong, borderRadius: T.radius.sm,
+      color: D.textSoft, fontSize: '0.82rem', fontFamily: T.font
+    });
+    boton.type = 'button';
+    boton.appendChild(crearIcono('hoja', '16px', '#22C55E'));
+    boton.appendChild(crear('span', {}, 'Excel'));
+    var punto = crear('span', { width: '7px', height: '7px', borderRadius: '50%', display: 'inline-block' });
+    boton.appendChild(punto);
+
+    function pintar() {
+      var hay = !!(tripulacionesMetaCache && tripulacionesCache.length);
+      punto.style.background = hay ? D.verde : D.naranja;
+      boton.title = 'Cargar Excel de tripulaciones. ' + textoEstadoTripulaciones();
+    }
+    pintar();
 
     var inputArchivo = crear('input');
     inputArchivo.type = 'file';
@@ -906,7 +1155,7 @@ geotab.addin.alertasFallas = function () {
           }
           var meta = { nombreArchivo: archivo.name, cargadoEn: formatearFechaHora(new Date()), filas: turnos.length };
           guardarTripulaciones(turnos, meta);
-          actualizarTextoEstado();
+          pintar();
           if (onCargado) onCargado();
         } catch (e) {
           console.error('Error parseando archivo de tripulaciones:', e);
@@ -917,20 +1166,14 @@ geotab.addin.alertasFallas = function () {
       inputArchivo.value = '';
     });
 
-    var botonCargar = crear('button', {
-      padding: '6px 12px', borderRadius: T.radius.sm, fontSize: '0.76rem', fontWeight: '700',
-      cursor: 'pointer', background: 'transparent', color: T.color.primaryDark, border: '1px solid ' + T.color.primary
-    }, '📂 Cargar Excel de tripulaciones');
-    botonCargar.addEventListener('click', function () { inputArchivo.click(); });
-
-    panel.appendChild(textoEstado);
-    panel.appendChild(botonCargar);
-    panel.appendChild(inputArchivo);
-    contenedor.appendChild(panel);
+    boton.addEventListener('click', function () { inputArchivo.click(); });
+    envoltorio.appendChild(boton);
+    envoltorio.appendChild(inputArchivo);
+    return envoltorio;
   }
 
   // --- Filtros -----------------------------------------------------------
-  var filtroEstado = { texto: '', ciudad: 'Todas', vehiculo: null, criticidad: 'Todas', sistema: 'Todas', turno: 'Todos' };
+  var filtroEstado = { texto: '', ciudad: 'Todas', vehiculo: null, criticidad: 'Todas', sistema: 'Todas', turno: 'Todos', confirmacion: 'Todas' };
   var resultadoCache = { vehiculos: [], totalOcultas: 0 };
   var barraFiltrosRefs = null;
   var modoVista = 'vehiculo'; // 'vehiculo' | 'cronologico'
@@ -962,7 +1205,7 @@ geotab.addin.alertasFallas = function () {
   function conItemsFiltrados(v, items) {
     return {
       idVehiculo: v.idVehiculo, claveVehiculo: v.claveVehiculo, marca: v.marca, ciudad: v.ciudad,
-      referenciaMotor: v.referenciaMotor, nMotor: v.nMotor, criticidad: v.criticidad, items: items
+      referenciaMotor: v.referenciaMotor, nMotor: v.nMotor, criticidad: v.criticidad, soloPorVerificar: v.soloPorVerificar, items: items
     };
   }
 
@@ -974,9 +1217,20 @@ geotab.addin.alertasFallas = function () {
       if (filtroEstado.vehiculo && v.claveVehiculo !== filtroEstado.vehiculo) return false;
       return true;
     }).map(function (v) {
-      if (filtroEstado.criticidad === 'Todas' && filtroEstado.sistema === 'Todas' && filtroEstado.turno === 'Todos') return v;
+      if (filtroEstado.criticidad === 'Todas' && filtroEstado.sistema === 'Todas' && filtroEstado.turno === 'Todos' && filtroEstado.confirmacion === 'Todas') return v;
       var items = v.items;
-      if (filtroEstado.criticidad !== 'Todas') items = items.filter(function (it) { return it.criticidad === filtroEstado.criticidad; });
+      if (filtroEstado.confirmacion === 'Confirmadas') items = items.filter(function (it) { return !it.sinConfirmar; });
+      if (filtroEstado.confirmacion === 'Por verificar') items = items.filter(function (it) { return it.estadoConf === 'por-verificar'; });
+      if (filtroEstado.confirmacion === 'Sin evidencia') items = items.filter(function (it) { return it.estadoConf === 'sin-evidencia'; });
+      if (filtroEstado.confirmacion === 'Vehículo parado') items = items.filter(function (it) { return it.tipoSE === 'parado'; });
+      if (filtroEstado.confirmacion === 'Falla de dispositivo') items = items.filter(function (it) { return it.tipoSE === 'dispositivo'; });
+      if (filtroEstado.confirmacion === 'No consultado') items = items.filter(function (it) { return it.tipoSE === 'consulta'; });
+      // El filtro de criticidad (y la tarjeta ALTA) miran solo lo confirmado, salvo que se pida explícitamente lo no confirmado.
+      if (filtroEstado.criticidad !== 'Todas') {
+        items = items.filter(function (it) {
+          return it.criticidad === filtroEstado.criticidad && (!it.sinConfirmar || (filtroEstado.confirmacion !== 'Todas' && filtroEstado.confirmacion !== 'Confirmadas'));
+        });
+      }
       if (filtroEstado.sistema !== 'Todas') items = items.filter(function (it) { return it.categoria === filtroEstado.sistema; });
       if (filtroEstado.turno !== 'Todos') items = items.filter(function (it) { return it.turno === filtroEstado.turno; });
       return items.length ? conItemsFiltrados(v, items) : null;
@@ -985,319 +1239,509 @@ geotab.addin.alertasFallas = function () {
 
   function tieneFiltrosActivos() {
     return !!(filtroEstado.texto || filtroEstado.ciudad !== 'Todas' || filtroEstado.vehiculo ||
-      filtroEstado.criticidad !== 'Todas' || filtroEstado.sistema !== 'Todas' || filtroEstado.turno !== 'Todos');
+      filtroEstado.criticidad !== 'Todas' || filtroEstado.sistema !== 'Todas' || filtroEstado.turno !== 'Todos' || filtroEstado.confirmacion !== 'Todas');
   }
 
-  // --- Encabezado (titulo + rango de fechas + botones) -----------------------
+  // --- Encabezado: título, estado de la última carga y campana ----------------
   function construirEncabezado(contenedor) {
-    var panel = crearPanel({ padding: '18px 22px', marginBottom: '16px', background: T.color.ink });
-
-    var filaTitulo = crear('div', { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' });
-    filaTitulo.appendChild(crearChip('🚨', 'rgba(255,255,255,0.12)', '#FFFFFF', '34px'));
-    var bloqueTitulo = crear('div');
-    bloqueTitulo.appendChild(crear('h2', { margin: '0', color: '#FFFFFF', fontSize: '1.15rem', fontWeight: '800' }, 'Alertas por Severidad'));
-    filaTitulo.appendChild(bloqueTitulo);
-    panel.appendChild(filaTitulo);
-
-    var rangoGuardado = cargarRangoGuardado();
-
-    function crearCampoFecha(etiqueta, valorInicial) {
-      var envoltorio = crear('div', { display: 'flex', flexDirection: 'column', gap: '4px' });
-      envoltorio.appendChild(crear('label', { fontSize: '0.75rem', color: '#C7D2E0', fontWeight: '600' }, etiqueta));
-      var input = crear('input', {
-        padding: '7px 10px', border: '1px solid rgba(255,255,255,0.3)', borderRadius: T.radius.sm,
-        fontSize: '0.82rem', fontFamily: T.font, color: T.color.ink, background: '#FFFFFF'
-      });
-      input.type = 'datetime-local';
-      input.value = valorInicial;
-      envoltorio.appendChild(input);
-      return { envoltorio: envoltorio, input: input };
-    }
-
-    var campoDesde = crearCampoFecha('Desde', rangoGuardado.desde);
-    var campoHasta = crearCampoFecha('Hasta', rangoGuardado.hasta);
-
-    function crearBoton(texto, primario) {
-      return crear('button', {
-        alignSelf: 'flex-end', padding: '9px 18px',
-        background: primario ? T.color.primary : 'transparent',
-        color: '#FFFFFF',
-        border: primario ? 'none' : '1px solid rgba(255,255,255,0.4)',
-        borderRadius: T.radius.sm, fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer'
-      }, texto);
-    }
-
-    var botonActualizar = crearBoton('Actualizar', true);
-    botonActualizar.addEventListener('click', function () { actualizarRangoDefecto(); });
-
-    var botonFiltrar = crearBoton('Filtrar fechas', false);
-    botonFiltrar.addEventListener('click', function () {
-      guardarRango(campoDesde.input.value, campoHasta.input.value);
-      cargarYRenderizar(new Date(campoDesde.input.value), new Date(campoHasta.input.value));
+    var barra = crear('div', {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px',
+      paddingBottom: '14px', marginBottom: '18px', borderBottom: '1px solid ' + D.border
     });
 
-    var filaFiltros = crear('div', { display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '14px' });
-    filaFiltros.appendChild(campoDesde.envoltorio);
-    filaFiltros.appendChild(campoHasta.envoltorio);
-    filaFiltros.appendChild(botonFiltrar);
-    filaFiltros.appendChild(botonActualizar);
-    panel.appendChild(filaFiltros);
+    var titulos = crear('div');
+    titulos.appendChild(crear('div', {
+      fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: D.verde, fontWeight: '700'
+    }, 'Centro de control de telemetría'));
+    titulos.appendChild(crear('h2', {
+      margin: '2px 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#FFFFFF', letterSpacing: '0.01em'
+    }, 'Alertas por Severidad'));
+    barra.appendChild(titulos);
 
-    panel.appendChild(crear('p', { margin: '8px 0 0 0', fontSize: '0.72rem', color: '#94A3B8' },
-      'Nota: "activas ahora" siempre revisa al menos los últimos 30 días para no perder códigos que sigan activos aunque no tengan dato nuevo hoy — puede aparecer algo más viejo que "Desde".'));
+    var derecha = crear('div', { display: 'flex', alignItems: 'center', gap: '16px' });
 
-    contenedor.appendChild(panel);
-    return { inputDesde: campoDesde.input, inputHasta: campoHasta.input };
+    var estado = crear('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: D.muted });
+    var luz = crear('span', { position: 'relative', display: 'inline-block', width: '8px', height: '8px' });
+    var ondaLuz = crear('span', { position: 'absolute', top: '0', left: '0', width: '8px', height: '8px', borderRadius: '50%', background: D.verde });
+    pulsar(ondaLuz);
+    luz.appendChild(ondaLuz);
+    luz.appendChild(crear('span', { position: 'absolute', top: '0', left: '0', width: '8px', height: '8px', borderRadius: '50%', background: D.verde }));
+    estado.appendChild(luz);
+    elementos.textoActualizado = crear('span', {}, 'Cargando…');
+    estado.appendChild(elementos.textoActualizado);
+    derecha.appendChild(estado);
+
+    var campana = crear('button', {
+      position: 'relative', display: 'flex', padding: '6px', background: 'transparent', border: 'none',
+      borderRadius: T.radius.sm, color: D.muted, cursor: 'pointer'
+    });
+    campana.type = 'button';
+    campana.appendChild(crearIcono('campana', '22px'));
+    var puntoCampana = crear('span', { position: 'absolute', top: '3px', right: '3px', width: '10px', height: '10px', display: 'none' });
+    var ondaCampana = crear('span', { position: 'absolute', top: '0', left: '0', width: '10px', height: '10px', borderRadius: '50%', background: D.rojo });
+    pulsar(ondaCampana);
+    puntoCampana.appendChild(ondaCampana);
+    puntoCampana.appendChild(crear('span', { position: 'absolute', top: '0', left: '0', width: '10px', height: '10px', borderRadius: '50%', background: D.rojo }));
+    campana.appendChild(puntoCampana);
+    campana.addEventListener('click', cerrarBannerAlarma);
+    campana.addEventListener('mouseenter', function () { campana.style.color = '#FFFFFF'; });
+    campana.addEventListener('mouseleave', function () { campana.style.color = D.muted; });
+    derecha.appendChild(campana);
+
+    elementos.campana = campana;
+    elementos.puntoCampana = puntoCampana;
+    actualizarCampana(false);
+
+    barra.appendChild(derecha);
+    contenedor.appendChild(barra);
   }
 
-  // --- Barra de filtros (texto, ciudad, chip de vehiculo) ---------------------
-  function construirBarraFiltros(contenedor, onCambio) {
-    var panelExterno = crearPanel({ padding: '14px 18px', marginBottom: '16px' });
-    var panel = crear('div', { display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end' });
+  // --- Barra de control unificada: rango, búsqueda, filtros, Excel y Actualizar -
+  function estiloControl() {
+    return {
+      padding: '8px 12px', background: D.bg, border: '1px solid ' + D.borderStrong, borderRadius: T.radius.sm,
+      fontSize: '0.82rem', fontFamily: T.font, color: D.textSoft, outline: 'none', colorScheme: 'dark'
+    };
+  }
 
-    var envBusqueda = crear('div', { display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 220px' });
-    envBusqueda.appendChild(crear('label', { fontSize: '0.75rem', color: T.color.body, fontWeight: '600' }, 'Buscar'));
-    var inputBusqueda = crear('input', {
-      padding: '7px 10px', border: '1px solid ' + T.color.borderStrong, borderRadius: T.radius.sm,
-      fontSize: '0.82rem', fontFamily: T.font, color: T.color.textoOscuro, width: '100%', boxSizing: 'border-box'
+  // Select oscuro con el borde en verde cuando tiene un filtro distinto al valor
+  // por defecto, para ver de un vistazo qué filtros están puestos.
+  function crearSelectOscuro(nombreAccesible, valorDefecto, onChange) {
+    var select = crear('select', estiloControl());
+    select.style.cursor = 'pointer';
+    select.setAttribute('aria-label', nombreAccesible);
+    function resaltar() { select.style.borderColor = select.value === valorDefecto ? D.borderStrong : D.verde; }
+    select.addEventListener('change', function () { resaltar(); onChange(select.value); });
+    return {
+      elemento: select,
+      // opciones: [{ valor, texto }]. Conserva la selección si sigue existiendo.
+      poner: function (opciones, seleccion) {
+        limpiarNodo(select);
+        opciones.forEach(function (o) {
+          var opcion = crear('option', { background: D.panel, color: D.text });
+          opcion.value = o.valor;
+          opcion.textContent = o.texto;
+          select.appendChild(opcion);
+        });
+        var existe = opciones.some(function (o) { return o.valor === seleccion; });
+        select.value = existe ? seleccion : valorDefecto;
+        resaltar();
+        return select.value;
+      }
+    };
+  }
+
+  // "Hoy, 12:00 a. m. – Ahora" cuando el rango es el de por defecto; si no, las
+  // dos fechas. Las fechas del input datetime-local son hora local del navegador.
+  function describirRango(valorDesde, valorHasta) {
+    var d = new Date(valorDesde), h = new Date(valorHasta);
+    if (isNaN(d.getTime()) || isNaN(h.getTime())) return 'Elegir rango';
+    function hora(x) { return x.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }); }
+    function corta(x) { return x.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) + ', ' + hora(x); }
+    var esHoyHastaAhora = d.getTime() === inicioDeHoy().getTime() && (Date.now() - h.getTime()) < 15 * 60 * 1000;
+    return esHoyHastaAhora ? 'Hoy, ' + hora(d) + ' – Ahora' : corta(d) + ' – ' + corta(h);
+  }
+
+  function construirBarraControl(contenedor, onCambio) {
+    var panel = crear('div', {
+      display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between',
+      background: D.panel, border: '1px solid ' + D.border, borderRadius: T.radius.sm, padding: '12px', marginBottom: '14px'
     });
+    // Los filtros se reacomodan entre sí (flex 1 1 0 + minWidth 0); Excel y Actualizar
+    // se quedan a la derecha en vez de caer a una segunda fila.
+    var izquierda = crear('div', { display: 'flex', flex: '1 1 0', minWidth: '0', flexWrap: 'wrap', gap: '12px', alignItems: 'center' });
+    var derecha = crear('div', { display: 'flex', flex: 'none', gap: '8px', alignItems: 'center' });
+
+    // --- Rango de fechas (botón + ventana flotante con los dos campos) ---
+    var rangoGuardado = cargarRangoGuardado();
+    var inputDesde = crear('input', estiloControl());
+    inputDesde.type = 'datetime-local';
+    inputDesde.value = rangoGuardado.desde;
+    inputDesde.setAttribute('aria-label', 'Desde');
+    var inputHasta = crear('input', estiloControl());
+    inputHasta.type = 'datetime-local';
+    inputHasta.value = rangoGuardado.hasta;
+    inputHasta.setAttribute('aria-label', 'Hasta');
+
+    var envFecha = crear('div', { position: 'relative' });
+    var botonFecha = crear('button', {
+      display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', cursor: 'pointer',
+      background: D.panelAlt, border: '1px solid ' + D.borderStrong, borderRadius: T.radius.sm,
+      color: D.textSoft, fontSize: '0.82rem', fontFamily: T.font
+    });
+    botonFecha.type = 'button';
+    botonFecha.appendChild(crearIcono('calendario', '16px'));
+    var textoRango = crear('span');
+    botonFecha.appendChild(textoRango);
+    envFecha.appendChild(botonFecha);
+
+    function actualizarTextoRango() { textoRango.textContent = describirRango(inputDesde.value, inputHasta.value); }
+    actualizarTextoRango();
+
+    var ventana = crear('div', {
+      display: 'none', flexDirection: 'column', gap: '10px', position: 'absolute', top: 'calc(100% + 6px)', left: '0',
+      zIndex: '30', minWidth: '270px', padding: '14px', background: D.panel, border: '1px solid ' + D.borderStrong,
+      borderRadius: T.radius.sm, boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+    });
+    function campo(etiqueta, input) {
+      var env = crear('label', { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.72rem', color: D.muted, fontWeight: '600' }, etiqueta);
+      env.appendChild(input);
+      return env;
+    }
+    ventana.appendChild(campo('Desde', inputDesde));
+    ventana.appendChild(campo('Hasta', inputHasta));
+    var mensajeRango = crear('div', { display: 'none', fontSize: '0.74rem', color: '#FF8587' });
+    ventana.appendChild(mensajeRango);
+
+    var filaBotonesRango = crear('div', { display: 'flex', gap: '8px' });
+    var botonAplicar = crear('button', {
+      flex: '1', padding: '8px 12px', background: D.verde, color: '#06210F', border: 'none',
+      borderRadius: T.radius.sm, fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+    }, 'Aplicar');
+    botonAplicar.type = 'button';
+    var botonHoy = crear('button', {
+      flex: '1', padding: '8px 12px', background: 'transparent', color: D.textSoft, border: '1px solid ' + D.borderStrong,
+      borderRadius: T.radius.sm, fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer'
+    }, 'Hoy hasta ahora');
+    botonHoy.type = 'button';
+    filaBotonesRango.appendChild(botonAplicar);
+    filaBotonesRango.appendChild(botonHoy);
+    ventana.appendChild(filaBotonesRango);
+    ventana.appendChild(crear('p', { margin: '0', fontSize: '0.7rem', lineHeight: '1.4', color: D.faint },
+      '"Activas ahora" siempre revisa al menos los últimos 30 días para no perder códigos que sigan activos aunque no tengan dato nuevo hoy: puede aparecer algo más viejo que "Desde".'));
+    envFecha.appendChild(ventana);
+
+    function abrirVentana() { ventana.style.display = 'flex'; mensajeRango.style.display = 'none'; }
+    function cerrarVentana() { ventana.style.display = 'none'; }
+    botonFecha.addEventListener('click', function () {
+      if (ventana.style.display === 'none') abrirVentana(); else cerrarVentana();
+    });
+    document.addEventListener('mousedown', function (e) { if (!envFecha.contains(e.target)) cerrarVentana(); });
+    ventana.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarVentana(); });
+
+    botonAplicar.addEventListener('click', function () {
+      var d = new Date(inputDesde.value), h = new Date(inputHasta.value);
+      var problema = null;
+      if (isNaN(d.getTime()) || isNaN(h.getTime())) problema = 'Completa las dos fechas.';
+      else if (d.getTime() >= h.getTime()) problema = '"Desde" debe ser anterior a "Hasta".';
+      if (problema) { mensajeRango.textContent = problema; mensajeRango.style.display = 'block'; return; }
+      guardarRango(inputDesde.value, inputHasta.value);
+      actualizarTextoRango();
+      cerrarVentana();
+      cargarYRenderizar(d, h);
+    });
+    botonHoy.addEventListener('click', function () { cerrarVentana(); actualizarRangoDefecto(); });
+    izquierda.appendChild(envFecha);
+
+    // --- Búsqueda ---
+    var envBusqueda = crear('div', { position: 'relative', flex: '1 1 200px', minWidth: '180px' });
+    var iconoBusqueda = crearIcono('buscar', '16px', D.faint);
+    aplicarEstilo(iconoBusqueda, { position: 'absolute', left: '11px', top: '50%', marginTop: '-8px', pointerEvents: 'none' });
+    envBusqueda.appendChild(iconoBusqueda);
+    var inputBusqueda = crear('input', estiloControl());
+    aplicarEstilo(inputBusqueda, { width: '100%', boxSizing: 'border-box', paddingLeft: '34px' });
     inputBusqueda.type = 'text';
-    inputBusqueda.placeholder = 'Móvil, placa, ciudad…';
+    inputBusqueda.placeholder = 'Buscar móvil, placa, ciudad…';
+    inputBusqueda.setAttribute('aria-label', 'Buscar móvil, placa o ciudad');
     inputBusqueda.addEventListener('input', function () { filtroEstado.texto = inputBusqueda.value; onCambio(); });
+    inputBusqueda.addEventListener('focus', function () { inputBusqueda.style.borderColor = D.verde; });
+    inputBusqueda.addEventListener('blur', function () { inputBusqueda.style.borderColor = D.borderStrong; });
     envBusqueda.appendChild(inputBusqueda);
+    izquierda.appendChild(envBusqueda);
 
-    var envCiudad = crear('div', { display: 'flex', flexDirection: 'column', gap: '4px' });
-    envCiudad.appendChild(crear('label', { fontSize: '0.75rem', color: T.color.body, fontWeight: '600' }, 'Ciudad'));
-    var selectCiudad = crear('select', {
-      padding: '7px 10px', border: '1px solid ' + T.color.borderStrong, borderRadius: T.radius.sm,
-      fontSize: '0.82rem', fontFamily: T.font, color: T.color.textoOscuro, background: T.color.surface
-    });
-    var opcionTodas0 = crear('option'); opcionTodas0.value = 'Todas'; opcionTodas0.textContent = 'Todas';
-    selectCiudad.appendChild(opcionTodas0);
-    selectCiudad.addEventListener('change', function () { filtroEstado.ciudad = selectCiudad.value; onCambio(); });
-    envCiudad.appendChild(selectCiudad);
-
-    var envCriticidad = crear('div', { display: 'flex', flexDirection: 'column', gap: '4px' });
-    envCriticidad.appendChild(crear('label', { fontSize: '0.75rem', color: T.color.body, fontWeight: '600' }, 'Criticidad'));
-    var selectCriticidad = crear('select', {
-      padding: '7px 10px', border: '1px solid ' + T.color.borderStrong, borderRadius: T.radius.sm,
-      fontSize: '0.82rem', fontFamily: T.font, color: T.color.textoOscuro, background: T.color.surface
-    });
-    ['Todas', 'ALTA', 'MEDIA', 'BAJA'].forEach(function (nivel) {
-      var opcion = crear('option'); opcion.value = nivel; opcion.textContent = nivel;
-      selectCriticidad.appendChild(opcion);
-    });
-    selectCriticidad.addEventListener('change', function () { filtroEstado.criticidad = selectCriticidad.value; onCambio(); });
-    envCriticidad.appendChild(selectCriticidad);
-
-    var envTurno = crear('div', { display: 'flex', flexDirection: 'column', gap: '4px' });
-    envTurno.appendChild(crear('label', { fontSize: '0.75rem', color: T.color.body, fontWeight: '600' }, 'Turno'));
-    var selectTurno = crear('select', {
-      padding: '7px 10px', border: '1px solid ' + T.color.borderStrong, borderRadius: T.radius.sm,
-      fontSize: '0.82rem', fontFamily: T.font, color: T.color.textoOscuro, background: T.color.surface
-    });
-    ['Todos', 'T1', 'T2', 'T3'].forEach(function (turno) {
-      var opcion = crear('option'); opcion.value = turno; opcion.textContent = turno;
-      selectTurno.appendChild(opcion);
-    });
-    selectTurno.addEventListener('change', function () { filtroEstado.turno = selectTurno.value; onCambio(); });
-    envTurno.appendChild(selectTurno);
-
-    var envSistema = crear('div', { display: 'flex', flexDirection: 'column', gap: '4px' });
-    envSistema.appendChild(crear('label', { fontSize: '0.75rem', color: T.color.body, fontWeight: '600' }, 'Sistema'));
-    var selectSistema = crear('select', {
-      padding: '7px 10px', border: '1px solid ' + T.color.borderStrong, borderRadius: T.radius.sm,
-      fontSize: '0.82rem', fontFamily: T.font, color: T.color.textoOscuro, background: T.color.surface
-    });
-    var opcionTodasSistema = crear('option'); opcionTodasSistema.value = 'Todas'; opcionTodasSistema.textContent = 'Todos';
-    selectSistema.appendChild(opcionTodasSistema);
-    selectSistema.addEventListener('change', function () { filtroEstado.sistema = selectSistema.value; onCambio(); });
-    envSistema.appendChild(selectSistema);
+    // --- Filtros ---
+    var OPCIONES_CRITICIDAD = [
+      { valor: 'Todas', texto: 'Criticidad: Todas' }, { valor: 'ALTA', texto: 'Criticidad: ALTA' },
+      { valor: 'MEDIA', texto: 'Criticidad: MEDIA' }, { valor: 'BAJA', texto: 'Criticidad: BAJA' }
+    ];
+    var OPCIONES_TURNO = [
+      { valor: 'Todos', texto: 'Turno: Todos' }, { valor: 'T1', texto: 'Turno: T1 (Mañana)' },
+      { valor: 'T2', texto: 'Turno: T2 (Tarde)' }, { valor: 'T3', texto: 'Turno: T3 (Noche)' }
+    ];
+    var selectCiudad = crearSelectOscuro('Ciudad', 'Todas', function (v) { filtroEstado.ciudad = v; onCambio(); });
+    selectCiudad.poner([{ valor: 'Todas', texto: 'Todas las ciudades' }], 'Todas');
+    var selectCriticidad = crearSelectOscuro('Criticidad', 'Todas', function (v) { filtroEstado.criticidad = v; onCambio(); });
+    selectCriticidad.poner(OPCIONES_CRITICIDAD, 'Todas');
+    var selectTurno = crearSelectOscuro('Turno', 'Todos', function (v) { filtroEstado.turno = v; onCambio(); });
+    selectTurno.poner(OPCIONES_TURNO, 'Todos');
+    var OPCIONES_CONFIRMACION = [
+      { valor: 'Todas', texto: 'Confirmación: Todas' }, { valor: 'Confirmadas', texto: 'Solo confirmadas' },
+      { valor: 'Por verificar', texto: 'Por verificar (sin reporte en 24 h)' },
+      { valor: 'Sin evidencia', texto: 'Sin evidencia (todas)' },
+      { valor: 'Falla de dispositivo', texto: 'Falla de dispositivo (sin comunicar o sin motor)' },
+      { valor: 'Vehículo parado', texto: 'Sin evidencia: vehículo parado' },
+      { valor: 'No consultado', texto: 'No se pudo consultar' }
+    ];
+    var selectConfirmacion = crearSelectOscuro('Confirmación', 'Todas', function (v) { filtroEstado.confirmacion = v; onCambio(); });
+    selectConfirmacion.poner(OPCIONES_CONFIRMACION, 'Todas');
+    var selectSistema = crearSelectOscuro('Sistema', 'Todas', function (v) { filtroEstado.sistema = v; onCambio(); });
+    selectSistema.poner([{ valor: 'Todas', texto: 'Sistema: Todos' }], 'Todas');
+    izquierda.appendChild(selectCiudad.elemento);
+    izquierda.appendChild(selectCriticidad.elemento);
+    izquierda.appendChild(selectTurno.elemento);
+    izquierda.appendChild(selectConfirmacion.elemento);
+    izquierda.appendChild(selectSistema.elemento);
 
     var botonLimpiar = crear('button', {
-      alignSelf: 'flex-end', padding: '8px 14px', background: 'transparent',
-      color: T.color.body, border: '1px solid ' + T.color.borderStrong, borderRadius: T.radius.sm,
-      fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer'
+      padding: '8px 12px', background: 'transparent', border: 'none', color: D.muted,
+      fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline'
     }, 'Limpiar filtros');
+    botonLimpiar.type = 'button';
     botonLimpiar.addEventListener('click', function () {
       filtroEstado.texto = ''; filtroEstado.ciudad = 'Todas'; filtroEstado.vehiculo = null;
-      filtroEstado.criticidad = 'Todas'; filtroEstado.sistema = 'Todas'; filtroEstado.turno = 'Todos';
-      inputBusqueda.value = ''; selectCiudad.value = 'Todas';
-      selectCriticidad.value = 'Todas'; selectSistema.value = 'Todas'; selectTurno.value = 'Todos';
+      filtroEstado.criticidad = 'Todas'; filtroEstado.sistema = 'Todas'; filtroEstado.turno = 'Todos'; filtroEstado.confirmacion = 'Todas';
+      inputBusqueda.value = '';
+      selectCiudad.elemento.value = 'Todas'; selectCiudad.poner(opcionesCiudadActuales, 'Todas');
+      selectCriticidad.poner(OPCIONES_CRITICIDAD, 'Todas');
+      selectTurno.poner(OPCIONES_TURNO, 'Todos');
+      selectConfirmacion.poner(OPCIONES_CONFIRMACION, 'Todas');
+      selectSistema.poner(opcionesSistemaActuales, 'Todas');
       chipVehiculo.style.display = 'none';
       onCambio();
     });
+    izquierda.appendChild(botonLimpiar);
 
-    panel.appendChild(envBusqueda);
-    panel.appendChild(envCiudad);
-    panel.appendChild(envCriticidad);
-    panel.appendChild(envTurno);
-    panel.appendChild(envSistema);
-    panel.appendChild(botonLimpiar);
-    panelExterno.appendChild(panel);
+    // --- Derecha: tripulaciones y actualizar ---
+    derecha.appendChild(crearBotonTripulaciones(onCambio));
 
-    // Alternador de vista: tarjetas por vehiculo (orden por criticidad, diseño
-    // igual al PDF) vs. lista cronologica global (todas las fallas de la flota
-    // en una sola lista, la mas reciente arriba) -- pedido explicito del usuario
-    // para poder ver "que codigos han sido los mas recientes" sin ir tarjeta por tarjeta.
-    var filaVista = crear('div', { display: 'flex', gap: '6px', marginTop: '10px' });
-    function crearBotonVista(etiqueta, valor) {
-      var boton = crear('button', {
-        padding: '6px 12px', borderRadius: T.radius.pill, fontSize: '0.78rem', fontWeight: '700',
-        cursor: 'pointer', border: '1px solid ' + T.color.borderStrong
-      }, etiqueta);
-      boton.addEventListener('click', function () {
-        modoVista = valor;
-        actualizarBotonesVista();
-        onCambio();
-      });
-      return boton;
-    }
-    var botonVistaVehiculo = crearBotonVista('Por vehículo', 'vehiculo');
-    var botonVistaCronologica = crearBotonVista('🕘 Más recientes primero', 'cronologico');
-    function actualizarBotonesVista() {
-      [botonVistaVehiculo, botonVistaCronologica].forEach(function (b) {
-        var activo = (b === botonVistaVehiculo && modoVista === 'vehiculo') || (b === botonVistaCronologica && modoVista === 'cronologico');
-        aplicarEstilo(b, {
-          background: activo ? T.color.primary : 'transparent',
-          color: activo ? '#FFFFFF' : T.color.body,
-          borderColor: activo ? T.color.primary : T.color.borderStrong
-        });
-      });
-    }
-    actualizarBotonesVista();
-    filaVista.appendChild(botonVistaVehiculo);
-    filaVista.appendChild(botonVistaCronologica);
-    panelExterno.appendChild(filaVista);
+    var botonActualizar = crear('button', {
+      display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 18px', cursor: 'pointer',
+      background: D.verde, color: '#06210F', border: 'none', borderRadius: T.radius.sm,
+      fontWeight: '700', fontSize: '0.84rem', fontFamily: T.font
+    });
+    botonActualizar.type = 'button';
+    var iconoActualizar = crearIcono('actualizar', '16px');
+    botonActualizar.appendChild(iconoActualizar);
+    botonActualizar.appendChild(crear('span', {}, 'Actualizar'));
+    botonActualizar.addEventListener('click', function () { actualizarRangoDefecto(); });
+    derecha.appendChild(botonActualizar);
 
-    var chipVehiculo = crear('div', { marginTop: '10px', display: 'none', alignItems: 'center', gap: '8px' });
+    panel.appendChild(izquierda);
+    panel.appendChild(derecha);
+    contenedor.appendChild(panel);
+
+    // Chip de "filtrando por este vehículo" (se activa con un clic en la placa
+    // dentro de la tabla cronológica).
+    var chipVehiculo = crear('div', { display: 'none', alignItems: 'center', gap: '10px', margin: '-4px 0 14px 0' });
     var textoChip = crear('span', {
-      fontSize: '0.78rem', color: T.color.primaryDark, background: T.color.primarySoft,
-      padding: '5px 10px', borderRadius: T.radius.pill, fontWeight: '600'
+      fontSize: '0.78rem', color: D.verde, background: 'rgba(0,208,132,0.12)', border: '1px solid rgba(0,208,132,0.35)',
+      padding: '5px 12px', borderRadius: T.radius.pill, fontWeight: '600'
     });
     var botonQuitarChip = crear('button', {
-      background: 'transparent', border: 'none', color: T.color.primaryDark, cursor: 'pointer',
-      fontSize: '0.78rem', fontWeight: '700', textDecoration: 'underline'
+      background: 'transparent', border: 'none', color: D.muted, cursor: 'pointer',
+      fontSize: '0.78rem', fontWeight: '600', textDecoration: 'underline'
     }, 'Quitar filtro');
+    botonQuitarChip.type = 'button';
     botonQuitarChip.addEventListener('click', function () {
       filtroEstado.vehiculo = null; chipVehiculo.style.display = 'none'; onCambio();
     });
     chipVehiculo.appendChild(textoChip);
     chipVehiculo.appendChild(botonQuitarChip);
-    panelExterno.appendChild(chipVehiculo);
+    contenedor.appendChild(chipVehiculo);
 
-    contenedor.appendChild(panelExterno);
+    var opcionesCiudadActuales = [{ valor: 'Todas', texto: 'Todas las ciudades' }];
+    var opcionesSistemaActuales = [{ valor: 'Todas', texto: 'Sistema: Todos' }];
+    var animacionGiro = null;
 
     return {
+      inputDesde: inputDesde,
+      inputHasta: inputHasta,
+      actualizarTextoRango: actualizarTextoRango,
+      // Mientras carga: el botón se deshabilita y el icono gira.
+      marcarCargando: function (cargando) {
+        botonActualizar.disabled = cargando;
+        botonActualizar.style.opacity = cargando ? '0.65' : '1';
+        botonActualizar.style.cursor = cargando ? 'wait' : 'pointer';
+        if (cargando && !animacionGiro) animacionGiro = girar(iconoActualizar);
+        if (!cargando && animacionGiro) { animacionGiro.cancel(); animacionGiro = null; }
+      },
       mostrarChipVehiculo: function (nombreVehiculo) {
-        textoChip.textContent = '🚚 Filtrando por: ' + nombreVehiculo;
+        textoChip.textContent = 'Filtrando por: ' + nombreVehiculo;
         chipVehiculo.style.display = 'flex';
       },
       ocultarChipVehiculo: function () { chipVehiculo.style.display = 'none'; },
       actualizarOpcionesCiudad: function (ciudadesDisponibles) {
-        var seleccionPrevia = selectCiudad.value || 'Todas';
-        selectCiudad.innerHTML = '';
-        var opcionTodas = crear('option'); opcionTodas.value = 'Todas'; opcionTodas.textContent = 'Todas';
-        selectCiudad.appendChild(opcionTodas);
-        ciudadesDisponibles.forEach(function (ciudad) {
-          var opcion = crear('option'); opcion.value = ciudad; opcion.textContent = ciudad;
-          selectCiudad.appendChild(opcion);
-        });
-        var siguenValida = seleccionPrevia === 'Todas' || ciudadesDisponibles.indexOf(seleccionPrevia) !== -1;
-        selectCiudad.value = siguenValida ? seleccionPrevia : 'Todas';
-        filtroEstado.ciudad = selectCiudad.value;
+        opcionesCiudadActuales = [{ valor: 'Todas', texto: 'Todas las ciudades' }].concat(
+          ciudadesDisponibles.map(function (c) { return { valor: c, texto: c }; }));
+        filtroEstado.ciudad = selectCiudad.poner(opcionesCiudadActuales, filtroEstado.ciudad);
       },
       actualizarOpcionesSistema: function (sistemasDisponibles) {
-        var seleccionPrevia = selectSistema.value || 'Todas';
-        selectSistema.innerHTML = '';
-        var opcionTodas = crear('option'); opcionTodas.value = 'Todas'; opcionTodas.textContent = 'Todos';
-        selectSistema.appendChild(opcionTodas);
-        sistemasDisponibles.forEach(function (sistema) {
-          var opcion = crear('option'); opcion.value = sistema; opcion.textContent = sistema;
-          selectSistema.appendChild(opcion);
-        });
-        var siguenValido = seleccionPrevia === 'Todas' || sistemasDisponibles.indexOf(seleccionPrevia) !== -1;
-        selectSistema.value = siguenValido ? seleccionPrevia : 'Todas';
-        filtroEstado.sistema = selectSistema.value;
+        opcionesSistemaActuales = [{ valor: 'Todas', texto: 'Sistema: Todos' }].concat(
+          sistemasDisponibles.map(function (s) { return { valor: s, texto: 'Sistema: ' + s }; }));
+        filtroEstado.sistema = selectSistema.poner(opcionesSistemaActuales, filtroEstado.sistema);
       },
-      // Usados por el resumen clicable (construirResumen) para que el select
-      // refleje el filtro que se acaba de aplicar con un clic.
-      seleccionarSistema: function (sistema) { selectSistema.value = sistema; filtroEstado.sistema = sistema; },
-      seleccionarCriticidad: function (criticidad) { selectCriticidad.value = criticidad; filtroEstado.criticidad = criticidad; }
+      // Usados por los KPI y los chips de sistemas para que el select refleje el
+      // filtro que se acaba de aplicar con un clic.
+      seleccionarSistema: function (sistema) {
+        filtroEstado.sistema = selectSistema.poner(opcionesSistemaActuales, sistema);
+      },
+      seleccionarConfirmacion: function (valor) {
+        filtroEstado.confirmacion = selectConfirmacion.poner(OPCIONES_CONFIRMACION, valor);
+      },
+      seleccionarCriticidad: function (criticidad) {
+        filtroEstado.criticidad = selectCriticidad.poner(OPCIONES_CRITICIDAD, criticidad);
+      }
     };
   }
 
-  // --- Resumen de novedades + aviso de filtro (igual que el PDF) -------------
-  function construirResumen(contenedor, vehiculos, totalOcultas) {
-    if (totalOcultas > 0) {
-      var aviso = crear('div', {
-        background: T.color.filtroFondo, border: '1px solid ' + T.color.filtroBorde, borderRadius: T.radius.sm,
-        padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: T.color.filtroBorde
-      });
-      var negrita = crear('b', {}, 'Filtro aplicado: ');
-      aviso.appendChild(negrita);
-      aviso.appendChild(document.createTextNode(
-        'se ocultaron ' + totalOcultas + ' falla(s) de conectividad telemática y diagnósticos sin nombre reconocible -- no aportan al mantenimiento del vehículo.'
-      ));
-      contenedor.appendChild(aviso);
-    }
-
-    if (vehiculos.length === 0) return;
-
-    var vehiculosAlta = vehiculos.filter(function (v) { return v.criticidad === 'ALTA'; });
-    var vehiculosMediaBaja = vehiculos.filter(function (v) { return v.criticidad !== 'ALTA'; });
-    var conteoSistemas = {};
-    vehiculos.forEach(function (v) {
-      v.items.forEach(function (it) { conteoSistemas[it.categoria] = (conteoSistemas[it.categoria] || 0) + 1; });
+  // --- Tarjetas de indicadores (KPI) + sistemas más afectados -----------------
+  function crearTarjetaKpi(color, titulo, icono) {
+    var tarjeta = crear('div', {
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minHeight: '108px',
+      background: D.panel, border: '1px solid ' + D.border, borderLeft: '4px solid ' + color,
+      borderRadius: T.radius.sm, padding: '16px 18px', boxShadow: D.sombra
     });
-    var topSistemas = Object.keys(conteoSistemas)
-      .sort(function (a, b) { return conteoSistemas[b] - conteoSistemas[a]; })
-      .slice(0, 3);
+    var cabecera = crear('div', {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px',
+      color: D.muted, fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em'
+    });
+    cabecera.appendChild(crear('span', {}, titulo));
+    cabecera.appendChild(crearIcono(icono, '22px', color));
+    var cuerpo = crear('div');
+    tarjeta.appendChild(cabecera);
+    tarjeta.appendChild(cuerpo);
+    return { tarjeta: tarjeta, cuerpo: cuerpo };
+  }
 
-    var panel = crearPanel({ padding: '16px 20px', marginBottom: '16px', borderLeft: '3px solid ' + T.color.resumenBorde });
-    panel.appendChild(crear('div', { fontWeight: '700', fontSize: '0.95rem', color: T.color.textoOscuro, marginBottom: '10px' }, 'Resumen de Novedades'));
+  function crearNumeroKpi(valor, unidad) {
+    var fila = crear('div', { display: 'flex', alignItems: 'baseline', gap: '8px' });
+    fila.appendChild(crear('span', { fontSize: '2.3rem', fontWeight: '700', color: '#FFFFFF', lineHeight: '1' }, String(valor)));
+    fila.appendChild(crear('span', { fontSize: '0.9rem', color: D.faint }, unidad));
+    return fila;
+  }
 
-    var fila = crear('div', { display: 'flex', gap: '28px', flexWrap: 'wrap', fontSize: '0.85rem', color: T.color.textoOscuro });
+  function construirKpis(contenedor) {
+    var fila = crear('div', {
+      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '12px'
+    });
+    var kAlta = crearTarjetaKpi(D.rojo, 'Unidades en alerta crítica (ALTA)', 'alerta');
+    var kResto = crearTarjetaKpi(D.naranja, 'Vehículos con fallas (MEDIA/BAJA)', 'circulo');
+    var kTotal = crearTarjetaKpi(D.verde, 'Códigos activos', 'barras');
+    fila.appendChild(kAlta.tarjeta);
+    fila.appendChild(kResto.tarjeta);
+    fila.appendChild(kTotal.tarjeta);
+    contenedor.appendChild(fila);
 
-    // Los conteos y la lista de sistemas son clicables: aplican el filtro
-    // correspondiente en la barra de arriba de un solo clic, sin tener que
-    // ir a buscar el select -- el resumen deja de ser solo lectura.
-    function crearFilaClicable(texto, onClick) {
-      var el = crear('div', { color: T.color.primaryDark, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }, texto);
-      el.addEventListener('click', onClick);
-      return el;
+    // La tarjeta ALTA es un atajo al filtro de criticidad (como el resumen anterior).
+    kAlta.tarjeta.style.cursor = 'pointer';
+    kAlta.tarjeta.setAttribute('role', 'button');
+    kAlta.tarjeta.tabIndex = 0;
+    kAlta.tarjeta.title = 'Clic para ver solo las ALTA';
+    function alternarAlta() {
+      if (!barraFiltrosRefs) return;
+      barraFiltrosRefs.seleccionarCriticidad(filtroEstado.criticidad === 'ALTA' ? 'Todas' : 'ALTA');
+      actualizarVista();
     }
+    kAlta.tarjeta.addEventListener('click', alternarAlta);
+    kAlta.tarjeta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternarAlta(); }
+    });
 
-    var col1 = crear('div');
-    col1.appendChild(crear('b', {}, 'Vehículos en Alerta Crítica (ALTA):'));
-    col1.appendChild(crearFilaClicable(
-      vehiculosAlta.length + ' unidad(es) (Prioridad de ingreso a taller)',
-      function () { if (barraFiltrosRefs) { barraFiltrosRefs.seleccionarCriticidad('ALTA'); actualizarVista(); } }
-    ));
-    fila.appendChild(col1);
+    var filaSistemas = crear('div', { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '18px' });
+    contenedor.appendChild(filaSistemas);
 
-    var col2 = crear('div');
-    col2.appendChild(crear('b', {}, 'Vehículos con fallas (MEDIA/BAJA):'));
-    col2.appendChild(crear('div', { color: T.color.body }, vehiculosMediaBaja.length + ' unidad(es) (Monitoreo preventivo)'));
-    fila.appendChild(col2);
+    var ultimosVehiculos = [];
 
-    var col3 = crear('div');
-    col3.appendChild(crear('b', {}, 'Sistemas más afectados:'));
-    var listaSistemas = crear('div', { color: T.color.body });
-    if (topSistemas.length === 0) {
-      listaSistemas.textContent = '—';
-    } else {
-      topSistemas.forEach(function (s, i) {
-        listaSistemas.appendChild(crearFilaClicable((i + 1) + '. ' + s, function () {
-          if (barraFiltrosRefs) { barraFiltrosRefs.seleccionarSistema(s); actualizarVista(); }
-        }));
+    function pintar(vehiculos) {
+      ultimosVehiculos = vehiculos;
+      var vehiculosAlta = vehiculos.filter(function (v) { return v.criticidad === 'ALTA'; });
+      var conteoNivel = { ALTA: 0, MEDIA: 0, BAJA: 0 };
+      var conteoSistemas = {};
+      var totalCodigos = 0, porVerificar = 0, parados = 0, fallaDisp = 0, sinConsulta = 0;
+      vehiculos.forEach(function (v) {
+        v.items.forEach(function (it) {
+          if (it.sinConfirmar) {
+            if (it.estadoConf !== 'sin-evidencia') porVerificar++;
+            else if (it.tipoSE === 'dispositivo') fallaDisp++;
+            else if (it.tipoSE === 'consulta') sinConsulta++;
+            else parados++;
+            return;
+          }
+          totalCodigos++;
+          conteoNivel[it.criticidad] = (conteoNivel[it.criticidad] || 0) + 1;
+          conteoSistemas[it.categoria] = (conteoSistemas[it.categoria] || 0) + 1;
+        });
       });
-    }
-    col3.appendChild(listaSistemas);
-    fila.appendChild(col3);
 
-    panel.appendChild(fila);
-    contenedor.appendChild(panel);
+      limpiarNodo(kAlta.cuerpo);
+      kAlta.cuerpo.appendChild(crearNumeroKpi(vehiculosAlta.length, 'unidades'));
+      kAlta.cuerpo.appendChild(crear('div', { fontSize: '0.74rem', color: D.muted, marginTop: '6px' }, 'Prioridad de ingreso a taller'));
+      kAlta.tarjeta.style.borderColor = filtroEstado.criticidad === 'ALTA' ? D.rojo : D.border;
+      kAlta.tarjeta.style.borderLeft = '4px solid ' + D.rojo;
+
+      limpiarNodo(kResto.cuerpo);
+      kResto.cuerpo.appendChild(crearNumeroKpi(vehiculos.filter(function (v) { return !v.soloPorVerificar; }).length - vehiculosAlta.length, 'unidades'));
+      kResto.cuerpo.appendChild(crear('div', { fontSize: '0.74rem', color: D.muted, marginTop: '6px' }, 'Monitoreo preventivo'));
+
+      // Reparto de los códigos por nivel: dato real de esta carga (reemplaza al
+      // "% en meta" del boceto, que no existe en ninguna fuente de datos).
+      limpiarNodo(kTotal.cuerpo);
+      kTotal.cuerpo.appendChild(crearNumeroKpi(totalCodigos, totalCodigos === 1 ? 'código' : 'códigos'));
+      var barraNiveles = crear('div', { display: 'flex', gap: '2px', height: '8px', borderRadius: '4px', overflow: 'hidden', background: D.border, marginTop: '10px' });
+      var leyenda = crear('div', { display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '8px', fontSize: '0.72rem', color: D.muted });
+      ['ALTA', 'MEDIA', 'BAJA'].forEach(function (nivel) {
+        var n = conteoNivel[nivel] || 0;
+        if (n) barraNiveles.appendChild(crear('div', { flex: n + ' 1 0', background: ESTILO_NIVEL[nivel].color }));
+        var item = crear('span', { display: 'inline-flex', alignItems: 'center', gap: '5px' });
+        item.appendChild(crear('span', { width: '8px', height: '8px', borderRadius: '2px', background: ESTILO_NIVEL[nivel].color, display: 'inline-block' }));
+        item.appendChild(document.createTextNode(nivel + ' ' + n));
+        leyenda.appendChild(item);
+      });
+      if (totalCodigos) kTotal.cuerpo.appendChild(barraNiveles);
+      // Códigos activos según Geotab que no están confirmados: no cuentan arriba; un clic los filtra.
+      function crearChipConfirmacion(texto, titulo, valorFiltro, color) {
+        var chip = crear('button', {
+          display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0', background: 'transparent', border: 'none',
+          cursor: 'pointer', fontFamily: T.font, fontSize: '0.72rem', color: color || D.muted, textDecoration: 'underline'
+        }, texto);
+        chip.type = 'button';
+        chip.title = titulo;
+        chip.addEventListener('click', function () {
+          if (barraFiltrosRefs) { barraFiltrosRefs.seleccionarConfirmacion(filtroEstado.confirmacion === valorFiltro ? 'Todas' : valorFiltro); actualizarVista(); }
+        });
+        leyenda.appendChild(chip);
+      }
+      if (porVerificar) {
+        crearChipConfirmacion('Por verificar ' + porVerificar, 'Activos en Geotab pero sin reportarse hace más de ' + CONFIRMACION_HORAS +
+          ' h, con el vehículo en movimiento (' + MOVIMIENTO_KM_MIN + ' km o más) y el dispositivo transmitiendo: probablemente ya no están activos.', 'Por verificar');
+      }
+      if (fallaDisp) {
+        crearChipConfirmacion('Falla de dispositivo ' + fallaDisp, 'Códigos de más de ' + CONFIRMACION_HORAS +
+          ' h en vehículos cuyo dispositivo no comunica o del que no llegan señales del motor: no se puede saber si el código sigue, y el equipo necesita revisión.', 'Falla de dispositivo', D.naranja);
+      }
+      if (parados) {
+        crearChipConfirmacion('Vehículo parado ' + parados, 'Códigos de más de ' + CONFIRMACION_HORAS +
+          ' h en vehículos que casi no se han movido (menos de ' + MOVIMIENTO_KM_MIN + ' km): no hay evidencia a favor ni en contra.', 'Vehículo parado');
+      }
+      if (sinConsulta) {
+        crearChipConfirmacion('No consultado ' + sinConsulta, 'No se pudo consultar a Geotab el estado de estos vehículos.', 'No consultado');
+      }
+      kTotal.cuerpo.appendChild(leyenda);
+
+      limpiarNodo(filaSistemas);
+      var topSistemas = Object.keys(conteoSistemas)
+        .sort(function (a, b) { return conteoSistemas[b] - conteoSistemas[a]; })
+        .slice(0, 3);
+      if (topSistemas.length) {
+        filaSistemas.appendChild(crear('span', { fontSize: '0.74rem', color: D.muted, fontWeight: '600', marginRight: '2px' }, 'Sistemas más afectados:'));
+        topSistemas.forEach(function (s, i) {
+          var activo = filtroEstado.sistema === s;
+          var chip = crear('button', {
+            padding: '5px 12px', borderRadius: T.radius.pill, cursor: 'pointer', fontSize: '0.76rem', fontWeight: '600',
+            fontFamily: T.font, color: activo ? '#06210F' : D.textSoft,
+            background: activo ? D.verde : D.panel, border: '1px solid ' + (activo ? D.verde : D.borderStrong)
+          }, (i + 1) + '. ' + s + ' · ' + conteoSistemas[s]);
+          chip.type = 'button';
+          chip.title = activo ? 'Quitar el filtro de sistema' : 'Ver solo ' + s;
+          chip.addEventListener('click', function () {
+            if (barraFiltrosRefs) { barraFiltrosRefs.seleccionarSistema(activo ? 'Todas' : s); actualizarVista(); }
+          });
+          filaSistemas.appendChild(chip);
+        });
+      }
+    }
+
+    return { pintar: pintar };
   }
 
   // --- Tarjeta por vehiculo: tabla de fallas, igual estructura que el PDF -----
@@ -1350,41 +1794,41 @@ geotab.addin.alertasFallas = function () {
 
   function crearPanelHistorial() {
     var panel = crear('div', {
-      background: T.color.canvas, border: '1px solid ' + T.color.border, borderRadius: T.radius.sm,
-      padding: '10px 14px', margin: '4px 0', fontSize: '0.78rem', color: T.color.textoOscuro
+      background: D.bg, border: '1px solid ' + D.border, borderRadius: T.radius.sm,
+      padding: '10px 14px', margin: '4px 0', fontSize: '0.78rem', color: D.textSoft
     });
-    panel.appendChild(crear('div', { color: T.color.body }, 'Cargando historial…'));
+    panel.appendChild(crear('div', { color: D.muted }, 'Cargando historial…'));
     return panel;
   }
 
   function llenarPanelHistorial(panel, historial) {
-    while (panel.firstChild) panel.removeChild(panel.firstChild);
+    limpiarNodo(panel);
 
     var resumen = crear('div', { display: 'flex', gap: '18px', flexWrap: 'wrap', marginBottom: historial.registros.length ? '8px' : '0' });
     resumen.appendChild(crear('span', {}, '🔴 Se activó ' + historial.activaciones + ' vez(veces)'));
     resumen.appendChild(crear('span', {}, '🟢 Se desactivó ' + historial.desactivaciones + ' vez(veces)'));
     if (historial.primeraVez) {
-      resumen.appendChild(crear('span', { color: T.color.body },
+      resumen.appendChild(crear('span', { color: D.muted },
         'Desde ' + formatearFechaHora(historial.primeraVez) + ' hasta ' + formatearFechaHora(historial.ultimaVez)));
     }
     panel.appendChild(resumen);
 
     if (historial.desactivaciones === 0 && historial.activaciones > 1) {
-      panel.appendChild(crear('div', { color: T.color.body, fontStyle: 'italic', marginBottom: '8px' },
+      panel.appendChild(crear('div', { color: D.muted, fontStyle: 'italic', marginBottom: '8px' },
         'Geotab nunca registró una desactivación explícita para este código en los últimos ' + historial.ventanaDias +
         ' días -- solo se repite como activo.'));
     }
 
     if (historial.registros.length > 0) {
-      var lista = crear('div', { maxHeight: '160px', overflowY: 'auto', border: '1px solid ' + T.color.border, borderRadius: '6px' });
+      var lista = crear('div', { maxHeight: '160px', overflowY: 'auto', border: '1px solid ' + D.border, borderRadius: '6px' });
       historial.registros.forEach(function (r) {
         var esActivo = r.estado === 'Active';
         var filaHist = crear('div', {
           display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '4px 10px',
-          borderBottom: '1px solid ' + T.color.border
+          borderBottom: '1px solid ' + D.border
         });
         filaHist.appendChild(crear('span', {}, formatearFechaHora(r.fecha)));
-        filaHist.appendChild(crear('span', { color: esActivo ? '#B91C1C' : '#15803D', fontWeight: '600' },
+        filaHist.appendChild(crear('span', { color: esActivo ? '#FF8587' : '#52C41A', fontWeight: '600' },
           esActivo ? 'Activo' : 'Inactivo'));
         lista.appendChild(filaHist);
       });
@@ -1565,7 +2009,7 @@ geotab.addin.alertasFallas = function () {
       spn: it.spn, fmi: it.fmi, categoria: it.categoria, activo: it.activo !== false,
       codigo: 'SPN ' + it.spn + '/FMI ' + it.fmi,
       descripcion: it.nombreFalla,
-      criticidad: it.criticidad,
+      criticidad: it.criticidad, sinConfirmar: !!it.sinConfirmar, estadoConf: it.estadoConf, horasSinReporte: it.horasSinReporte, kmDesde: it.kmDesde, motivo: it.motivo,
       duracionTexto: 'Reportada el ' + formatearFechaHora(it.fecha) + ' — código activo según el último registro consultado en Geotab.',
       claveEpisodio: claveEpisodio
     };
@@ -1772,11 +2216,11 @@ geotab.addin.alertasFallas = function () {
   // la tabla del add-in) -- acá van como <span style="..."> inline porque este
   // HTML se descarga y se abre fuera de la página del add-in, así que no hay
   // DOM del add-in disponible para llamar a esas funciones directamente.
-  function construirPildorasHtml(criticidad, activo) {
-    var colorCrit = COLOR_POR_CRITICIDAD[criticidad] || '#94A3B8';
+  function construirPildorasHtml(criticidad, activo, sinConfirmar) {
+    var colorCrit = sinConfirmar ? '#94A3B8' : (COLOR_POR_CRITICIDAD[criticidad] || '#94A3B8');
     var pildoraCrit = '<span style="display:inline-block;min-width:46px;text-align:center;padding:3px 10px;' +
       'border-radius:999px;background:' + colorCrit + ';color:#FFFFFF;font-weight:700;font-size:11.5px;' +
-      'letter-spacing:.02em">CRITICIDAD ' + escapeHtml(criticidad) + '</span>';
+      'letter-spacing:.02em">CRITICIDAD ' + escapeHtml(criticidad) + (sinConfirmar ? ' · SIN CONFIRMAR' : '') + '</span>';
     var bgActivo = activo ? '#DCFCE7' : '#F1F5F9';
     var colorActivo = activo ? '#15803D' : '#64748B';
     var pildoraActivo = '<span style="display:inline-block;padding:2px 10px;border-radius:999px;' +
@@ -1976,8 +2420,10 @@ geotab.addin.alertasFallas = function () {
         : Promise.resolve(localidadZona);
 
       return pLocalidad.then(function (localidadInfo) {
-        var avisoSinDatosHtml = caso.encontrada ? '' :
-          '<div class="aviso-sin-datos">⚠ No se encontró ninguna falla real para este vehículo en la ventana consultada -- este expediente documenta únicamente la ubicación disponible alrededor de la fecha/hora ingresada manualmente.</div>';
+        var avisoConfirmacionHtml = caso.sinConfirmar
+          ? '<div class="aviso-sin-datos">⚠ ' + escapeHtml(textoSinConfirmar(caso)) + '</div>' : '';
+        var avisoSinDatosHtml = avisoConfirmacionHtml + (caso.encontrada ? '' :
+          '<div class="aviso-sin-datos">⚠ No se encontró ninguna falla real para este vehículo en la ventana consultada -- este expediente documenta únicamente la ubicación disponible alrededor de la fecha/hora ingresada manualmente.</div>');
 
         var datos = {
           movil: partesVeh.codigo || caso.nombreVehiculo, placa: caso.placa || partesVeh.placa,
@@ -1985,7 +2431,7 @@ geotab.addin.alertasFallas = function () {
           significadoFmi: significadoFmi(caso.fmi),
           generadoTexto: formatearFechaHora(ahoraGeneracion),
           avisoSinDatosHtml: avisoSinDatosHtml,
-          pildorasHtml: construirPildorasHtml(caso.criticidad, caso.activo !== false),
+          pildorasHtml: construirPildorasHtml(caso.criticidad, caso.activo !== false, caso.sinConfirmar),
           cuandoHtml: construirCuandoHtml(caso.momento, ahoraGeneracion),
           empresaHtml: construirEmpresaHtml(caso.ciudad, caso.tipologia),
           dondeHtml: construirDondeHtml(posicion, localidadInfo, diferenciaSegundos, ciudadConfigurada),
@@ -2005,14 +2451,13 @@ geotab.addin.alertasFallas = function () {
   function generarExpedienteDesdeFila(it, enlace) {
     if (expedienteEnCurso) return;
     expedienteEnCurso = true;
-    var textoOriginal = enlace.textContent;
-    enlace.textContent = '⏳ Generando…';
+    var restaurar = marcarOcupado(enlace);
     ensamblarYDescargarExpediente(resolverCasoDesdeFila(it)).catch(function (err) {
       console.error('Alertas (expediente):', err);
       alert('No se pudo generar el expediente: ' + ((err && err.message) || err));
     }).then(function () {
       expedienteEnCurso = false;
-      enlace.textContent = textoOriginal;
+      restaurar();
     });
   }
 
@@ -2043,11 +2488,14 @@ geotab.addin.alertasFallas = function () {
         g = porClave[clave] = {
           clave: clave, idDiagnostico: it.idDiagnostico, idFailureMode: it.idFailureMode,
           nombreFalla: it.nombreFalla, spn: it.spn, fmi: it.fmi, categoria: it.categoria,
-          criticidad: it.criticidad, conteo: 0, fechaReferencia: it.fecha, posicion: null
+          criticidad: it.criticidad, conteo: 0, fechaReferencia: it.fecha, posicion: null,
+          sinConfirmar: true, estadoConf: it.estadoConf, horasSinReporte: it.horasSinReporte
         };
         orden.push(clave);
       }
       g.conteo++;
+      if (!it.sinConfirmar) { g.sinConfirmar = false; g.estadoConf = 'confirmado'; }   // basta un reporte confirmado para que el código cuente como confirmado
+      if (it.horasSinReporte < g.horasSinReporte) g.horasSinReporte = it.horasSinReporte;
       if ((ORDEN_CRITICIDAD[it.criticidad] || 0) > (ORDEN_CRITICIDAD[g.criticidad] || 0)) g.criticidad = it.criticidad;
       if (it.fecha > g.fechaReferencia) g.fechaReferencia = it.fecha;
     });
@@ -2058,13 +2506,14 @@ geotab.addin.alertasFallas = function () {
   // omitir el c\u00f3digo si resolverPosicionGps no encontr\u00f3 nada (pedido expl\u00edcito).
   function construirFilaResumenConsolidadoHtml(g) {
     var colorCat = COLOR_CATEGORIA_MAPA[g.categoria] || COLOR_CATEGORIA_MAPA.General;
-    var colorCrit = COLOR_POR_CRITICIDAD[g.criticidad] || '#94A3B8';
+    var colorCrit = g.sinConfirmar ? '#94A3B8' : (COLOR_POR_CRITICIDAD[g.criticidad] || '#94A3B8');
     var ubicacionHtml = g.posicion
       ? '<span class="en-mapa">Ver mapa</span>'
       : '<span class="sin-gps">Ubicaci\u00f3n no disponible</span>';
     return '<tr>' +
       '<td class="codigo-celda">SPN ' + escapeHtml(g.spn) + '<br>FMI ' + escapeHtml(g.fmi) + '</td>' +
       '<td>' + escapeHtml(g.nombreFalla) +
+        (g.sinConfirmar ? '<div class="sin-gps">' + (g.estadoConf === 'sin-evidencia' ? 'Sin evidencia' : 'Sin confirmación reciente') + ': hace ' + textoAntiguedad(g.horasSinReporte) + '</div>' : '') +
         '<div><span class="badge-cat" style="background:' + colorCat + '">' + escapeHtml(g.categoria) + '</span></div>' +
       '</td>' +
       '<td><span class="badge-criticidad" style="background:' + colorCrit + '">' + escapeHtml(g.criticidad) + '</span></td>' +
@@ -2084,75 +2533,117 @@ geotab.addin.alertasFallas = function () {
     }).join('');
   }
 
-  // Variante de SCRIPT_INIT_MAPA (arriba) para VARIOS marcadores en vez de uno
-  // solo -- mismo patron de robustez (setTimeout 0 para dejar que el navegador
-  // calcule el layout del iframe antes de medir el contenedor, invalidateSize()
-  // tanto al crear el mapa como justo antes de avisar que esta listo, con
-  // setView/fitBounds reaplicado despues de cada invalidateSize()). A
-  // diferencia del mapa de un solo codigo, ACA si hace falta fitBounds porque
-  // puede haber marcadores en lugares distintos -- si solo queda 1 marcador con
-  // posicion valida, fitBounds no da un encuadre util (un punto no tiene area),
-  // asi que se usa setView normal en ese caso. No se modifica SCRIPT_INIT_MAPA
-  // original -- el Mini Expediente de un solo codigo sigue usandolo tal cual.
-  // CAMBIO (2026-10-02, bug real visto en campo): a diferencia del mapa de un
-  // solo c\u00f3digo (que centra UNA vez y nunca vuelve a mover la vista), este
-  // mapa consolidado necesita encuadrar TODOS los marcadores -- el bug era
-  // que `reencuadrar()`/`fitBounds()` corr\u00eda DESPU\u00c9S de agregar la capa de
-  // teselas, as\u00ed que el cambio de vista disparaba una SEGUNDA carga
-  // as\u00edncrona de teselas que la captura no esperaba (el mapa quedaba con
-  // teselas del encuadre viejo, chicas, en una esquina, y los marcadores ya
-  // posicionados seg\u00fan el encuadre nuevo -- exactamente lo que se vio en la
-  // imagen real). Fix: se calculan los bounds finales ANTES de tocar
-  // Leaflet, se aplican con invalidateSize() sobre el mapa YA encuadrado
-  // correctamente, y RECI\u00c9N DESPU\u00c9S se agrega la capa de teselas -- as\u00ed la
-  // vista nunca cambia una vez que las teselas ya se empezaron a pedir, no
-  // hace falta una segunda espera.
-  var SCRIPT_INIT_MAPA_CONSOLIDADO = "(function () {\n" +
-    "  function avisoError() {\n" +
-    "    var el = document.getElementById('mapa');\n" +
-    "    if (el) el.innerHTML = '<div style=\"padding:28px 10px;text-align:center;font-size:12px;color:#64748b\">No se pudo cargar el mapa (sin conexi\u00f3n a internet).</div>';\n" +
-    "    window.__mapaListo = true;\n" +
-    "  }\n" +
-    "  function avisoSinPuntos() {\n" +
-    "    var el = document.getElementById('mapa');\n" +
-    "    if (el) el.innerHTML = '<div style=\"padding:28px 10px;text-align:center;font-size:12px;color:#64748b\">Ninguno de los c\u00f3digos tiene ubicaci\u00f3n GPS disponible.</div>';\n" +
-    "    window.__mapaListo = true;\n" +
-    "  }\n" +
-    "  setTimeout(function () {\n" +
-    "  try {\n" +
-    "    var datosEl = document.getElementById('mapa-datos');\n" +
-    "    var datos = datosEl ? JSON.parse(datosEl.textContent) : null;\n" +
-    "    var puntos = (datos && datos.puntos) ? datos.puntos : [];\n" +
-    "    if (!puntos.length) { avisoSinPuntos(); return; }\n" +
-    "    if (typeof L === 'undefined') { avisoError(); return; }\n" +
-    "    var mapa = L.map('mapa', { zoomControl: false }).setView([puntos[0].lat, puntos[0].lon], 15);\n" +
-    "    mapa.invalidateSize();\n" +
-    "    if (puntos.length > 1) {\n" +
-    "      var bounds = L.latLngBounds(puntos.map(function (p) { return [p.lat, p.lon]; }));\n" +
-    "      mapa.fitBounds(bounds, { padding: [16, 16] });\n" +
-    "    } else {\n" +
-    "      mapa.setView([puntos[0].lat, puntos[0].lon], 15);\n" +
-    "    }\n" +
-    "    var capaTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {\n" +
-    "      maxZoom: 19, crossOrigin: true,\n" +
-    "      attribution: 'Tiles &copy; Esri'\n" +
-    "    }).addTo(mapa);\n" +
-    "    puntos.forEach(function (p) {\n" +
-    "      L.circleMarker([p.lat, p.lon], {\n" +
-    "        radius: 8, color: '#1e293b', weight: 1.5, fillColor: p.color || '#94a3b8', fillOpacity: 0.9\n" +
-    "      }).addTo(mapa);\n" +
-    "    });\n" +
-    "    var yaListo = false;\n" +
-    "    function marcarListo() {\n" +
-    "      if (yaListo) return;\n" +
-    "      yaListo = true;\n" +
-    "      window.__mapaListo = true;\n" + // sin invalidateSize() acá a propósito -- podría disparar otra carga de teselas justo antes de capturar, el mismo bug que se acaba de corregir
-    "    }\n" +
-    "    capaTiles.on('load', marcarListo);\n" +
-    "    setTimeout(marcarListo, 5000);\n" +
-    "  } catch (e) { avisoError(); }\n" +
-    "  }, 0);\n" +
-    "})();";
+  // Mapa del expediente CONSOLIDADO (varios marcadores).
+  // CAMBIO (2026-10-10, bug real visto en campo con el movil 1149): el mapa base
+  // salia MAS AMPLIADO que los marcadores (los puntos estaban a ~24 px/km y las
+  // calles a ~41 px/km), asi que los puntos caian en barrios que no eran, y un
+  // marcador (el de la base del Distrito) quedaba fuera del recuadro. Era el mismo
+  // origen de los dos arreglos anteriores (2026-10-01 y 2026-10-02): Leaflet mueve
+  // las teselas con transformaciones CSS y animaciones de zoom, y html2canvas las
+  // captura a medias o con otra escala. Se parchaba cada sintoma y volvia a salir.
+  // Solucion de fondo: este mapa YA NO USA LEAFLET. Se calcula todo con la misma
+  // formula (Web Mercator) para teselas y marcadores:
+  //   - se elige el mayor zoom en el que entran todos los puntos con margen,
+  //   - cada tesela es un <img> en posicion absoluta (left/top en pixeles, sin
+  //     transform ni animacion),
+  //   - cada marcador es un <div> en posicion absoluta calculado con la MISMA
+  //     funcion que las teselas -- no existe un segundo calculo que pueda diferir.
+  // El mapa de un solo codigo (SCRIPT_INIT_MAPA) no se toco.
+  function scriptMapaConsolidado() {
+    var TESELA = 256, MARGEN = 26, RADIO = 8;
+    var el = document.getElementById('mapa');
+    function listo() { window.__mapaListo = true; }
+    function aviso(texto) {
+      if (el) el.innerHTML = '<div style="padding:28px 10px;text-align:center;font-size:12px;color:#64748b">' + texto + '</div>';
+      listo();
+    }
+    try {
+      var datosEl = document.getElementById('mapa-datos');
+      var datos = datosEl ? JSON.parse(datosEl.textContent) : null;
+      var puntos = (datos && datos.puntos) ? datos.puntos : [];
+      if (!el || !puntos.length) { aviso('Ninguno de los códigos tiene ubicación GPS disponible.'); return; }
+      var W = el.clientWidth || 416, H = el.clientHeight || 240;
+
+      function mundoPx(lat, lon, z) {
+        var tam = TESELA * Math.pow(2, z);
+        var s = Math.sin(lat * Math.PI / 180);
+        return { x: (lon + 180) / 360 * tam, y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * tam };
+      }
+
+      // Zoom: el mayor en el que todos los puntos entran con margen (un solo punto -> 15).
+      var z = 15;
+      if (puntos.length > 1) {
+        for (z = 17; z > 2; z--) {
+          var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          puntos.forEach(function (p) {
+            var m = mundoPx(p.lat, p.lon, z);
+            minX = Math.min(minX, m.x); maxX = Math.max(maxX, m.x); minY = Math.min(minY, m.y); maxY = Math.max(maxY, m.y);
+          });
+          if ((maxX - minX) <= W - 2 * MARGEN && (maxY - minY) <= H - 2 * MARGEN) break;
+        }
+      }
+      var cx = 0, cy = 0, minX2 = Infinity, maxX2 = -Infinity, minY2 = Infinity, maxY2 = -Infinity;
+      puntos.forEach(function (p) {
+        var m = mundoPx(p.lat, p.lon, z);
+        minX2 = Math.min(minX2, m.x); maxX2 = Math.max(maxX2, m.x); minY2 = Math.min(minY2, m.y); maxY2 = Math.max(maxY2, m.y);
+      });
+      cx = (minX2 + maxX2) / 2; cy = (minY2 + maxY2) / 2;
+      var ox = cx - W / 2, oy = cy - H / 2;           // esquina superior izquierda del recuadro, en pixeles del mundo
+
+      el.style.position = 'relative';
+      el.style.overflow = 'hidden';
+      el.style.background = '#e2e8f0';
+
+      // Teselas
+      var n = Math.pow(2, z), pendientes = 0, errores = 0, total = 0, terminado = false;
+      function terminar() { if (terminado) return; terminado = true; if (total && errores === total) { var nota = document.createElement('div'); nota.textContent = 'Mapa base no disponible (sin conexión)'; nota.style.cssText = 'position:absolute;left:0;right:0;top:8px;text-align:center;font-size:11px;color:#64748b'; el.appendChild(nota); } listo(); }
+      function alTerminarTesela(fallo) { if (fallo) errores++; pendientes--; if (pendientes <= 0) terminar(); }
+      for (var tx = Math.floor(ox / TESELA); tx <= Math.floor((ox + W) / TESELA); tx++) {
+        for (var ty = Math.floor(oy / TESELA); ty <= Math.floor((oy + H) / TESELA); ty++) {
+          if (ty < 0 || ty >= n) continue;
+          // +1 px de ancho/alto: las baldosas se superponen 1 px para que html2canvas no deje una linea clara entre filas/columnas (la posicion NO cambia)
+          var img = document.createElement('img');
+          img.crossOrigin = 'anonymous';
+          img.alt = '';
+          img.style.cssText = 'position:absolute;display:block;width:' + (TESELA + 1) + 'px;height:' + (TESELA + 1) + 'px;max-width:none;left:' + Math.round(tx * TESELA - ox) + 'px;top:' + Math.round(ty * TESELA - oy) + 'px';
+          pendientes++; total++;
+          img.onload = function () { alTerminarTesela(false); };
+          img.onerror = function () { alTerminarTesela(true); };
+          img.src = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/' + z + '/' + ty + '/' + (((tx % n) + n) % n);
+          el.appendChild(img);
+        }
+      }
+
+      // Marcadores: misma funcion mundoPx que las teselas. Si varios codigos tienen
+      // exactamente la misma posicion (mismo evento), se abren en abanico unos pixeles
+      // para que se vean todos los colores en vez de quedar uno tapando a los demas.
+      var grupos = {};
+      puntos.forEach(function (p) { var k = p.lat.toFixed(5) + ',' + p.lon.toFixed(5); (grupos[k] = grupos[k] || []).push(p); });
+      Object.keys(grupos).forEach(function (k) {
+        var g = grupos[k];
+        g.forEach(function (p, i) {
+          var m = mundoPx(p.lat, p.lon, z);
+          var dx = 0, dy = 0;
+          if (g.length > 1) { var ang = (2 * Math.PI * i) / g.length - Math.PI / 2; dx = Math.cos(ang) * (RADIO * 0.9); dy = Math.sin(ang) * (RADIO * 0.9); }
+          var pin = document.createElement('div');
+          pin.style.cssText = 'position:absolute;box-sizing:border-box;border-radius:50%;border:1.5px solid #1e293b;opacity:.92;z-index:5;' +
+            'width:' + (RADIO * 2) + 'px;height:' + (RADIO * 2) + 'px;' +
+            'left:' + Math.round(m.x - ox - RADIO + dx) + 'px;top:' + Math.round(m.y - oy - RADIO + dy) + 'px;' +
+            'background:' + (p.color || '#94a3b8');
+          el.appendChild(pin);
+        });
+      });
+
+      var atr = document.createElement('div');
+      atr.textContent = 'Tiles © Esri';
+      atr.style.cssText = 'position:absolute;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.8);color:#475569;font-size:9px;padding:1px 5px;border-top-left-radius:4px';
+      el.appendChild(atr);
+
+      if (!pendientes) terminar();
+      setTimeout(terminar, 6000);   // tope: si alguna tesela no responde, igual se captura
+    } catch (e) { aviso('No se pudo cargar el mapa.'); }
+  }
+  var SCRIPT_INIT_MAPA_CONSOLIDADO = '(' + scriptMapaConsolidado.toString() + ')();';
 
   // Arma el div del mapa + el JSON de puntos + el script de init, mismo patron
   // de slot que construirDondeHtml. Solo entran al mapa los grupos que SI
@@ -2163,7 +2654,7 @@ geotab.addin.alertasFallas = function () {
       return { lat: g.posicion.lat, lon: g.posicion.lon, color: COLOR_CATEGORIA_MAPA[g.categoria] || COLOR_CATEGORIA_MAPA.General };
     });
     var datosMapa = { puntos: puntos };
-    return '<div class="map-wrap"><div id="mapa" style="height:240px;border-radius:10px;overflow:hidden"></div></div>' +
+    return '<div class="map-wrap"><div id="mapa" style="height:300px;border-radius:10px;overflow:hidden"></div></div>' +
       '<script type="application/json" id="mapa-datos">' + JSON.stringify(datosMapa) + '</script>' +
       '<script>' + SCRIPT_INIT_MAPA_CONSOLIDADO + '</script>';
   }
@@ -2227,344 +2718,424 @@ geotab.addin.alertasFallas = function () {
   function generarExpedienteConsolidadoDesdeBoton(v, boton) {
     if (expedienteEnCurso) return;
     expedienteEnCurso = true;
-    var textoOriginal = boton.textContent;
     boton.disabled = true;
-    boton.textContent = '\u23f3 Generando\u2026';
+    var restaurar = marcarOcupado(boton);
     ensamblarYDescargarExpedienteConsolidado(v).catch(function (err) {
       console.error('Alertas (expediente consolidado):', err);
       alert('No se pudo generar el expediente consolidado: ' + ((err && err.message) || err));
     }).then(function () {
       expedienteEnCurso = false;
       boton.disabled = false;
-      boton.textContent = textoOriginal;
+      restaurar();
     });
   }
 
   var PLANTILLA_EXPEDIENTE_CONSOLIDADO_EMBEBIDA = "<!doctype html>\n<html lang=\"es\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Expediente Consolidado \u2014 Resumen de Fallas</title>\n<!-- Leaflet (mismo CDN/versi\u00f3n que reporte_expediente_plantilla.html) -- este HTML se\n     descarga y se abre fuera del sandbox del add-in, puede cargar librer\u00edas externas\n     por CDN sin problema de CSP. Si no hay internet cuando se abre, el script inline\n     de abajo detecta que \"L\" no existe y muestra un aviso sin romper el resto. -->\n<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css\">\n<script src=\"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js\"></script>\n<style>\n:root{--ink:#0b2454;--accent:#0891b2;--corp:#2563eb;--muted:#64748b;--border:#e2e8f0;--bg:#f1f5f9;--card:#ffffff;\n      --alta:#dc2626;--media:#f59e0b;--baja:#94a3b8;--good:#16a34a}\n*{box-sizing:border-box}\nbody{margin:0;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#1e293b;font-size:14px;display:flex;justify-content:center}\n.card{width:100%;max-width:480px;background:var(--card);border-radius:16px;padding:22px 20px 18px;box-shadow:0 1px 2px rgba(15,23,42,.05),0 8px 24px rgba(15,23,42,.06)}\n.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:750}\n.subtitulo{font-size:13px;font-weight:650;color:var(--ink);margin-top:2px}\n.titulo-movil{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.01em;margin:10px 0 2px}\n.titulo-movil .placa{font-size:14px;font-weight:650;color:var(--muted);margin-left:8px}\n.field-sub{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}\n.seccion-titulo{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:750;margin:18px 0 8px;border-top:1px solid var(--border);padding-top:14px}\ntable.dt{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px;table-layout:fixed}\ntable.dt th{text-align:left;padding:5px 4px;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--border);font-weight:750}\ntable.dt td{padding:6px 4px;border-bottom:1px solid var(--border);vertical-align:top;word-break:break-word;line-height:1.35}\ntable.dt th:nth-child(1), table.dt td:nth-child(1){width:58px}\ntable.dt th:nth-child(3), table.dt td:nth-child(3){width:50px;text-align:center}\ntable.dt th:nth-child(4), table.dt td:nth-child(4){width:28px;text-align:center}\ntable.dt th:nth-child(5), table.dt td:nth-child(5){width:62px}\ntable.dt th:nth-child(6), table.dt td:nth-child(6){width:72px;font-size:10px}\n.codigo-celda{font-family:'Courier New',monospace;font-weight:700;color:var(--accent)}\n.badge-cat{display:inline-block;padding:1px 7px;border-radius:999px;color:#fff;font-size:9px;font-weight:700;margin-top:3px}\n.badge-criticidad{display:inline-block;min-width:38px;text-align:center;padding:2px 6px;border-radius:999px;color:#fff;font-weight:700;font-size:9.5px}\n.sin-gps{font-style:italic;color:var(--muted);font-size:10px}\n.en-mapa{color:var(--muted);font-size:10px}\n.map-wrap{margin-top:6px}\n.leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:11px;color:#1e293b}\n.leyenda-item{display:flex;align-items:center;gap:6px}\n.leyenda-cuadro{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}\nfooter{text-align:center;color:var(--muted);font-size:10.5px;padding:16px 2px 2px;border-top:1px solid var(--border);margin-top:20px}\n@media print{ body{background:#fff;padding:0} .card{box-shadow:none;max-width:none} }\n</style>\n</head>\n<body>\n\n<div class=\"card\">\n\n  <header>\n    <div class=\"eyebrow\">Telemetry &amp; Fleet Intelligence</div>\n    <div class=\"subtitulo\">Expediente consolidado de fallas</div>\n  </header>\n\n  <h1 class=\"titulo-movil\">M\u00d3VIL {{MOVIL}} <span class=\"placa\">{{PLACA}}</span></h1>\n  <div class=\"field-sub\">{{CIUDAD}} \u00b7 {{MARCA}} \u00b7 Motor: {{REFERENCIA_MOTOR}} ({{N_MOTOR}})</div>\n\n  <div class=\"seccion-titulo\">Resumen de c\u00f3digos activos ({{TOTAL_CODIGOS}})</div>\n  <table class=\"dt\">\n    <thead>\n      <tr><th>C\u00f3digo</th><th>Descripci\u00f3n</th><th>Criticidad</th><th>Veces</th><th>Ubicaci\u00f3n</th><th>\u00daltimo reporte</th></tr>\n    </thead>\n    <tbody id=\"resumen-filas-slot\"></tbody>\n  </table>\n\n  <div class=\"seccion-titulo\">Ubicaci\u00f3n de los c\u00f3digos</div>\n  <div id=\"mapa-slot\"></div>\n\n  <div class=\"leyenda\" id=\"leyenda-slot\"></div>\n\n  <footer>Generado {{GENERADO}}</footer>\n\n</div>\n\n</body>\n</html>\n";
 
+  // Pastilla de un código activo en Geotab que lleva días sin reportarse (ver agregarConfirmacion).
+  function crearPildoraPorVerificar(it) {
+    var p = crear('span', {
+      display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '0.64rem', fontWeight: '700',
+      letterSpacing: '0.04em', textTransform: 'uppercase', color: D.textSoft, cursor: 'help',
+      background: 'rgba(148,163,184,0.10)', border: '1px dashed ' + D.borderStrong,
+      whiteSpace: 'normal', maxWidth: '88px', textAlign: 'center', lineHeight: '1.25'   // las etiquetas largas pasan a dos líneas en vez de invadir la columna siguiente
+    }, etiquetaConfirmacion(it));
+    if (it.tipoSE === 'dispositivo') { p.style.color = D.naranja; p.style.borderColor = D.naranja; p.style.background = 'rgba(250,173,20,0.10)'; }
+    p.title = textoSinConfirmar(it);
+    return p;
+  }
+
   function crearPildoraCriticidad(criticidad) {
+    var estilo = ESTILO_NIVEL[criticidad] || ESTILO_NIVEL.BAJA;
     return crear('span', {
-      display: 'inline-block', minWidth: '46px', textAlign: 'center', padding: '3px 10px',
-      borderRadius: T.radius.pill, background: COLOR_POR_CRITICIDAD[criticidad] || T.color.muted,
-      color: '#FFFFFF', fontWeight: '700', fontSize: '0.72rem'
+      display: 'inline-block', minWidth: '48px', textAlign: 'center', padding: '2px 10px', borderRadius: '4px',
+      background: estilo.fondo, color: estilo.texto, border: '1px solid ' + estilo.borde,
+      fontWeight: '700', fontSize: '0.66rem', letterSpacing: '0.06em', textTransform: 'uppercase'
     }, criticidad);
   }
 
-  // Badge de estado (Activo/Inactivo) para la fila -- en "Mas reciente primero"
-  // hoy siempre sale 'Activo' porque esta vista solo trae fallas con
-  // faultState==='Active' (a proposito, a pedido del usuario); el badge queda
-  // igual como confirmacion visual explicita en vez de solo inferirlo.
+  // Estado de la falla: hoy esta vista solo trae fallas con faultState==='Active'
+  // (a propósito, a pedido del usuario), así que solo se pinta cuando NO está
+  // activa -- una pastilla "Activo" en cada fila era ruido.
   function crearPildoraEstadoActivo(activo) {
     return crear('span', {
-      display: 'inline-block', padding: '2px 8px', borderRadius: T.radius.pill,
-      background: activo ? '#DCFCE7' : '#F1F5F9', color: activo ? '#15803D' : '#64748B',
-      fontWeight: '700', fontSize: '0.68rem', marginLeft: '6px'
+      display: 'inline-block', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px',
+      background: 'rgba(148,163,184,0.14)', color: D.muted, fontWeight: '700', fontSize: '0.64rem',
+      letterSpacing: '0.04em', textTransform: 'uppercase'
     }, activo ? 'Activo' : 'Inactivo');
   }
 
-  function crearTarjetaVehiculo(v) {
-    var tarjeta = crearPanel({ marginBottom: '12px', overflow: 'hidden' });
+  var NOMBRE_TURNO = { T1: 'Mañana (05:00–12:59)', T2: 'Tarde (13:00–20:59)', T3: 'Noche (21:00–04:59)' };
 
-    var cabecera = crear('div', {
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
-      background: T.color.vehiculoHeader, padding: '10px 16px'
+  // Botón de icono de la columna Acciones: tenue en reposo, se enciende al pasar
+  // por la fila (ver construirFilaFalla) y al enfocarlo con el teclado.
+  function crearAccion(icono, titulo, tag) {
+    var el = crear(tag || 'button', {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', borderRadius: '6px',
+      background: 'transparent', border: 'none', color: D.muted, cursor: 'pointer', textDecoration: 'none',
+      transition: 'color 0.15s, transform 0.15s, background 0.15s'
+    });
+    if (!tag || tag === 'button') el.type = 'button';
+    el.title = titulo;
+    el.setAttribute('aria-label', titulo);
+    el.setAttribute('data-compacto', '1');
+    el.appendChild(crearIcono(icono, '17px'));
+    function encender() { aplicarEstilo(el, { color: D.verde, transform: 'scale(1.12)', background: 'rgba(0,208,132,0.10)' }); }
+    function apagar() { aplicarEstilo(el, { color: D.muted, transform: 'scale(1)', background: 'transparent' }); }
+    el.addEventListener('mouseenter', encender);
+    el.addEventListener('mouseleave', apagar);
+    el.addEventListener('focus', encender);
+    el.addEventListener('blur', apagar);
+    return el;
+  }
+
+  var ESTILO_CELDA = { padding: '10px 14px', borderBottom: '1px solid ' + D.border, verticalAlign: 'middle' };
+
+  function celdaFalla(estilos, contenido) {
+    var td = crear('td', ESTILO_CELDA);
+    if (estilos) aplicarEstilo(td, estilos);
+    if (contenido !== undefined && contenido !== null) {
+      if (typeof contenido === 'string') td.textContent = contenido; else td.appendChild(contenido);
+    }
+    return td;
+  }
+
+  // Una falla = dos <tr> (la fila y, debajo, el historial desplegable). La usan
+  // la vista cronológica (con columna Vehículo) y las tarjetas por vehículo.
+  // opciones.conVehiculo: agrega la columna Vehículo (clic = filtrar por él).
+  function construirFilaFalla(it, opciones) {
+    var apagada = !!it.sinConfirmar;   // por verificar: se ve atenuada y sin el tinte de alarma
+    var estilo = ESTILO_NIVEL[apagada ? 'BAJA' : it.criticidad] || ESTILO_NIVEL.BAJA;
+    var conVehiculo = !!(opciones && opciones.conVehiculo);
+    var columnas = conVehiculo ? 9 : 8;
+    var esBaja = it.criticidad === 'BAJA' || apagada;
+
+    var fila = crear('tr', { background: estilo.fila, transition: 'background 0.15s' });
+
+    var celdaFecha = celdaFalla({
+      whiteSpace: 'nowrap', color: esBaja ? D.muted : D.textSoft,
+      borderLeft: '3px solid ' + (esBaja ? 'transparent' : estilo.color)
+    }, fechaCorta(it.fecha));
+    celdaFecha.title = formatearFechaHora(it.fecha);
+    if (apagada) {
+      celdaFecha.appendChild(crear('div', { fontSize: '0.68rem', color: D.faint, marginTop: '2px' },
+        'hace ' + textoAntiguedad(it.horasSinReporte) + (it.kmDesde !== null && it.kmDesde !== undefined ? ' · ' + Math.round(it.kmDesde) + ' km' : '')));
+    }
+    fila.appendChild(celdaFecha);
+
+    if (conVehiculo) {
+      var botonVehiculo = crear('button', {
+        background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', fontFamily: T.font,
+        fontSize: '0.82rem', fontWeight: '700', color: esBaja ? D.textSoft : '#FFFFFF', whiteSpace: 'nowrap'
+      }, it.claveVehiculo);
+      botonVehiculo.type = 'button';
+      botonVehiculo.title = 'Ver solo este vehículo';
+      botonVehiculo.addEventListener('mouseenter', function () { botonVehiculo.style.textDecoration = 'underline'; });
+      botonVehiculo.addEventListener('mouseleave', function () { botonVehiculo.style.textDecoration = 'none'; });
+      botonVehiculo.addEventListener('click', function () {
+        filtroEstado.vehiculo = it.claveVehiculo;
+        if (barraFiltrosRefs) barraFiltrosRefs.mostrarChipVehiculo(it.claveVehiculo);
+        actualizarVista();
+      });
+      fila.appendChild(celdaFalla(null, botonVehiculo));
+    }
+
+    var celdaNivel = celdaFalla({ whiteSpace: 'nowrap', textAlign: 'center' });
+    var pildoraNivel = crearPildoraCriticidad(it.criticidad);
+    if (apagada) pildoraNivel.style.opacity = '0.45';
+    celdaNivel.appendChild(pildoraNivel);
+    if (apagada) {
+      celdaNivel.appendChild(crear('div', { marginTop: '4px' })).appendChild(crearPildoraPorVerificar(it));
+      if (it.tipoSE === 'dispositivo') celdaNivel.appendChild(crear('div', { fontSize: '0.64rem', color: D.naranja, marginTop: '3px' }, it.motivoCorto));
+    }
+    if (!it.activo) celdaNivel.appendChild(crearPildoraEstadoActivo(false));
+    fila.appendChild(celdaNivel);
+
+    fila.appendChild(celdaFalla({
+      fontFamily: "'Courier New', monospace", fontSize: '0.76rem', color: esBaja ? '#7AA6D6' : D.azul,
+      fontWeight: '700', whiteSpace: 'nowrap'
+    }, 'SPN ' + it.spn + '/FMI ' + it.fmi));
+
+    fila.appendChild(celdaFalla({
+      whiteSpace: 'nowrap', color: esBaja ? D.muted : D.textSoft, fontWeight: it.destacado ? '700' : '400'
+    }, it.categoria));
+
+    // Los sistemas críticos (ABS, neumáticos, postratamiento, motor) siguen
+    // resaltándose, igual que en el PDF de Telegram: ahora en negrita sobre el
+    // color del nivel, ya no todo en mayúsculas.
+    fila.appendChild(celdaFalla({
+      color: estilo.descripcion, fontWeight: it.destacado ? '700' : '500', lineHeight: '1.35'
+    }, it.nombreFalla));
+
+    var celdaTurno = celdaFalla({ textAlign: 'center', color: D.muted }, it.turno || '—');
+    if (it.turno && NOMBRE_TURNO[it.turno]) celdaTurno.title = NOMBRE_TURNO[it.turno];
+    fila.appendChild(celdaTurno);
+
+    var partesVeh = codigoYPlacaDeNombre(it.nombreVehiculo);
+    var conductor = buscarConductor(it.placa || partesVeh.placa, partesVeh.codigo, it.fecha);
+    fila.appendChild(celdaFalla({
+      color: !conductor ? D.faint : (conductor.aproximado ? '#F59E0B' : D.textSoft),
+      fontStyle: conductor ? 'normal' : 'italic', fontSize: '0.78rem'
+    }, textoConductorConGrupo(conductor)));
+
+    // --- Acciones ---
+    var grupoAcciones = crear('div', { display: 'flex', justifyContent: 'center', gap: '2px', opacity: '0.45', transition: 'opacity 0.15s' });
+    var enlaceCausa = crearAccion('buscar', 'Buscar causa raíz', 'a');
+    enlaceCausa.href = urlBusquedaCausa(it.spn, it.fmi);
+    enlaceCausa.target = '_blank';
+    enlaceCausa.rel = 'noopener noreferrer';
+    grupoAcciones.appendChild(enlaceCausa);
+
+    var filaHistorial = crear('tr');
+    var celdaHistorial = crear('td', { padding: '0 14px 10px 14px', borderBottom: '1px solid ' + D.border, background: estilo.fila });
+    celdaHistorial.colSpan = columnas;
+    filaHistorial.appendChild(celdaHistorial);
+    filaHistorial.hidden = true;
+
+    var botonHistorial = crearAccion('historial', 'Ver historial del código');
+    botonHistorial.setAttribute('aria-expanded', 'false');
+    var cargado = false;
+    botonHistorial.addEventListener('click', function () {
+      filaHistorial.hidden = !filaHistorial.hidden;
+      botonHistorial.setAttribute('aria-expanded', filaHistorial.hidden ? 'false' : 'true');
+      if (!filaHistorial.hidden && !cargado) {
+        cargado = true;
+        var panelHist = crearPanelHistorial();
+        celdaHistorial.appendChild(panelHist);
+        obtenerHistorialFalla(it.idVehiculo, it.idDiagnostico, it.idFailureMode).then(function (historial) {
+          llenarPanelHistorial(panelHist, historial);
+        });
+      }
+    });
+    grupoAcciones.appendChild(botonHistorial);
+
+    // Mini Expediente (2026-10-01): la fila YA ES la selección completa
+    // (vehículo+diagnóstico+failureMode+fecha) -- sin picker, un clic basta.
+    var botonExpediente = crearAccion('expediente', 'Generar expediente');
+    botonExpediente.addEventListener('click', function () { generarExpedienteDesdeFila(it, botonExpediente); });
+    grupoAcciones.appendChild(botonExpediente);
+
+    fila.appendChild(celdaFalla({ textAlign: 'center', whiteSpace: 'nowrap' }, grupoAcciones));
+
+    function resaltarFila() { fila.style.background = estilo.filaHover; grupoAcciones.style.opacity = '1'; }
+    function normalizarFila() { fila.style.background = estilo.fila; grupoAcciones.style.opacity = '0.45'; }
+    fila.addEventListener('mouseenter', resaltarFila);
+    fila.addEventListener('mouseleave', normalizarFila);
+    fila.addEventListener('focusin', resaltarFila);
+    fila.addEventListener('focusout', normalizarFila);
+
+    return { fila: fila, filaHistorial: filaHistorial };
+  }
+
+  // Tabla de fallas (cabecera fija al desplazar). filas: ítems ya filtrados/ordenados.
+  function construirTablaFallas(filas, conVehiculo) {
+    var titulos = conVehiculo
+      ? ['Fecha / Hora', 'Vehículo', 'Nivel', 'Código SPN/FMI', 'Sistema', 'Descripción del diagnóstico', 'Turno', 'Conductor', 'Acciones']
+      : ['Fecha / Hora', 'Nivel', 'Código SPN/FMI', 'Sistema', 'Descripción del diagnóstico', 'Turno', 'Conductor', 'Acciones'];
+    var centrados = { 'Nivel': true, 'Turno': true, 'Acciones': true };
+
+    // Anchos fijos por columna: así todas las tablas (una por vehículo) quedan
+    // alineadas entre sí, y la Descripción se queda con el resto. Por debajo de
+    // minWidth la tabla se desplaza en horizontal dentro de su tarjeta.
+    var ANCHO_COLUMNA = {
+      'Fecha / Hora': 120, 'Vehículo': 170, 'Nivel': 116, 'Código SPN/FMI': 150, 'Sistema': 160,
+      'Turno': 64, 'Conductor': 150, 'Acciones': 120
+    };
+    var anchoFijo = 0;
+    titulos.forEach(function (titulo) { anchoFijo += ANCHO_COLUMNA[titulo] || 0; });
+
+    var envoltorio = crear('div', { overflow: 'auto', maxHeight: conVehiculo ? '68vh' : 'none' });
+    envoltorio.setAttribute('data-scroll', 'tabla'); // el refresco automático conserva su posición
+    var tabla = crear('table', {
+      width: '100%', minWidth: (anchoFijo + 320) + 'px', tableLayout: 'fixed',
+      borderCollapse: 'separate', borderSpacing: '0', fontSize: '0.82rem', textAlign: 'left'
+    });
+    var grupoColumnas = crear('colgroup');
+    titulos.forEach(function (titulo) {
+      var col = crear('col');
+      if (ANCHO_COLUMNA[titulo]) col.style.width = ANCHO_COLUMNA[titulo] + 'px';
+      grupoColumnas.appendChild(col);
+    });
+    tabla.appendChild(grupoColumnas);
+    var cabecera = crear('thead');
+    var filaCabecera = crear('tr');
+    titulos.forEach(function (titulo) {
+      filaCabecera.appendChild(crear('th', {
+        position: 'sticky', top: '0', zIndex: '2', background: D.panelAlt, color: D.muted,
+        padding: '10px 14px', borderBottom: '1px solid ' + D.borderStrong, fontSize: '0.68rem', fontWeight: '600',
+        textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+        textAlign: centrados[titulo] ? 'center' : 'left'
+      }, titulo));
+    });
+    cabecera.appendChild(filaCabecera);
+    tabla.appendChild(cabecera);
+
+    var cuerpo = crear('tbody');
+    filas.forEach(function (it) {
+      var par = construirFilaFalla(it, { conVehiculo: conVehiculo });
+      cuerpo.appendChild(par.fila);
+      cuerpo.appendChild(par.filaHistorial);
+    });
+    tabla.appendChild(cuerpo);
+    envoltorio.appendChild(tabla);
+    return envoltorio;
+  }
+
+  function crearTarjetaVehiculo(v) {
+    var estiloVeh = ESTILO_NIVEL[v.criticidad] || ESTILO_NIVEL.BAJA;
+    var tarjeta = crear('div', {
+      marginBottom: '12px', overflow: 'hidden', background: D.panel, border: '1px solid ' + D.border,
+      borderLeft: '4px solid ' + (v.criticidad === 'BAJA' ? D.borderStrong : estiloVeh.color), borderRadius: T.radius.sm
     });
 
-    var infoVehiculo = crear('div', { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' });
-    infoVehiculo.appendChild(crear('span', { fontWeight: '700', fontStyle: 'italic', color: T.color.textoOscuro, fontSize: '0.9rem' },
-      'Placa: ' + v.claveVehiculo));
-    // CAMBIO (2026-10-02, pedido explícito -- más contraste): antes
-    // T.color.textoGris (#6B7280, casi no se notaba sobre el fondo gris-azul de
-    // la cabecera) -- ahora un gris oscuro real (#334155), fuente más grande e
-    // iconos sutiles (📍 ciudad, ⚙️ motor) para que esta línea no quede
-    // perdida al lado de la placa en negrita.
-    infoVehiculo.appendChild(crear('span', { color: '#334155', fontSize: '0.86rem', fontWeight: '600' },
-      '📍 ' + v.ciudad + ' | ' + v.marca + ' | ⚙️ Motor: ' + v.referenciaMotor + ' (' + v.nMotor + ')'));
-    cabecera.appendChild(infoVehiculo);
+    var cabecera = crear('div', {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+      background: D.panelAlt, padding: '12px 16px', borderBottom: '1px solid ' + D.border
+    });
 
-    // Expediente Consolidado (2026-10-02, pedido explícito): a diferencia de
-    // "📋 Generar expediente" (una fila = un código), este botón vive en la
-    // cabecera porque opera sobre TODO v.items del vehículo, no sobre una fila
-    // puntual de la tabla.
+    var info = crear('div', { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' });
+    info.appendChild(crear('span', { fontWeight: '700', color: '#FFFFFF', fontSize: '1rem' }, v.claveVehiculo));
+    info.appendChild(v.soloPorVerificar ? crearPildoraPorVerificar(v.items[0]) : crearPildoraCriticidad(v.criticidad));
+    info.appendChild(crear('span', { color: D.muted, fontSize: '0.8rem' },
+      v.ciudad + ' · ' + v.marca + ' · Motor: ' + v.referenciaMotor + ' (' + v.nMotor + ')'));
+    info.appendChild(crear('span', { color: D.faint, fontSize: '0.76rem' },
+      v.items.length + (v.items.length === 1 ? ' código' : ' códigos')));
+    cabecera.appendChild(info);
+
+    // Expediente Consolidado (2026-10-02): a diferencia de "Generar expediente" (una
+    // fila = un código), este botón opera sobre TODO v.items del vehículo.
     var botonConsolidado = crear('button', {
-      padding: '6px 12px', borderRadius: T.radius.sm, border: 'none',
-      background: T.color.primary, color: '#FFFFFF', fontWeight: '700', fontSize: '0.76rem',
-      cursor: 'pointer', whiteSpace: 'nowrap'
-    }, '📊 Generar Expediente Consolidado');
+      display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 12px', cursor: 'pointer',
+      background: 'transparent', color: D.verde, border: '1px solid rgba(0,208,132,0.5)', borderRadius: T.radius.sm,
+      fontWeight: '700', fontSize: '0.76rem', fontFamily: T.font, whiteSpace: 'nowrap'
+    });
+    botonConsolidado.type = 'button';
+    botonConsolidado.appendChild(crearIcono('capas', '15px'));
+    botonConsolidado.appendChild(crear('span', {}, 'Expediente consolidado'));
+    botonConsolidado.addEventListener('mouseenter', function () { botonConsolidado.style.background = 'rgba(0,208,132,0.12)'; });
+    botonConsolidado.addEventListener('mouseleave', function () { botonConsolidado.style.background = 'transparent'; });
     botonConsolidado.addEventListener('click', function () { generarExpedienteConsolidadoDesdeBoton(v, botonConsolidado); });
     cabecera.appendChild(botonConsolidado);
 
     tarjeta.appendChild(cabecera);
-
-    var tabla = crear('table', { width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' });
-    var encabezadoTabla = crear('tr');
-    ['Nivel', 'Código', 'Sistema', 'Descripción del diagnóstico', 'Fecha reporte', 'Turno', 'Conductor', ''].forEach(function (titulo) {
-      encabezadoTabla.appendChild(crear('th', {
-        textAlign: 'left', padding: '8px 10px', fontSize: '0.72rem', textTransform: 'uppercase',
-        color: T.color.textoGris, borderBottom: '1px solid ' + T.color.border
-      }, titulo));
-    });
-    tabla.appendChild(encabezadoTabla);
-
-    v.items.forEach(function (it) {
-      var fila = crear('tr');
-      var celdaNivelVeh = crear('td', { padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, whiteSpace: 'nowrap' });
-      celdaNivelVeh.appendChild(crearPildoraCriticidad(it.criticidad));
-      celdaNivelVeh.appendChild(crearPildoraEstadoActivo(!!it.activo));
-      fila.appendChild(celdaNivelVeh);
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, fontFamily: "'Courier New', monospace",
-        color: '#0284C7', fontWeight: '700', whiteSpace: 'nowrap'
-      }, 'SPN ' + it.spn + '/FMI ' + it.fmi));
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, fontWeight: '700', color: T.color.textoOscuro
-      }, it.categoria));
-
-      var celdaDescripcion = crear('td', { padding: '8px 10px', borderBottom: '1px solid ' + T.color.border });
-      var textoDescripcion = it.destacado ? it.nombreFalla.toUpperCase() : it.nombreFalla;
-      celdaDescripcion.appendChild(crear('span', {
-        color: it.destacado ? COLOR_DESTACADO : T.color.textoOscuro,
-        fontWeight: it.destacado ? '700' : '400'
-      }, textoDescripcion));
-      fila.appendChild(celdaDescripcion);
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, color: T.color.textoGris, whiteSpace: 'nowrap'
-      }, formatearFechaHora(it.fecha)));
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, color: T.color.textoGris, whiteSpace: 'nowrap'
-      }, it.turno || '—'));
-
-      var partesVeh = codigoYPlacaDeNombre(it.nombreVehiculo);
-      var resultadoConductor = buscarConductor(it.placa || partesVeh.placa, partesVeh.codigo, it.fecha);
-      var colorConductor = !resultadoConductor ? T.color.muted : (resultadoConductor.aproximado ? '#B45309' : T.color.textoOscuro);
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border,
-        color: colorConductor, fontStyle: resultadoConductor ? 'normal' : 'italic'
-      }, textoConductorConGrupo(resultadoConductor)));
-
-      var celdaBuscar = crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, whiteSpace: 'nowrap',
-        display: 'flex', gap: '10px', alignItems: 'center'
-      });
-      var link = crear('a', { color: T.color.primaryDark, fontSize: '0.75rem', fontWeight: '600' }, '🔍 Buscar causa');
-      link.href = urlBusquedaCausa(it.spn, it.fmi);
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      celdaBuscar.appendChild(link);
-
-      var filaHistorial = crear('tr');
-      var celdaHistorial = crear('td', { padding: '0 10px 10px 10px', borderBottom: '1px solid ' + T.color.border });
-      celdaHistorial.colSpan = 8;
-      filaHistorial.appendChild(celdaHistorial);
-      filaHistorial.hidden = true;
-
-      var linkHistorial = crear('a', { color: T.color.textoGris, fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }, '🕘 Ver historial');
-      var cargado = false;
-      linkHistorial.addEventListener('click', function () {
-        filaHistorial.hidden = !filaHistorial.hidden;
-        if (!filaHistorial.hidden && !cargado) {
-          cargado = true;
-          var panel = crearPanelHistorial();
-          celdaHistorial.appendChild(panel);
-          obtenerHistorialFalla(it.idVehiculo, it.idDiagnostico, it.idFailureMode).then(function (historial) {
-            llenarPanelHistorial(panel, historial);
-          });
-        }
-      });
-      celdaBuscar.appendChild(linkHistorial);
-
-      // Mini Expediente (2026-10-01): la fila YA ES la selección completa
-      // (vehículo+diagnóstico+failureMode+fecha) -- sin picker, un clic basta.
-      var linkExpediente = crear('a', { color: T.color.primaryDark, fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }, '📋 Generar expediente');
-      linkExpediente.addEventListener('click', function () { generarExpedienteDesdeFila(it, linkExpediente); });
-      celdaBuscar.appendChild(linkExpediente);
-
-      fila.appendChild(celdaBuscar);
-
-      tabla.appendChild(fila);
-      tabla.appendChild(filaHistorial);
-    });
-
-    tarjeta.appendChild(tabla);
+    tarjeta.appendChild(construirTablaFallas(v.items, false));
     return tarjeta;
   }
 
   // --- Render principal --------------------------------------------------
-  function renderizarResultados(contenedor, resultado) {
-    while (contenedor.firstChild) contenedor.removeChild(contenedor.firstChild);
+  function crearEstadoVacio(texto, color) {
+    return crear('div', { padding: '34px 22px', textAlign: 'center', fontSize: '0.9rem', fontWeight: '600', color: color || D.muted }, texto);
+  }
 
-    var vehiculosFiltrados = aplicarFiltros(resultado.vehiculos);
+  function construirCabeceraResultados(totalFilas, totalVehiculos) {
+    var cabecera = crear('div', {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+      padding: '12px 16px', background: D.panelAlt, borderBottom: '1px solid ' + D.border
+    });
+    var titulo = crear('div', { display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' });
+    titulo.appendChild(crear('span', { fontWeight: '700', color: '#FFFFFF', fontSize: '0.95rem' }, 'Fallas activas'));
+    titulo.appendChild(crear('span', { color: D.muted, fontSize: '0.78rem' },
+      totalFilas + (totalFilas === 1 ? ' código' : ' códigos') + ' · ' + totalVehiculos + (totalVehiculos === 1 ? ' vehículo' : ' vehículos') +
+      (tieneFiltrosActivos() ? ' (con filtros)' : '')));
+    cabecera.appendChild(titulo);
+
+    // Alternador de vista: tarjetas por vehículo (orden por criticidad, diseño del
+    // PDF) vs. lista cronológica de toda la flota (la más reciente arriba).
+    var grupo = crear('div', { display: 'inline-flex', border: '1px solid ' + D.borderStrong, borderRadius: T.radius.sm, overflow: 'hidden' });
+    [['vehiculo', 'Por vehículo'], ['cronologico', 'Más recientes primero']].forEach(function (par) {
+      var activo = modoVista === par[0];
+      var boton = crear('button', {
+        padding: '6px 14px', border: 'none', cursor: 'pointer', fontFamily: T.font, fontSize: '0.76rem', fontWeight: '700',
+        background: activo ? D.verde : 'transparent', color: activo ? '#06210F' : D.textSoft
+      }, par[1]);
+      boton.type = 'button';
+      boton.setAttribute('aria-pressed', activo ? 'true' : 'false');
+      boton.addEventListener('click', function () {
+        if (modoVista === par[0]) return;
+        modoVista = par[0];
+        guardarModoVista(modoVista);
+        actualizarVista();
+      });
+      grupo.appendChild(boton);
+    });
+    cabecera.appendChild(grupo);
+    return cabecera;
+  }
+
+  function construirPieResultados(totalOcultas) {
+    var pie = crear('div', {
+      display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px 18px',
+      padding: '10px 16px', background: D.panelAlt, borderTop: '1px solid ' + D.border, fontSize: '0.74rem', color: D.muted
+    });
+    pie.appendChild(crear('span', {}, totalOcultas > 0
+      ? 'Filtro activo: ocultadas ' + totalOcultas + ' falla(s) de conectividad telemática y diagnósticos sin nombre reconocible que no aportan al mantenimiento.'
+      : 'Sin fallas ocultas por conectividad.'));
+    pie.appendChild(crear('span', {}, textoEstadoTripulaciones()));
+    return pie;
+  }
+
+  function renderizarResultados(contenedor, resultado) {
+    limpiarNodo(contenedor);
+
+    // Los KPI cuentan TODA la flota con fallas, sin filtros (igual que el resumen anterior).
+    if (elementos.kpis) elementos.kpis.pintar(resultado.vehiculos);
 
     if (resultado.vehiculos.length === 0) {
       // Puerto de las dos ramas distintas en generar_pdf_reporte_fallas: "nada
-      // paso" (exito) vs "algo paso pero todo era irrelevante" (aclarar cuanto
-      // se oculto, no mostrar el mensaje de exito que seria enganoso).
-      var panelVacio = crearPanel({ padding: '30px', textAlign: 'center' });
-      if (resultado.totalOcultas > 0) {
-        panelVacio.appendChild(crear('div', { color: T.color.body, fontWeight: '700', fontSize: '0.9rem' },
-          'No hay fallas activas relevantes en este momento (se ocultaron ' + resultado.totalOcultas +
-          ' de conectividad/diagnóstico desconocido).'));
-      } else {
-        panelVacio.appendChild(crear('div', { color: T.color.primaryDark, fontWeight: '700', fontSize: '0.9rem' },
-          '✅ No hay fallas activas en este momento. ¡Excelente!'));
-      }
+      // pasó" (éxito) vs "algo pasó pero todo era irrelevante" (aclarar cuánto
+      // se ocultó, no mostrar el mensaje de éxito que sería engañoso).
+      var panelVacio = crear('div', { background: D.panel, border: '1px solid ' + D.border, borderRadius: T.radius.sm });
+      panelVacio.appendChild(resultado.totalOcultas > 0
+        ? crearEstadoVacio('No hay fallas activas relevantes en este momento (se ocultaron ' + resultado.totalOcultas +
+            ' de conectividad/diagnóstico desconocido).', D.textSoft)
+        : crearEstadoVacio('✅ No hay fallas activas en este momento. ¡Excelente!', D.verde));
       contenedor.appendChild(panelVacio);
       return;
     }
 
-    construirResumen(contenedor, resultado.vehiculos, resultado.totalOcultas);
+    var vehiculosFiltrados = aplicarFiltros(resultado.vehiculos);
+    var filas = aplanarFallas(vehiculosFiltrados);
+
+    var panel = crear('div', { background: D.panel, border: '1px solid ' + D.border, borderRadius: T.radius.sm, overflow: 'hidden', boxShadow: D.sombra });
+    panel.appendChild(construirCabeceraResultados(filas.length, vehiculosFiltrados.length));
 
     if (vehiculosFiltrados.length === 0) {
-      var vacio = crearPanel({ padding: '24px', textAlign: 'center' });
-      vacio.appendChild(crear('div', { color: T.color.body, fontSize: '0.85rem' },
-        'Ningún vehículo coincide con los filtros actuales.' + (tieneFiltrosActivos() ? ' Probá quitando alguno.' : '')));
-      contenedor.appendChild(vacio);
-      return;
+      panel.appendChild(crearEstadoVacio('Ningún vehículo coincide con los filtros actuales.' +
+        (tieneFiltrosActivos() ? ' Prueba quitando alguno.' : '')));
+    } else if (modoVista === 'cronologico') {
+      panel.appendChild(construirTablaFallas(filas, true));
+    } else {
+      // Una sola lista de tarjetas, ya ordenada (más crítico primero) desde agruparPorVehiculo.
+      var lista = crear('div', { padding: '12px 12px 0 12px' });
+      vehiculosFiltrados.forEach(function (v) { lista.appendChild(crearTarjetaVehiculo(v)); });
+      panel.appendChild(lista);
     }
 
-    if (modoVista === 'cronologico') {
-      var filas = aplanarFallas(vehiculosFiltrados);
-      contenedor.appendChild(construirTablaCronologica(filas));
-      return;
-    }
-
-    // Sin secciones por criticidad -- una sola lista de tarjetas, ya viene
-    // ordenada (mas critico primero) desde agruparPorVehiculo, igual que el PDF.
-    vehiculosFiltrados.forEach(function (v) { contenedor.appendChild(crearTarjetaVehiculo(v)); });
-  }
-
-  // --- Vista cronologica: todas las fallas filtradas en una sola tabla, la
-  // mas reciente arriba, con vehiculo por fila ya que no esta agrupado. -----
-  function construirTablaCronologica(filas) {
-    var panel = crearPanel({ marginBottom: '12px', overflow: 'hidden' });
-
-    if (filas.length === 0) {
-      panel.appendChild(crear('div', { padding: '24px', textAlign: 'center', color: T.color.body, fontSize: '0.85rem' },
-        'Ningún vehículo coincide con los filtros actuales.' + (tieneFiltrosActivos() ? ' Probá quitando alguno.' : '')));
-      return panel;
-    }
-
-    var tabla = crear('table', { width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' });
-    var encabezadoTabla = crear('tr');
-    ['Fecha', 'Vehículo', 'Nivel', 'Código', 'Sistema', 'Descripción del diagnóstico', 'Turno', 'Conductor', ''].forEach(function (titulo) {
-      encabezadoTabla.appendChild(crear('th', {
-        textAlign: 'left', padding: '8px 10px', fontSize: '0.72rem', textTransform: 'uppercase',
-        color: T.color.textoGris, borderBottom: '1px solid ' + T.color.border, background: T.color.vehiculoHeader
-      }, titulo));
-    });
-    tabla.appendChild(encabezadoTabla);
-
-    filas.forEach(function (it) {
-      var fila = crear('tr');
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, color: T.color.textoGris, whiteSpace: 'nowrap'
-      }, formatearFechaHora(it.fecha)));
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, fontStyle: 'italic', fontWeight: '600',
-        color: T.color.textoOscuro, whiteSpace: 'nowrap'
-      }, it.claveVehiculo));
-
-      var celdaNivel = crear('td', { padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, whiteSpace: 'nowrap' });
-      celdaNivel.appendChild(crearPildoraCriticidad(it.criticidad));
-      celdaNivel.appendChild(crearPildoraEstadoActivo(!!it.activo));
-      fila.appendChild(celdaNivel);
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, fontFamily: "'Courier New', monospace",
-        color: '#0284C7', fontWeight: '700', whiteSpace: 'nowrap'
-      }, 'SPN ' + it.spn + '/FMI ' + it.fmi));
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, fontWeight: '700', color: T.color.textoOscuro
-      }, it.categoria));
-
-      var celdaDescripcion = crear('td', { padding: '8px 10px', borderBottom: '1px solid ' + T.color.border });
-      var textoDescripcion = it.destacado ? it.nombreFalla.toUpperCase() : it.nombreFalla;
-      celdaDescripcion.appendChild(crear('span', {
-        color: it.destacado ? COLOR_DESTACADO : T.color.textoOscuro,
-        fontWeight: it.destacado ? '700' : '400'
-      }, textoDescripcion));
-      fila.appendChild(celdaDescripcion);
-
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, color: T.color.textoGris, whiteSpace: 'nowrap'
-      }, it.turno || '—'));
-
-      var partesVehCron = codigoYPlacaDeNombre(it.nombreVehiculo);
-      var resultadoConductorCron = buscarConductor(it.placa || partesVehCron.placa, partesVehCron.codigo, it.fecha);
-      var colorConductorCron = !resultadoConductorCron ? T.color.muted : (resultadoConductorCron.aproximado ? '#B45309' : T.color.textoOscuro);
-      fila.appendChild(crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border,
-        color: colorConductorCron, fontStyle: resultadoConductorCron ? 'normal' : 'italic'
-      }, textoConductorConGrupo(resultadoConductorCron)));
-
-      var celdaAcciones = crear('td', {
-        padding: '8px 10px', borderBottom: '1px solid ' + T.color.border, whiteSpace: 'nowrap',
-        display: 'flex', gap: '10px', alignItems: 'center'
-      });
-      var link = crear('a', { color: T.color.primaryDark, fontSize: '0.75rem', fontWeight: '600' }, '🔍 Buscar causa');
-      link.href = urlBusquedaCausa(it.spn, it.fmi);
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      celdaAcciones.appendChild(link);
-
-      var filaHistorial = crear('tr');
-      var celdaHistorial = crear('td', { padding: '0 10px 10px 10px', borderBottom: '1px solid ' + T.color.border });
-      celdaHistorial.colSpan = 9;
-      filaHistorial.appendChild(celdaHistorial);
-      filaHistorial.hidden = true;
-
-      var linkHistorial = crear('a', { color: T.color.textoGris, fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }, '🕘 Ver historial');
-      var cargado = false;
-      linkHistorial.addEventListener('click', function () {
-        filaHistorial.hidden = !filaHistorial.hidden;
-        if (!filaHistorial.hidden && !cargado) {
-          cargado = true;
-          var panelHist = crearPanelHistorial();
-          celdaHistorial.appendChild(panelHist);
-          obtenerHistorialFalla(it.idVehiculo, it.idDiagnostico, it.idFailureMode).then(function (historial) {
-            llenarPanelHistorial(panelHist, historial);
-          });
-        }
-      });
-      celdaAcciones.appendChild(linkHistorial);
-
-      // Mini Expediente (2026-10-01): misma acción que en la vista por
-      // vehículo (crearTarjetaVehiculo) -- se agrega también aquí para que
-      // la vista cronológica (mismas filas, aplanadas) no quede inconsistente.
-      var linkExpedienteCron = crear('a', { color: T.color.primaryDark, fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }, '📋 Generar expediente');
-      linkExpedienteCron.addEventListener('click', function () { generarExpedienteDesdeFila(it, linkExpedienteCron); });
-      celdaAcciones.appendChild(linkExpedienteCron);
-
-      fila.appendChild(celdaAcciones);
-
-      tabla.appendChild(fila);
-      tabla.appendChild(filaHistorial);
-    });
-
-    panel.appendChild(tabla);
-    return panel;
+    panel.appendChild(construirPieResultados(resultado.totalOcultas));
+    contenedor.appendChild(panel);
   }
 
   function mostrarCargando(contenedor) {
-    while (contenedor.firstChild) contenedor.removeChild(contenedor.firstChild);
-    var envoltorio = crear('div', { padding: '40px 22px', textAlign: 'center' });
-    envoltorio.appendChild(crear('div', { fontSize: '0.85rem', color: T.color.body, fontWeight: '600' }, 'Cargando fallas activas…'));
+    limpiarNodo(contenedor);
+    var envoltorio = crear('div', {
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '40px 22px',
+      background: D.panel, border: '1px solid ' + D.border, borderRadius: T.radius.sm
+    });
+    var rueda = crearIcono('actualizar', '18px', D.verde);
+    girar(rueda);
+    envoltorio.appendChild(rueda);
+    envoltorio.appendChild(crear('div', { fontSize: '0.85rem', color: D.textSoft, fontWeight: '600' }, 'Cargando fallas activas…'));
     contenedor.appendChild(envoltorio);
   }
 
   function mostrarError(contenedor, mensaje) {
-    while (contenedor.firstChild) contenedor.removeChild(contenedor.firstChild);
+    limpiarNodo(contenedor);
     var envoltorio = crear('div', {
-      padding: '24px', background: T.color.dangerSoft, border: '1px solid ' + T.color.dangerBorder, borderRadius: T.radius.md
+      padding: '22px 24px', background: ESTILO_NIVEL.ALTA.fila, border: '1px solid ' + ESTILO_NIVEL.ALTA.borde,
+      borderLeft: '4px solid ' + D.rojo, borderRadius: T.radius.sm
     });
-    envoltorio.appendChild(crear('div', { color: T.color.danger, fontWeight: '700', marginBottom: '4px' }, 'No se pudo cargar la información'));
-    envoltorio.appendChild(crear('div', { color: T.color.body, fontSize: '0.82rem' }, mensaje));
+    envoltorio.appendChild(crear('div', { color: '#FF8587', fontWeight: '700', marginBottom: '4px' }, 'No se pudo cargar la información'));
+    envoltorio.appendChild(crear('div', { color: D.textSoft, fontSize: '0.82rem' }, mensaje));
     contenedor.appendChild(envoltorio);
   }
 
@@ -2573,20 +3144,93 @@ geotab.addin.alertasFallas = function () {
   var contenedorResultados = null;
   var idIntervaloAutoRefresco = null;
 
-  function actualizarRangoDefecto() {
+  // La vista elegida (por vehículo / cronológica) se recuerda entre sesiones.
+  var CLAVE_LOCALSTORAGE_VISTA = 'alertasFallas_vista';
+
+  function cargarModoVista() {
+    try {
+      var guardado = localStorage.getItem(CLAVE_LOCALSTORAGE_VISTA);
+      if (guardado === 'vehiculo' || guardado === 'cronologico') return guardado;
+    } catch (e) { /* sin localStorage: vista por defecto */ }
+    return 'vehiculo';
+  }
+
+  function guardarModoVista(valor) {
+    try { localStorage.setItem(CLAVE_LOCALSTORAGE_VISTA, valor); }
+    catch (e) { /* localStorage no disponible, se sigue sin persistir */ }
+  }
+
+  // --- Refresco automático que no interrumpe ------------------------------------
+  var ultimaInteraccion = 0;
+  var refrescoPendiente = false;
+  var pausaAvisada = false;
+  var cargaEnCurso = false;
+  var idRevisionPausa = null;
+  var EVENTOS_INTERACCION = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll'];
+
+  function registrarInteraccion() { ultimaInteraccion = Date.now(); }
+
+  function usandoLaHoja() {
+    return Date.now() - ultimaInteraccion < INACTIVIDAD_MS || expedienteEnCurso;
+  }
+
+  // Cada 5 min solo se "pide" el refresco; se ejecuta en cuanto se deja de usar la hoja (y la pestaña está a la vista).
+  function pedirAutoRefresco() {
+    refrescoPendiente = true;
+    revisarPausa();
+  }
+
+  function revisarPausa() {
+    if (!refrescoPendiente) return;
+    if (document.hidden || usandoLaHoja()) {
+      if (!pausaAvisada && elementos.textoActualizado && !document.hidden) {
+        pausaAvisada = true;
+        elementos.textoActualizado.textContent = 'Actualización en pausa mientras usas la hoja';
+      }
+      return;
+    }
+    actualizarRangoDefecto(true);
+  }
+
+  // Posición de scroll (página y tabla interna) para devolverla tras repintar sin el panel "Cargando".
+  function capturarScroll() {
+    var s = { ancestros: [], ventana: window.pageYOffset, tabla: 0 };
+    for (var el = contenedorPrincipal; el; el = el.parentElement) {
+      if (el.scrollTop > 0) s.ancestros.push([el, el.scrollTop]);
+    }
+    var tabla = contenedorResultados.querySelector('[data-scroll="tabla"]');
+    if (tabla) s.tabla = tabla.scrollTop;
+    return s;
+  }
+
+  function restaurarScroll(s) {
+    s.ancestros.forEach(function (p) { p[0].scrollTop = p[1]; });
+    window.scrollTo(window.pageXOffset, s.ventana);
+    var tabla = contenedorResultados.querySelector('[data-scroll="tabla"]');
+    if (tabla) tabla.scrollTop = s.tabla;
+  }
+
+  // silencioso = refresco automático: sin panel "Cargando" y conservando el scroll.
+  function actualizarRangoDefecto(silencioso) {
+    refrescoPendiente = false;
+    pausaAvisada = false;
+    if (silencioso === true && cargaEnCurso) return;
     var desde = inicioDeHoy();
     var hasta = new Date();
     elementos.inputDesde.value = aFechaInputValue(desde);
     elementos.inputHasta.value = aFechaInputValue(hasta);
+    elementos.actualizarTextoRango();
     guardarRango(elementos.inputDesde.value, elementos.inputHasta.value);
     // true = conservar el filtro de vehiculo -- refresco automatico, boton
     // "Actualizar" y focus() vuelven a lo mismo que se estaba mirando (mismo
     // criterio ya corregido en sobreRevolucionPTO.js).
-    cargarYRenderizar(desde, hasta, true);
+    cargarYRenderizar(desde, hasta, true, silencioso === true);
   }
 
-  function cargarYRenderizar(desde, hasta, conservarFiltroVehiculo) {
-    mostrarCargando(contenedorResultados);
+  function cargarYRenderizar(desde, hasta, conservarFiltroVehiculo, silencioso) {
+    cargaEnCurso = true;
+    if (!silencioso) mostrarCargando(contenedorResultados);
+    if (barraFiltrosRefs) barraFiltrosRefs.marcarCargando(true);
     if (!conservarFiltroVehiculo) {
       filtroEstado.vehiculo = null;
       if (barraFiltrosRefs) barraFiltrosRefs.ocultarChipVehiculo();
@@ -2595,6 +3239,7 @@ geotab.addin.alertasFallas = function () {
     obtenerFallasActivas(desde, hasta)
       .then(agregarInfoVehiculo)
       .then(agregarClasificacion)
+      .then(agregarConfirmacion)
       .then(agruparPorVehiculo)
       .then(function (resultado) {
         resultadoCache = resultado;
@@ -2609,15 +3254,40 @@ geotab.addin.alertasFallas = function () {
         var sistemasDisponibles = Object.keys(conteoSistemas).sort(function (a, b) { return conteoSistemas[b] - conteoSistemas[a]; });
         if (barraFiltrosRefs) barraFiltrosRefs.actualizarOpcionesSistema(sistemasDisponibles);
 
+        var scroll = silencioso ? capturarScroll() : null;
         renderizarResultados(contenedorResultados, resultadoCache);
+        ajustarAlturaRaiz();
+        if (scroll) restaurarScroll(scroll);
+        cargaEnCurso = false;
+        if (barraFiltrosRefs) barraFiltrosRefs.marcarCargando(false);
+        if (elementos.textoActualizado) {
+          elementos.textoActualizado.textContent = 'Actualizado ' +
+            new Date().toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }) + ' · cada 5 min';
+        }
       })
       .catch(function (err) {
         console.error('Alertas:', err);
-        mostrarError(contenedorResultados, (err && err.message) ? err.message : 'Error al consultar Geotab.');
+        cargaEnCurso = false;
+        if (barraFiltrosRefs) barraFiltrosRefs.marcarCargando(false);
+        if (elementos.textoActualizado) elementos.textoActualizado.textContent = 'Sin actualizar';
+        // En el refresco automático no se borra lo que se estaba mirando: se deja la lista anterior.
+        if (!silencioso) mostrarError(contenedorResultados, (err && err.message) ? err.message : 'Error al consultar Geotab.');
       });
   }
 
+  // MyGeotab deja el resto de la página en blanco: cuando el contenido es corto, el fondo oscuro tiene que llegar
+  // hasta el borde inferior de la ventana. Se mide desde donde empieza el add-in (debajo de la barra superior de
+  // MyGeotab) y se repite al redimensionar.
+  function ajustarAlturaRaiz() {
+    var raiz = document.getElementById('alertasFallasRoot');
+    if (!raiz) return;
+    var arriba = Math.max(0, raiz.getBoundingClientRect().top);
+    raiz.style.minHeight = Math.max(300, window.innerHeight - arriba) + 'px';
+  }
+
   function actualizarVista() {
+    // renderizarResultados también repinta los KPI, así el filtro activo (ALTA /
+    // sistema) queda resaltado tras cada cambio.
     renderizarResultados(contenedorResultados, resultadoCache);
   }
 
@@ -2625,24 +3295,30 @@ geotab.addin.alertasFallas = function () {
     initialize: function (freshApi, freshState, initializedCallback) {
       api = freshApi;
       state = freshState;
+      modoVista = cargarModoVista();
 
       contenedorPrincipal = document.getElementById('alertasFallasRoot');
-      aplicarEstilo(contenedorPrincipal, { fontFamily: T.font, background: T.color.canvas, padding: '4px' });
+      aplicarEstilo(contenedorPrincipal, {
+        fontFamily: T.font, background: D.bg, color: D.text, colorScheme: 'dark',
+        padding: '20px 24px', boxSizing: 'border-box'
+      });
 
-      var refs = construirEncabezado(contenedorPrincipal);
-      elementos.inputDesde = refs.inputDesde;
-      elementos.inputHasta = refs.inputHasta;
-
-      cargarTripulacionesGuardadas();
-      construirControlTripulaciones(contenedorPrincipal, actualizarVista);
-
-      barraFiltrosRefs = construirBarraFiltros(contenedorPrincipal, actualizarVista);
+      construirEncabezado(contenedorPrincipal);
 
       elementos.bannerAlarma = crear('div', { display: 'none' });
       contenedorPrincipal.appendChild(elementos.bannerAlarma);
 
+      elementos.kpis = construirKpis(contenedorPrincipal);
+
+      cargarTripulacionesGuardadas();
+      barraFiltrosRefs = construirBarraControl(contenedorPrincipal, actualizarVista);
+      elementos.inputDesde = barraFiltrosRefs.inputDesde;
+      elementos.inputHasta = barraFiltrosRefs.inputHasta;
+      elementos.actualizarTextoRango = barraFiltrosRefs.actualizarTextoRango;
+
       contenedorResultados = crear('div');
       contenedorPrincipal.appendChild(contenedorResultados);
+      ajustarAlturaRaiz();
 
       initializedCallback();
     },
@@ -2651,11 +3327,20 @@ geotab.addin.alertasFallas = function () {
       api = freshApi;
       state = freshState;
       if (idIntervaloAutoRefresco) clearInterval(idIntervaloAutoRefresco);
-      idIntervaloAutoRefresco = setInterval(actualizarRangoDefecto, INTERVALO_AUTO_REFRESCO_MS);
+      idIntervaloAutoRefresco = setInterval(pedirAutoRefresco, INTERVALO_AUTO_REFRESCO_MS);
+      if (idRevisionPausa) clearInterval(idRevisionPausa);
+      idRevisionPausa = setInterval(revisarPausa, REVISION_PAUSA_MS);
+      EVENTOS_INTERACCION.forEach(function (ev) { document.addEventListener(ev, registrarInteraccion, { capture: true, passive: true }); });
+      window.addEventListener('resize', ajustarAlturaRaiz);
+      ajustarAlturaRaiz();
       actualizarRangoDefecto();
     },
 
     blur: function () {
+      window.removeEventListener('resize', ajustarAlturaRaiz);
+      EVENTOS_INTERACCION.forEach(function (ev) { document.removeEventListener(ev, registrarInteraccion, true); });
+      if (idRevisionPausa) { clearInterval(idRevisionPausa); idRevisionPausa = null; }
+      refrescoPendiente = false;
       if (idIntervaloAutoRefresco) { clearInterval(idIntervaloAutoRefresco); idIntervaloAutoRefresco = null; }
       detenerRepeticionAlarma();
     }

@@ -1,0 +1,14 @@
+{
+    "name": "Validación de Baterías",
+    "supportEmail": "sergio.calderon@promoambientaldistrito.com",
+    "version": "1.1",
+    "items": [
+        {
+            "url": "validacionBaterias.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Validación de Baterías"
+            }
+        }
+    ]
+}

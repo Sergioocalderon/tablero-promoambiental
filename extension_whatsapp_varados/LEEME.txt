@@ -1,0 +1,47 @@
+REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.0.0
+=========================================================
+
+QUÉ HACE
+Lee los reportes del radio operador que llegan al grupo de WhatsApp Web "Mantenimiento Promo" y los manda
+al receptor (Apps Script), que los registra en la pestaña VARADOS igual que el botón procesarYRegistrar.
+Solo LEE la pestaña de WhatsApp Web donde corre: no escribe, no envía mensajes y no abre otros chats.
+
+INSTALACIÓN (una sola vez, no requiere administrador)
+ 1. Cree un PERFIL de Chrome solo para esto (icono de perfil > Agregar) y trabaje en él.
+ 2. Descomprima este paquete en una carpeta fija, por ejemplo C:\Reportes\ExtensionWhatsApp
+    (no la borre ni la mueva después: Chrome la lee desde ahí).
+ 3. En Chrome escriba  chrome://extensions , active "Modo de desarrollador" (arriba a la derecha),
+    haga clic en "Cargar descomprimida" y elija esa carpeta.
+ 4. Abra https://web.whatsapp.com, inicie sesión (QR) y ABRA EL GRUPO. Abajo a la izquierda aparece un
+    aviso gris: "Varados · SIMULACRO ... mensajes N · reportes N".
+ 5. Haga clic en el icono de la extensión (rompecabezas > fijar) > se abre la configuración:
+      URL del receptor (la que termina en /exec) y Token (los del receptor de Apps Script).
+    Pulse "Guardar" y luego "Probar conexión": debe decir "Conexión correcta".
+
+PRUEBA ANTES DE USARLA DE VERDAD (importante)
+ A. SIMULACRO (viene así por defecto): la extensión lee el grupo y anota en "Últimos movimientos" lo que
+    ENVIARÍA, sin enviar nada. Revise que aparezcan los reportes recientes del grupo.
+    Si el aviso dice "mensajes 0", WhatsApp cambió su estructura interna: avise para ajustar el lector.
+ B. Prueba REAL con un grupo de prueba: cree un grupo de WhatsApp solo con usted, escriba en
+    "Nombre del grupo" ese nombre, cambie el modo a REAL, y envíese un reporte de ejemplo (con la fecha y
+    hora de hoy). En 1 minuto debe aparecer en "Últimos movimientos" como "registrado ... fila N", y la
+    fila en la hoja. BORRE esa fila de prueba a mano.
+ C. Cuando todo esté bien, ponga el nombre real del grupo ("Mantenimiento Promo") y modo REAL.
+
+USO DIARIO
+ - Deje abierta la pestaña de WhatsApp Web con el grupo a la vista y NO cambie de chat. Si abre otro chat,
+   el aviso se pone naranja ("Abra el grupo...") y no lee hasta que vuelva.
+ - Si apaga el PC o cierra Chrome: al volver y abrir WhatsApp Web con el grupo, la extensión SUBE por el chat y
+   lee lo que llegó mientras tanto (solo reportes con fecha propia de las últimas 24 h; configurable).
+ - Si falla internet o el receptor, los reportes quedan en una cola que se vacía sola cada minuto.
+ - Un reporte ya registrado no se duplica (misma unidad, fecha y hora).
+ - Un reporte que ya estaba en la hoja (por ejemplo, por el botón) tampoco se duplica.
+
+LÍMITES (sea honesto con ellos)
+ - Necesita un PC con Chrome y WhatsApp Web abiertos. Sin eso no lee nada.
+ - WhatsApp cambia su página con frecuencia; la extensión puede necesitar ajustes de vez en cuando.
+ - Si un reporte llega SIN "Fecha y Hora" y el PC estaba apagado, no se registra (para no inventar la hora);
+   si llega con el PC encendido, se registra con la hora de recepción.
+ - Los mensajes editados o eliminados en WhatsApp no se corrigen en la hoja.
+
+DESINSTALAR: chrome://extensions > Quitar.

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Reportes WhatsApp a Varados</title>
+<style>
+  body { font: 14px/1.45 system-ui, sans-serif; margin: 0; padding: 20px; min-width: 480px; max-width: 760px; color: #0f1f3d; background: #f4f6f9; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  h2 { font-size: 14px; margin: 18px 0 6px; }
+  label { display: block; margin: 10px 0 3px; font-weight: 600; }
+  input[type=text], input[type=password], input[type=number], select { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #c9d1dc; border-radius: 6px; font: inherit; }
+  button { margin: 10px 8px 0 0; padding: 7px 14px; border: 0; border-radius: 6px; background: #0f3460; color: #fff; font: inherit; cursor: pointer; }
+  button.sec { background: #64748b; }
+  .nota { color: #5b6472; font-size: 12.5px; margin-top: 3px; }
+  #msg { margin-top: 10px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12.5px; background: #fff; }
+  td, th { border: 1px solid #e3e7ee; padding: 4px 6px; text-align: left; vertical-align: top; }
+  th { background: #e4ecef; }
+  .ok { color: #166534; } .mal { color: #b91c1c; } .aviso { color: #b45309; }
+</style>
+</head>
+<body>
+<h1>Reportes WhatsApp a Varados</h1>
+
+<label for="url">URL del receptor (termina en /exec)</label>
+<input id="url" type="text" placeholder="https://script.google.com/macros/s/.../exec" />
+<label for="token">Token</label>
+<input id="token" type="password" autocomplete="off" />
+<label for="grupo">Nombre del grupo de WhatsApp</label>
+<input id="grupo" type="text" />
+<label for="modo">Modo</label>
+<select id="modo">
+  <option value="simulacro">SIMULACRO: lee y muestra lo que enviaría, no envía nada</option>
+  <option value="real">REAL: envía los reportes a la hoja</option>
+</select>
+<label for="horas">Ignorar reportes con más de (horas)</label>
+<input id="horas" type="number" min="1" max="168" />
+<div class="nota">Evita registrar historial viejo al abrir el chat por primera vez o tras un apagado largo.</div>
+
+<button id="guardar">Guardar</button>
+<button id="probar" class="sec">Probar conexión</button>
+<button id="vaciar" class="sec">Enviar cola ahora</button>
+<div id="msg"></div>
+
+<h2>Cola pendiente: <span id="ncola">0</span></h2>
+<h2>Últimos movimientos</h2>
+<table id="reg"><thead><tr><th>Hora</th><th>Estado</th><th>Detalle</th></tr></thead><tbody></tbody></table>
+<script src="options.js"></script>
+</body>
+</html>

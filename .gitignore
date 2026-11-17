@@ -9,3 +9,15 @@ __pycache__/
 reportes/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Zips de add-ins (se entregan en Descargas, se regeneran desde _build_*)
+*.zip
+# Respaldos de reglas/dispositivos de Geotab: tienen configuracion de la flota, el repo es publico
+backups_reglas/
+herramientas/backups_reglas/
+herramientas/respaldo_vigilancia_*/
+# Logs, datos de la flota y salidas generadas
+*.log
+herramientas/historico_cumplimiento_regeneracion.csv
+herramientas/_usaquen_poligonos.json
+_build_reportes/salida.html

@@ -1,0 +1,1016 @@
+# -*- coding: utf-8 -*-
+"""
+HERRAMIENTA — ÚLTIMO ODÓMETRO GEOTAB
+
+Ubicación:
+    Scripts/Herramientas/ultimo_odometro_geotab.py
+
+Fuente:
+    100% Geotab
+
+Filtros:
+    - Empresa
+    - Marca / Modelo
+    - Móvil
+
+Dato:
+    DiagnosticOdometerId
+
+Modo:
+    SOLO LECTURA
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+from typing import Any
+
+import pandas as pd
+
+
+# =============================================================================
+# RUTAS
+# =============================================================================
+
+SCRIPT_PATH = Path(__file__).resolve()
+PROJECT_ROOT = SCRIPT_PATH.parents[2]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+OUTPUT_DIR = PROJECT_ROOT / "Reportes" / "Herramientas"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# =============================================================================
+# CONFIGURACIÓN
+# =============================================================================
+
+DIAGNOSTIC_ODOMETER_ID = "DiagnosticOdometerId"
+
+TZ_BOGOTA = ZoneInfo("America/Bogota")
+
+LOOKBACK_DAYS = 30
+
+
+# =============================================================================
+# GRUPOS REALES DE GEOTAB
+# =============================================================================
+
+EMPRESAS = {
+    "*Promoambiental": "b2C03",
+    "PROMO AMBIENTAL DISTRITO BOGOTA": "b2C89",
+    "PROMO CALI": "b2C8A",
+    "PROMO VALLE": "b2C91",
+    "SER AMBIENTAL": "b2D01",
+    "PACARIBE": "b2D24",
+    "ESTACIÓN DE TRANSFERENCIA ZIPA": "b2D00",
+}
+
+MARCA_MODELO = {
+    "CHEVROLET - NHR": "b2D03",
+    "CHEVROLET - NHR (Promo Cali)": "b2D64",
+    "CHEVROLET VAN - N400": "b2D04",
+    "FOTON - AUMAN": "b2C8C",
+    "INTERNATIONAL - HV607 [1]": "b2C8D",
+    "INTERNATIONAL - HV607 [2]": "b2C90",
+    "INTERNATIONAL - HV607 [3]": "b2C93",
+    "INTERNATIONAL - HV607 [4]": "b2D07",
+    "KENWORTH - T380 [1]": "b2C8B",
+    "KENWORTH - T380 [2]": "b2C92",
+    "KENWORTH - T380 [3]": "b2D05",
+    "KENWORTH - T800 [1]": "b2D08",
+    "KENWORTH - T800 [2]": "b2D06",
+    "MERCEDES - ATEGO 3133": "b2C8E",
+    "VOLKSWAGEN - DELIVERY 9.170": "b2C8F",
+}
+
+
+# =============================================================================
+# UTILIDADES
+# =============================================================================
+
+def limpiar(valor: Any) -> str:
+    if valor is None:
+        return ""
+    return str(valor).strip()
+
+
+def fecha_bogota(valor: Any) -> datetime | None:
+    if not valor:
+        return None
+
+    try:
+        if isinstance(valor, datetime):
+            dt = valor
+        else:
+            dt = datetime.fromisoformat(
+                str(valor).replace("Z", "+00:00")
+            )
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        return dt.astimezone(TZ_BOGOTA)
+
+    except Exception:
+        return None
+
+
+def fecha_legible(valor: Any) -> str:
+    dt = fecha_bogota(valor)
+
+    if dt is None:
+        return ""
+
+    return dt.strftime("%d/%m/%Y %H:%M:%S")
+
+
+def es_hoy(valor: Any) -> bool:
+    dt = fecha_bogota(valor)
+
+    if dt is None:
+        return False
+
+    return dt.date() == datetime.now(TZ_BOGOTA).date()
+
+
+# =============================================================================
+# GEOTAB
+# =============================================================================
+
+def conectar_geotab():
+    from App.geotab.client import GeotabClient
+
+    print()
+    print("Conectando con Geotab...")
+
+    client = GeotabClient.from_settings()
+    api = client.authenticate()
+
+    print("Conexión correcta.")
+
+    return api
+
+
+def obtener_devices(api) -> list[dict]:
+    return api.get(
+        "Device",
+        resultsLimit=50000,
+    )
+
+
+def obtener_devices_grupo(
+    api,
+    group_id: str,
+) -> list[dict]:
+
+    return api.get(
+        "Device",
+        search={
+            "groups": [
+                {"id": group_id}
+            ]
+        },
+        resultsLimit=50000,
+    )
+
+
+def ids_devices_grupo(
+    api,
+    group_id: str,
+) -> set[str]:
+
+    return {
+        limpiar(d.get("id"))
+        for d in obtener_devices_grupo(api, group_id)
+        if limpiar(d.get("id"))
+    }
+
+
+# =============================================================================
+# SELECTORES
+# =============================================================================
+
+def seleccionar_opciones(
+    titulo: str,
+    opciones: list[str],
+) -> list[str]:
+
+    print()
+    print("=" * 90)
+    print(titulo.upper())
+    print("=" * 90)
+
+    print("0. TODOS")
+
+    for i, opcion in enumerate(opciones, start=1):
+        print(f"{i}. {opcion}")
+
+    entrada = input(
+        f"\nSeleccione {titulo.lower()} "
+        "(0/ENTER = TODOS, varios: 1,3): "
+    ).strip()
+
+    if entrada in {"", "0"}:
+        return []
+
+    elegidos = []
+
+    for parte in entrada.split(","):
+
+        parte = parte.strip()
+
+        if not parte.isdigit():
+            continue
+
+        idx = int(parte)
+
+        if 1 <= idx <= len(opciones):
+            elegidos.append(opciones[idx - 1])
+
+    return elegidos
+
+
+# =============================================================================
+# FILTRO EMPRESA
+# =============================================================================
+
+def filtrar_por_empresa(
+    api,
+    devices: list[dict],
+) -> tuple[list[dict], list[str]]:
+
+    opciones = list(EMPRESAS.keys())
+
+    elegidas = seleccionar_opciones(
+        "Empresa",
+        opciones,
+    )
+
+    if not elegidas:
+        return devices, []
+
+    ids_permitidos = set()
+
+    for empresa in elegidas:
+
+        print(
+            f"Resolviendo empresa: {empresa}..."
+        )
+
+        ids_permitidos |= ids_devices_grupo(
+            api,
+            EMPRESAS[empresa],
+        )
+
+    filtrados = [
+        d
+        for d in devices
+        if limpiar(d.get("id")) in ids_permitidos
+    ]
+
+    return filtrados, elegidas
+
+
+# =============================================================================
+# FILTRO MARCA / MODELO
+# =============================================================================
+
+def nombre_base_marca_modelo(nombre: str) -> str:
+    """
+    Quita [1], [2], etc. de grupos duplicados equivalentes.
+    """
+    return nombre.split("[")[0].strip()
+
+
+def opciones_marca_modelo() -> list[str]:
+    nombres = {
+        nombre_base_marca_modelo(nombre)
+        for nombre in MARCA_MODELO
+    }
+
+    return sorted(nombres)
+
+
+def grupos_de_marca_modelo(
+    nombre_visible: str,
+) -> list[str]:
+
+    grupos = []
+
+    for nombre, gid in MARCA_MODELO.items():
+
+        if (
+            nombre_base_marca_modelo(nombre)
+            == nombre_visible
+        ):
+            grupos.append(gid)
+
+    return grupos
+
+
+def filtrar_por_marca_modelo(
+    api,
+    devices: list[dict],
+) -> tuple[list[dict], list[str]]:
+
+    opciones = opciones_marca_modelo()
+
+    elegidas = seleccionar_opciones(
+        "Marca / Modelo",
+        opciones,
+    )
+
+    if not elegidas:
+        return devices, []
+
+    ids_permitidos = set()
+
+    for marca_modelo in elegidas:
+
+        print(
+            f"Resolviendo marca / modelo: "
+            f"{marca_modelo}..."
+        )
+
+        for gid in grupos_de_marca_modelo(
+            marca_modelo
+        ):
+            ids_permitidos |= ids_devices_grupo(
+                api,
+                gid,
+            )
+
+    filtrados = [
+        d
+        for d in devices
+        if limpiar(d.get("id")) in ids_permitidos
+    ]
+
+    return filtrados, elegidas
+
+
+# =============================================================================
+# FILTRO MÓVIL
+# =============================================================================
+
+def seleccionar_moviles(
+    devices: list[dict],
+) -> list[dict]:
+
+    ordenados = sorted(
+        devices,
+        key=lambda d: limpiar(d.get("name")),
+    )
+
+    print()
+    print("=" * 100)
+    print("MÓVILES")
+    print("=" * 100)
+
+    print("0. TODOS")
+
+    for i, d in enumerate(ordenados, start=1):
+
+        movil = limpiar(d.get("name"))
+        placa = limpiar(d.get("licensePlate"))
+
+        print(
+            f"{i}. {movil:<20} {placa}"
+        )
+
+    entrada = input(
+        "\nSeleccione móviles "
+        "(0/ENTER = TODOS, varios: 1,3,5): "
+    ).strip()
+
+    if entrada in {"", "0"}:
+        return ordenados
+
+    indices = []
+
+    for parte in entrada.split(","):
+
+        parte = parte.strip()
+
+        if not parte.isdigit():
+            continue
+
+        idx = int(parte)
+
+        if 1 <= idx <= len(ordenados):
+            indices.append(idx - 1)
+
+    if not indices:
+        return ordenados
+
+    return [
+        ordenados[i]
+        for i in indices
+    ]
+
+
+# =============================================================================
+# RESOLUCIÓN DE METADATOS
+# =============================================================================
+
+def resolver_empresa_device(
+    api,
+    device_id: str,
+    cache: dict[str, set[str]],
+) -> str:
+
+    encontradas = []
+
+    for nombre, gid in EMPRESAS.items():
+
+        if gid not in cache:
+            cache[gid] = ids_devices_grupo(
+                api,
+                gid,
+            )
+
+        if device_id in cache[gid]:
+            encontradas.append(nombre)
+
+    # Preferir empresa específica sobre el grupo padre *Promoambiental
+    especificas = [
+        x
+        for x in encontradas
+        if not x.startswith("*")
+    ]
+
+    if especificas:
+        return " | ".join(
+            sorted(set(especificas))
+        )
+
+    return " | ".join(
+        sorted(set(encontradas))
+    )
+
+
+def resolver_marca_modelo_device(
+    api,
+    device_id: str,
+    cache: dict[str, set[str]],
+) -> str:
+
+    encontradas = []
+
+    for nombre, gid in MARCA_MODELO.items():
+
+        if gid not in cache:
+            cache[gid] = ids_devices_grupo(
+                api,
+                gid,
+            )
+
+        if device_id in cache[gid]:
+            encontradas.append(
+                nombre_base_marca_modelo(nombre)
+            )
+
+    return " | ".join(
+        sorted(set(encontradas))
+    )
+
+
+# =============================================================================
+# ODÓMETRO
+# =============================================================================
+
+def consultar_ultimo_odometro(
+    api,
+    device_id: str,
+) -> tuple[float | None, str, bool]:
+
+    ahora_local = datetime.now(
+        TZ_BOGOTA
+    )
+
+    inicio_hoy_local = ahora_local.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    inicio_hoy_utc = inicio_hoy_local.astimezone(
+        timezone.utc
+    )
+
+    ahora_utc = ahora_local.astimezone(
+        timezone.utc
+    )
+
+    # Primero: hoy
+    datos_hoy = api.get(
+        "StatusData",
+        search={
+            "deviceSearch": {
+                "id": device_id,
+            },
+            "diagnosticSearch": {
+                "id": DIAGNOSTIC_ODOMETER_ID,
+            },
+            "fromDate": inicio_hoy_utc,
+            "toDate": ahora_utc,
+        },
+        resultsLimit=50000,
+    )
+
+    if datos_hoy:
+
+        ultimo = max(
+            datos_hoy,
+            key=lambda x: str(
+                x.get("dateTime", "")
+            ),
+        )
+
+        km = (
+            float(ultimo.get("data"))
+            / 1000.0
+        )
+
+        return (
+            km,
+            fecha_legible(
+                ultimo.get("dateTime")
+            ),
+            True,
+        )
+
+    # Si no hay hoy, buscar último histórico
+    desde_historico = (
+        ahora_utc
+        - timedelta(
+            days=LOOKBACK_DAYS
+        )
+    )
+
+    datos = api.get(
+        "StatusData",
+        search={
+            "deviceSearch": {
+                "id": device_id,
+            },
+            "diagnosticSearch": {
+                "id": DIAGNOSTIC_ODOMETER_ID,
+            },
+            "fromDate": desde_historico,
+            "toDate": ahora_utc,
+        },
+        resultsLimit=50000,
+    )
+
+    if not datos:
+        return (
+            None,
+            "",
+            False,
+        )
+
+    ultimo = max(
+        datos,
+        key=lambda x: str(
+            x.get("dateTime", "")
+        ),
+    )
+
+    km = (
+        float(ultimo.get("data"))
+        / 1000.0
+    )
+
+    return (
+        km,
+        fecha_legible(
+            ultimo.get("dateTime")
+        ),
+        False,
+    )
+
+
+# =============================================================================
+# CONSULTA FINAL
+# =============================================================================
+
+def consultar_resultados(
+    api,
+    devices: list[dict],
+) -> pd.DataFrame:
+
+    cache_membership: dict[
+        str,
+        set[str],
+    ] = {}
+
+    filas = []
+
+    total = len(devices)
+
+    print()
+    print("=" * 120)
+    print("CONSULTANDO ÚLTIMO ODÓMETRO")
+    print("=" * 120)
+
+    for i, d in enumerate(
+        devices,
+        start=1,
+    ):
+
+        id_device = limpiar(
+            d.get("id")
+        )
+
+        movil = limpiar(
+            d.get("name")
+        )
+
+        placa = limpiar(
+            d.get("licensePlate")
+        )
+
+        print(
+            f"[{i:02d}/{total:02d}] "
+            f"{movil:<20}",
+            end=" ... ",
+            flush=True,
+        )
+
+        try:
+
+            km, fecha, hoy = (
+                consultar_ultimo_odometro(
+                    api,
+                    id_device,
+                )
+            )
+
+            empresa = resolver_empresa_device(
+                api,
+                id_device,
+                cache_membership,
+            )
+
+            marca_modelo = (
+                resolver_marca_modelo_device(
+                    api,
+                    id_device,
+                    cache_membership,
+                )
+            )
+
+            if km is None:
+
+                print("SIN DATO")
+
+            elif hoy:
+
+                print(
+                    f"{km:,.1f} km "
+                    f"| HOY {fecha}"
+                )
+
+            else:
+
+                print(
+                    f"{km:,.1f} km "
+                    f"| ÚLTIMO HISTÓRICO {fecha}"
+                )
+
+            filas.append(
+                {
+                    "Móvil": movil,
+                    "Placa": placa,
+                    "Empresa": empresa,
+                    "Marca / Modelo": marca_modelo,
+                    "Odómetro km": km,
+                    "Última lectura": fecha,
+                    "Lectura de hoy": (
+                        "SI"
+                        if hoy
+                        else "NO"
+                    ),
+                    "id_device": id_device,
+                }
+            )
+
+        except Exception as exc:
+
+            print(
+                f"ERROR: {exc}"
+            )
+
+            filas.append(
+                {
+                    "Móvil": movil,
+                    "Placa": placa,
+                    "Empresa": "",
+                    "Marca / Modelo": "",
+                    "Odómetro km": None,
+                    "Última lectura": "",
+                    "Lectura de hoy": "ERROR",
+                    "id_device": id_device,
+                }
+            )
+
+    return pd.DataFrame(
+        filas
+    )
+
+
+# =============================================================================
+# RESULTADO
+# =============================================================================
+
+def mostrar_resultado(
+    df: pd.DataFrame,
+) -> None:
+
+    print()
+    print("=" * 140)
+    print("RESULTADO FINAL")
+    print("=" * 140)
+
+    if df.empty:
+        print("Sin resultados.")
+        return
+
+    vista = df.copy()
+
+    vista["Odómetro km"] = (
+        vista[
+            "Odómetro km"
+        ]
+        .apply(
+            lambda x: (
+                f"{x:,.1f}"
+                if pd.notna(x)
+                else "SIN DATO"
+            )
+        )
+    )
+
+    columnas = [
+        "Móvil",
+        "Placa",
+        "Empresa",
+        "Marca / Modelo",
+        "Odómetro km",
+        "Última lectura",
+        "Lectura de hoy",
+    ]
+
+    print(
+        vista[
+            columnas
+        ].to_string(
+            index=False
+        )
+    )
+
+    print()
+
+    print(
+        f"TOTAL: {len(df)}"
+    )
+
+    print(
+        "LECTURA DE HOY: "
+        f"{(df['Lectura de hoy'] == 'SI').sum()}"
+    )
+
+    print(
+        "LECTURA HISTÓRICA: "
+        f"{(df['Lectura de hoy'] == 'NO').sum()}"
+    )
+
+    print(
+        "SIN DATO / ERROR: "
+        f"{df['Odómetro km'].isna().sum()}"
+    )
+
+
+# =============================================================================
+# EXCEL
+# =============================================================================
+
+def exportar_excel(
+    df: pd.DataFrame,
+) -> Path:
+
+    timestamp = datetime.now(
+        TZ_BOGOTA
+    ).strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    ruta = (
+        OUTPUT_DIR
+        / f"ultimo_odometro_geotab_{timestamp}.xlsx"
+    )
+
+    with pd.ExcelWriter(
+        ruta,
+        engine="openpyxl",
+    ) as writer:
+
+        df.to_excel(
+            writer,
+            index=False,
+            sheet_name="Último Odómetro",
+        )
+
+        ws = writer.book[
+            "Último Odómetro"
+        ]
+
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = ws.dimensions
+
+        for columna in ws.columns:
+
+            letra = (
+                columna[0]
+                .column_letter
+            )
+
+            ancho = max(
+                (
+                    len(str(celda.value))
+                    for celda in columna
+                    if celda.value is not None
+                ),
+                default=0,
+            )
+
+            ws.column_dimensions[
+                letra
+            ].width = min(
+                ancho + 3,
+                45,
+            )
+
+        headers = {
+            c.value: c.column
+            for c in ws[1]
+        }
+
+        col_km = headers.get(
+            "Odómetro km"
+        )
+
+        if col_km:
+
+            for fila in range(
+                2,
+                ws.max_row + 1,
+            ):
+
+                ws.cell(
+                    fila,
+                    col_km,
+                ).number_format = (
+                    '#,##0.0'
+                )
+
+    return ruta
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+def ejecutar() -> None:
+
+    print()
+    print("=" * 110)
+    print(
+        "HERRAMIENTA — ÚLTIMO ODÓMETRO GEOTAB"
+    )
+    print("=" * 110)
+
+    print(
+        "Fuente: 100% Geotab"
+    )
+
+    print(
+        "Diagnóstico: "
+        "DiagnosticOdometerId"
+    )
+
+    print(
+        "Filtros: "
+        "Empresa → Marca / Modelo → Móvil"
+    )
+
+    print(
+        "Modo: SOLO LECTURA"
+    )
+
+    api = conectar_geotab()
+
+    print()
+    print(
+        "Cargando vehículos Geotab..."
+    )
+
+    devices = obtener_devices(
+        api
+    )
+
+    print(
+        f"Vehículos encontrados: "
+        f"{len(devices)}"
+    )
+
+    devices, empresas_elegidas = (
+        filtrar_por_empresa(
+            api,
+            devices,
+        )
+    )
+
+    print(
+        f"Después de empresa: "
+        f"{len(devices)}"
+    )
+
+    if not devices:
+        print(
+            "No hay vehículos "
+            "para esa empresa."
+        )
+        return
+
+    devices, marcas_elegidas = (
+        filtrar_por_marca_modelo(
+            api,
+            devices,
+        )
+    )
+
+    print(
+        f"Después de marca/modelo: "
+        f"{len(devices)}"
+    )
+
+    if not devices:
+        print(
+            "No hay vehículos "
+            "para esa selección."
+        )
+        return
+
+    devices = seleccionar_moviles(
+        devices
+    )
+
+    if not devices:
+        print(
+            "No se seleccionaron móviles."
+        )
+        return
+
+    resultados = consultar_resultados(
+        api,
+        devices,
+    )
+
+    mostrar_resultado(
+        resultados
+    )
+
+    respuesta = input(
+        "\n¿Exportar a Excel? [S/N]: "
+    ).strip().upper()
+
+    if respuesta in {
+        "S",
+        "SI",
+        "SÍ",
+    }:
+
+        ruta = exportar_excel(
+            resultados
+        )
+
+        print()
+        print(
+            "Archivo generado:"
+        )
+
+        print(
+            ruta
+        )
+
+
+if __name__ == "__main__":
+    ejecutar()

@@ -1,0 +1,14 @@
+{
+    "name": "Seguimiento de Velocidad",
+    "supportEmail": "sergio.calderon@promoambientaldistrito.com",
+    "version": "1.2",
+    "items": [
+        {
+            "url": "seguimientoVelocidad.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Seguimiento de Velocidad"
+            }
+        }
+    ]
+}

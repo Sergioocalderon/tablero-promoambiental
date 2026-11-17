@@ -1,0 +1,682 @@
+<title>Ciclos Operativos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --text: #334155;
+    --text-strong: #1a2235;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --accent: #5c9a20;
+    --accent-strong: #4C8323;
+    --accent-soft: #eaf4df;
+    --status-cerrado-bg: #e8f5e1;
+    --status-cerrado-text: #2f6b12;
+    --status-enruta-bg: #fff2da;
+    --status-enruta-text: #92450a;
+    --status-critico-bg: #fbe1e1;
+    --status-critico-text: #a01c1c;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.06);
+    --radius: 14px;
+    --chart-grid: #e9edf3;
+    --chart-axis: #cbd5e1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f1720;
+      --surface: #182231;
+      --surface-2: #1f2c3d;
+      --text: #cbd5e1;
+      --text-strong: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --border: #2a3a4d;
+      --border-strong: #38506a;
+      --accent: #8fce4a;
+      --accent-strong: #a6db69;
+      --accent-soft: #24361c;
+      --status-cerrado-bg: #1f3315;
+      --status-cerrado-text: #9adf74;
+      --status-enruta-bg: #3a2a10;
+      --status-enruta-text: #f4b866;
+      --status-critico-bg: #3a1414;
+      --status-critico-text: #f28b8b;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.35);
+      --chart-grid: #24313f;
+      --chart-axis: #38506a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1720;
+    --surface: #182231;
+    --surface-2: #1f2c3d;
+    --text: #cbd5e1;
+    --text-strong: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-faint: #64748b;
+    --border: #2a3a4d;
+    --border-strong: #38506a;
+    --accent: #8fce4a;
+    --accent-strong: #a6db69;
+    --accent-soft: #24361c;
+    --status-cerrado-bg: #1f3315;
+    --status-cerrado-text: #9adf74;
+    --status-enruta-bg: #3a2a10;
+    --status-enruta-text: #f4b866;
+    --status-critico-bg: #3a1414;
+    --status-critico-text: #f28b8b;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.35);
+    --chart-grid: #24313f;
+    --chart-axis: #38506a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    padding: 20px 16px 40px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;
+  }
+  header.top h1 { font-size: 1.4rem; font-weight: 800; color: var(--text-strong); margin: 0; letter-spacing: -0.01em; }
+  header.top p { margin: 2px 0 0; font-size: 0.82rem; color: var(--text-muted); }
+
+  header.top .lbl {
+    font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 14px; box-shadow: var(--shadow);
+  }
+
+  .banner-ejemplo {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--status-enruta-bg); color: var(--status-enruta-text);
+    border-radius: 10px; padding: 10px 14px; font-size: 0.82rem; font-weight: 600;
+  }
+  .banner-ejemplo strong { font-weight: 800; }
+  /* El archivo standalone que genera generar_reporte_ciclos.py no tiene el
+     reset "[hidden]{display:none!important}" que si inyecta el publicador de
+     Artifacts -- sin esta regla propia, el "hidden" del JS no le gana al
+     "display:flex" de arriba y el banner queda pegado aunque haya datos
+     reales (bug real reportado 2026-09-16). */
+  .banner-ejemplo[hidden] { display: none; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .kpi .lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+  .kpi .val { font-size: 1.6rem; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .kpi .sub { font-size: 0.74rem; color: var(--text-faint); }
+  .kpi.destacado { border-color: var(--status-enruta-text); background: var(--status-enruta-bg); }
+  .kpi.destacado .lbl { color: var(--status-enruta-text); }
+  .kpi.destacado .val { color: var(--status-enruta-text); }
+  .kpi.destacado .sub { color: var(--status-enruta-text); opacity: 0.8; }
+
+  .charts { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+  @media (max-width: 860px) { .charts { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 18px;
+  }
+  .card h2 { margin: 0 0 10px; font-size: 0.88rem; font-weight: 800; color: var(--text-strong); }
+  .chart-box { position: relative; height: 220px; }
+
+  .filtros {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+  }
+  .campo { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+  .campo label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .campo select {
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text); font-size: 0.85rem; font-family: inherit;
+  }
+  .btn-limpiar {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--text); font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  }
+  .btn-limpiar:hover { background: var(--surface-2); }
+  .filtros .conteo { margin-left: auto; font-size: 0.78rem; color: var(--text-muted); align-self: center; }
+
+  .tabla-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .tabla-scroll { overflow-x: auto; max-height: 520px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 720px; }
+  thead th {
+    position: sticky; top: 0; background: var(--surface-2); color: var(--text-muted);
+    text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em;
+    font-weight: 700; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr.en-ruta { background: var(--status-enruta-bg); }
+  tbody tr.en-ruta:hover { background: var(--status-enruta-bg); filter: brightness(0.97); }
+  /* Ciclo (cerrado o fuera de base) que lleva mas de UMBRAL_HORAS_CICLO horas
+     -- pisa el amber de "fuera de base" cuando aplican los dos, es la
+     severidad mas alta (pedido 2026-09-16). */
+  tbody tr.excede-umbral { background: var(--status-critico-bg); }
+  tbody tr.excede-umbral:hover { background: var(--status-critico-bg); filter: brightness(0.97); }
+  tbody td.duracion-critica { color: var(--status-critico-text); font-weight: 800; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+  .pill.cerrado { background: var(--status-cerrado-bg); color: var(--status-cerrado-text); }
+  .pill.en-ruta { background: var(--status-enruta-bg); color: var(--status-enruta-text); }
+  .pill.critico { background: var(--status-critico-bg); color: var(--status-critico-text); }
+  .pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .vacio { padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+  footer.pie { text-align: center; font-size: 0.72rem; color: var(--text-faint); padding-top: 4px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Ciclos Operativos</h1>
+      <p>Salidas y entradas de la flota a la base de operaciones — Promoambiental</p>
+    </div>
+    <span class="lbl" id="nombreArchivo">Mostrando datos de ejemplo</span>
+  </header>
+
+  <div class="banner-ejemplo" id="bannerEjemplo">
+    <span>ℹ️</span>
+    <span><strong>Datos de ejemplo.</strong> Este archivo se genera con <code>generar_reporte_ciclos.py</code> — corré el script para ver la información real de tu flota.</span>
+  </div>
+
+  <section class="kpis">
+    <div class="kpi">
+      <div class="lbl">Total de ciclos</div>
+      <div class="val" id="kpiTotal">—</div>
+      <div class="sub" id="kpiTotalSub">&nbsp;</div>
+    </div>
+    <div class="kpi destacado">
+      <div class="lbl">Fuera de base</div>
+      <div class="val" id="kpiEnRuta">—</div>
+      <div class="sub">Sin regresar a la base todavía</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Duración promedio</div>
+      <div class="val" id="kpiDuracion">—</div>
+      <div class="sub">Ciclos cerrados</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Vehículos operativos</div>
+      <div class="val" id="kpiVehiculos">—</div>
+      <div class="sub">Con al menos un ciclo</div>
+    </div>
+  </section>
+
+  <section class="charts">
+    <div class="card">
+      <h2>📊 Ciclos operativos por día</h2>
+      <div class="chart-box"><canvas id="chartBarras"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>📈 Duración promedio por día</h2>
+      <div class="chart-box"><canvas id="chartLinea"></canvas></div>
+    </div>
+  </section>
+
+  <section class="filtros">
+    <div class="campo">
+      <label for="fFecha">Fecha</label>
+      <select id="fFecha"><option value="">Todas</option></select>
+    </div>
+    <div class="campo">
+      <label for="fMovil">Móvil</label>
+      <select id="fMovil"><option value="">Todos</option></select>
+    </div>
+    <div class="campo">
+      <label for="fEstado">Estado</label>
+      <select id="fEstado">
+        <option value="">Todos</option>
+        <option value="Cerrado">Cerrado</option>
+        <option value="En ruta">Fuera de base</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label for="fDiaSemana">Día de la semana</label>
+      <select id="fDiaSemana">
+        <option value="">Todos</option>
+        <option value="1">Lunes</option>
+        <option value="2">Martes</option>
+        <option value="3">Miércoles</option>
+        <option value="4">Jueves</option>
+        <option value="5">Viernes</option>
+        <option value="6">Sábado</option>
+        <option value="0">Domingo</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label for="fJornada">Jornada</label>
+      <select id="fJornada">
+        <option value="">Todas</option>
+        <option value="Día">☀️ Día (05:00–17:59)</option>
+        <option value="Noche">🌙 Noche (18:00–05:00)</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label for="fDuracion">Duración del ciclo</label>
+      <select id="fDuracion">
+        <option value="">Todas</option>
+        <option value="8">⏱️ Más de 8 horas</option>
+        <option value="9">🔴 Más de 9 horas</option>
+      </select>
+    </div>
+    <button class="btn-limpiar" id="btnLimpiar">Limpiar filtros</button>
+    <button class="btn-limpiar" id="btnExcel" title="Descarga en .csv lo que está filtrado en pantalla; se abre directo con Excel">⬇ Exportar a Excel</button>
+    <span class="conteo" id="conteoFiltro"></span>
+  </section>
+
+  <section class="tabla-card">
+    <div class="tabla-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Móvil</th><th>Estado</th><th>Fecha salida</th><th>Hora salida</th>
+            <th>Fecha entrada</th><th>Hora entrada</th><th>Duración</th><th>N° ciclo del día</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyCiclos"></tbody>
+      </table>
+    </div>
+    <div class="vacio" id="vacioTabla" hidden>Sin ciclos con estos filtros.</div>
+  </section>
+
+  <footer class="pie">Promoambiental · Dashboard de ciclos operativos · datos de Geotab (Trips vs. geocerca de base)</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // --- Datos de ejemplo (marcados como tal, se reemplazan al cargar un Excel real) ---
+  var DATOS_EJEMPLO = [
+    { movil: '1158-SSX744', estado: 'Cerrado', fSalida: '2026-09-14', hSalida: '06:12:03', fEntrada: '2026-09-14', hEntrada: '09:47:21', durMin: 215.3, ciclo: 1 },
+    { movil: '1158-SSX744', estado: 'Cerrado', fSalida: '2026-09-14', hSalida: '11:02:10', fEntrada: '2026-09-14', hEntrada: '14:18:55', durMin: 196.8, ciclo: 2 },
+    { movil: '1158-SSX744', estado: 'Cerrado', fSalida: '2026-09-15', hSalida: '05:58:44', fEntrada: '2026-09-15', hEntrada: '09:21:02', durMin: 202.3, ciclo: 1 },
+    { movil: '1158-SSX744', estado: 'En ruta', fSalida: '2026-09-16', hSalida: '06:04:12', fEntrada: '', hEntrada: '', durMin: null, ciclo: 1 },
+    { movil: '1162-NWY950', estado: 'Cerrado', fSalida: '2026-09-14', hSalida: '07:01:00', fEntrada: '2026-09-14', hEntrada: '10:39:14', durMin: 218.2, ciclo: 1 },
+    { movil: '1162-NWY950', estado: 'Cerrado', fSalida: '2026-09-14', hSalida: '12:15:30', fEntrada: '2026-09-14', hEntrada: '13:02:47', durMin: 47.3, ciclo: 2 },
+    { movil: '1162-NWY950', estado: 'Cerrado', fSalida: '2026-09-15', hSalida: '06:40:18', fEntrada: '2026-09-15', hEntrada: '11:52:09', durMin: 311.9, ciclo: 1 },
+    { movil: '1162-NWY950', estado: 'Cerrado', fSalida: '2026-09-15', hSalida: '23:41:55', fEntrada: '2026-09-16', hEntrada: '01:18:32', durMin: 96.6, ciclo: 2 },
+    { movil: '1307-LSX407', estado: 'Cerrado', fSalida: '2026-09-13', hSalida: '06:30:00', fEntrada: '2026-09-13', hEntrada: '08:52:41', durMin: 142.7, ciclo: 1 },
+    { movil: '1307-LSX407', estado: 'Cerrado', fSalida: '2026-09-13', hSalida: '10:10:05', fEntrada: '2026-09-13', hEntrada: '13:44:37', durMin: 214.5, ciclo: 2 },
+    { movil: '1307-LSX407', estado: 'Cerrado', fSalida: '2026-09-14', hSalida: '06:22:09', fEntrada: '2026-09-14', hEntrada: '09:03:58', durMin: 161.8, ciclo: 1 },
+    { movil: '1307-LSX407', estado: 'En ruta', fSalida: '2026-09-16', hSalida: '05:47:30', fEntrada: '', hEntrada: '', durMin: null, ciclo: 1 },
+    { movil: '1149-NWX185', estado: 'Cerrado', fSalida: '2026-09-13', hSalida: '05:55:12', fEntrada: '2026-09-13', hEntrada: '08:12:39', durMin: 137.5, ciclo: 1 },
+    { movil: '1149-NWX185', estado: 'Cerrado', fSalida: '2026-09-14', hSalida: '06:08:47', fEntrada: '2026-09-14', hEntrada: '10:26:14', durMin: 257.5, ciclo: 1 },
+    { movil: '1149-NWX185', estado: 'Cerrado', fSalida: '2026-09-15', hSalida: '06:15:22', fEntrada: '2026-09-15', hEntrada: '08:44:50', durMin: 149.5, ciclo: 1 },
+    { movil: '1153-NWX416', estado: 'Cerrado', fSalida: '2026-09-13', hSalida: '13:20:00', fEntrada: '2026-09-13', hEntrada: '16:05:18', durMin: 165.3, ciclo: 1 },
+    { movil: '1153-NWX416', estado: 'Cerrado', fSalida: '2026-09-15', hSalida: '07:33:41', fEntrada: '2026-09-15', hEntrada: '09:58:02', durMin: 144.4, ciclo: 1 },
+    { movil: '1153-NWX416', estado: 'En ruta', fSalida: '2026-09-16', hSalida: '06:50:00', fEntrada: '', hEntrada: '', durMin: null, ciclo: 2 }
+  ];
+
+  // --- Datos reales incrustados (opcional) --------------------------------
+  // El script herramientas/generar_reporte_ciclos.py reemplaza esta linea
+  // completa (la reconoce por el comentario __DATOS_REALES__ al final) con
+  // el arreglo real ya calculado + la fecha de generacion, dejando un HTML
+  // autocontenido y listo para abrir -- sin necesidad de subir el Excel a
+  // mano. Si nadie la reemplazo (plantilla abierta directo), queda en null y
+  // el dashboard usa los datos de ejemplo de mas arriba, igual que siempre.
+  var DATOS_REALES = null; var GENERADO_EN = null; // __DATOS_REALES__
+
+  var datosActuales;
+  var esEjemplo;
+  if (DATOS_REALES && DATOS_REALES.length > 0) {
+    datosActuales = enriquecerDatos(DATOS_REALES.slice());
+    esEjemplo = false;
+  } else {
+    datosActuales = enriquecerDatos(DATOS_EJEMPLO.slice());
+    esEjemplo = true;
+  }
+  var chartBarras = null, chartLinea = null;
+
+  var el = {
+    nombreArchivo: document.getElementById('nombreArchivo'),
+    banner: document.getElementById('bannerEjemplo'),
+    kpiTotal: document.getElementById('kpiTotal'),
+    kpiTotalSub: document.getElementById('kpiTotalSub'),
+    kpiEnRuta: document.getElementById('kpiEnRuta'),
+    kpiDuracion: document.getElementById('kpiDuracion'),
+    kpiVehiculos: document.getElementById('kpiVehiculos'),
+    fFecha: document.getElementById('fFecha'),
+    fMovil: document.getElementById('fMovil'),
+    fEstado: document.getElementById('fEstado'),
+    fDiaSemana: document.getElementById('fDiaSemana'),
+    fJornada: document.getElementById('fJornada'),
+    fDuracion: document.getElementById('fDuracion'),
+    btnLimpiar: document.getElementById('btnLimpiar'),
+    btnExcel: document.getElementById('btnExcel'),
+    conteoFiltro: document.getElementById('conteoFiltro'),
+    tbody: document.getElementById('tbodyCiclos'),
+    vacioTabla: document.getElementById('vacioTabla')
+  };
+
+  // Ciclos (cerrados o todavia fuera de base) que llevan mas de esto se
+  // resaltan en rojo (pedido 2026-09-16). Aplica igual a un ciclo cerrado
+  // (duracion real ya conocida) y a uno "Fuera de base" que sigue abierto
+  // (se compara la hora de salida contra el momento en que se abrio esta
+  // pagina, no contra "ahora" en vivo -- el HTML es una foto fija, ver
+  // feedback_html_datos_incrustados).
+  var UMBRAL_HORAS_CICLO = 9;
+  var AHORA_AL_ABRIR = new Date();
+
+  function parsearFechaHora(fechaISO, horaStr) {
+    var pf = fechaISO.split('-'), ph = horaStr.split(':');
+    return new Date(Number(pf[0]), Number(pf[1]) - 1, Number(pf[2]), Number(ph[0]), Number(ph[1]), Number(ph[2] || 0));
+  }
+
+  function horasDelCiclo(d) {
+    if (d.durMin !== null && d.durMin !== undefined && !isNaN(d.durMin)) return d.durMin / 60;
+    if (d.estado === 'En ruta' && d.fSalida && d.hSalida) {
+      var salida = parsearFechaHora(d.fSalida, d.hSalida);
+      return (AHORA_AL_ABRIR - salida) / 3600000;
+    }
+    return null;
+  }
+
+  function formatearDuracion(min) {
+    if (min === null || min === undefined || isNaN(min)) return 'Fuera de base';
+    var h = Math.floor(min / 60);
+    var m = Math.round(min % 60);
+    return h > 0 ? (h + 'h ' + m + 'min') : (m + ' min');
+  }
+
+  // Texto visible para el usuario -- el valor interno 'estado' sigue siendo
+  // 'Cerrado'/'En ruta' (asi lo escribe generar_reporte_ciclos.py y asi
+  // compara el filtro), esta funcion solo traduce para lo que se muestra en
+  // pantalla (pedido 2026-09-16: "En ruta" se lee como "Fuera de Base").
+  function textoEstado(estado) {
+    return estado === 'En ruta' ? 'Fuera de base' : estado;
+  }
+
+  function esModoOscuro() {
+    var stamp = document.documentElement.getAttribute('data-theme');
+    if (stamp === 'dark') return true;
+    if (stamp === 'light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function tokenColor(nombre) {
+    return getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+  }
+
+  // Dia de la semana (0=domingo..6=sabado, igual que Date#getDay) a partir de
+  // 'YYYY-MM-DD' -- se arma la fecha con año/mes/dia locales (no new Date(iso)
+  // directo) para no correr el dia por interpretacion UTC.
+  function diaSemanaDe(fechaISO) {
+    if (!fechaISO) return null;
+    var partes = fechaISO.split('-');
+    var d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+    return d.getDay();
+  }
+
+  // Jornada Dia/Noche a partir de la hora de salida 'HH:MM:SS'. Corte fijo
+  // 05:00-17:59 = Dia, 18:00-04:59 = Noche (corregido 2026-09-23: antes el
+  // dia arrancaba a las 06:00) -- distinto del sistema
+  // de 3 turnos R1/R2/R3 que ya usan otras herramientas del proyecto, porque
+  // acá el usuario pidio especificamente una jornada Dia/Noche de 2 valores,
+  // no los 3 turnos operativos.
+  function jornadaDe(horaStr) {
+    if (!horaStr) return null;
+    var hora = parseInt(horaStr.split(':')[0], 10);
+    if (isNaN(hora)) return null;
+    return (hora >= 5 && hora < 18) ? 'Día' : 'Noche';
+  }
+
+  // Agrega diaSemana/jornada calculados a cada registro -- se llama tanto
+  // sobre los datos de ejemplo como sobre lo que venga del Excel cargado, asi
+  // los filtros nuevos funcionan igual en los dos casos.
+  function enriquecerDatos(lista) {
+    lista.forEach(function (d) {
+      d.diaSemana = diaSemanaDe(d.fSalida);
+      d.jornada = jornadaDe(d.hSalida);
+    });
+    return lista;
+  }
+
+  // --- Poblar selects de filtro a partir de los datos actuales ---
+  function poblarFiltros() {
+    var fechas = Array.from(new Set(datosActuales.map(function (d) { return d.fSalida; }))).sort();
+    var moviles = Array.from(new Set(datosActuales.map(function (d) { return d.movil; }))).sort();
+
+    var valFecha = el.fFecha.value, valMovil = el.fMovil.value;
+    el.fFecha.innerHTML = '<option value="">Todas</option>' + fechas.map(function (f) { return '<option value="' + f + '">' + f + '</option>'; }).join('');
+    el.fMovil.innerHTML = '<option value="">Todos</option>' + moviles.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join('');
+    if (fechas.indexOf(valFecha) !== -1) el.fFecha.value = valFecha;
+    if (moviles.indexOf(valMovil) !== -1) el.fMovil.value = valMovil;
+  }
+
+  function datosFiltrados() {
+    var f = el.fFecha.value, m = el.fMovil.value, e = el.fEstado.value;
+    var ds = el.fDiaSemana.value, j = el.fJornada.value;
+    var minHoras = el.fDuracion.value ? Number(el.fDuracion.value) : null;
+    return datosActuales.filter(function (d) {
+      if (f && d.fSalida !== f) return false;
+      if (m && d.movil !== m) return false;
+      if (e && d.estado !== e) return false;
+      if (ds !== '' && String(d.diaSemana) !== ds) return false;
+      if (j && d.jornada !== j) return false;
+      if (minHoras !== null) {
+        var h = horasDelCiclo(d);
+        if (h === null || !(h > minHoras)) return false;
+      }
+      return true;
+    });
+  }
+
+  // --- KPIs ---
+  function renderKpis(filtrados) {
+    var enRuta = filtrados.filter(function (d) { return d.estado === 'En ruta'; });
+    var cerrados = filtrados.filter(function (d) { return d.estado === 'Cerrado'; });
+    var vehiculos = new Set(filtrados.map(function (d) { return d.movil; }));
+
+    el.kpiTotal.textContent = filtrados.length;
+    el.kpiTotalSub.textContent = cerrados.length + ' cerrados · ' + enRuta.length + ' fuera de base';
+    el.kpiEnRuta.textContent = enRuta.length;
+    var promedio = cerrados.length ? cerrados.reduce(function (s, d) { return s + d.durMin; }, 0) / cerrados.length : null;
+    el.kpiDuracion.textContent = promedio === null ? '—' : formatearDuracion(promedio);
+    el.kpiVehiculos.textContent = vehiculos.size;
+  }
+
+  // --- Gráficos ---
+  function agregarPorDia(filtrados) {
+    var dias = Array.from(new Set(filtrados.map(function (d) { return d.fSalida; }))).sort();
+    var conteo = {}, sumaDur = {}, nDur = {};
+    dias.forEach(function (f) { conteo[f] = 0; sumaDur[f] = 0; nDur[f] = 0; });
+    filtrados.forEach(function (d) {
+      conteo[d.fSalida] = (conteo[d.fSalida] || 0) + 1;
+      if (d.estado === 'Cerrado') { sumaDur[d.fSalida] = (sumaDur[d.fSalida] || 0) + d.durMin; nDur[d.fSalida] = (nDur[d.fSalida] || 0) + 1; }
+    });
+    return {
+      dias: dias,
+      conteos: dias.map(function (f) { return conteo[f]; }),
+      // En HORAS (pedido 2026-09-23): durMin viene en minutos desde el script.
+      promedios: dias.map(function (f) { return nDur[f] ? Math.round((sumaDur[f] / nDur[f] / 60) * 100) / 100 : null; })
+    };
+  }
+
+  function etiquetaCorta(fechaISO) {
+    var partes = fechaISO.split('-');
+    var d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+    // CAMBIO (pedido 2026-09-16): agrega el dia de la semana (ej. "mar 9 de
+    // sept") en vez de solo la fecha -- asi se nota de un vistazo si hay un
+    // patron por dia (ej. "siempre baja los domingos").
+    var dia = d.toLocaleDateString('es-CO', { weekday: 'short' });
+    dia = dia.charAt(0).toUpperCase() + dia.slice(1).replace('.', '');
+    return dia + ' ' + d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+  }
+
+  function renderGraficos(filtrados) {
+    var agg = agregarPorDia(filtrados);
+    var etiquetas = agg.dias.map(etiquetaCorta);
+    var accent = tokenColor('--accent');
+    var accentSoft = tokenColor('--accent-soft');
+    var textMuted = tokenColor('--text-muted');
+    var grid = tokenColor('--chart-grid');
+    var axis = tokenColor('--chart-axis');
+    var surface = tokenColor('--surface');
+    var textStrong = tokenColor('--text-strong');
+
+    if (chartBarras) chartBarras.destroy();
+    chartBarras = new Chart(document.getElementById('chartBarras'), {
+      type: 'bar',
+      data: {
+        labels: etiquetas,
+        datasets: [{ label: 'Ciclos', data: agg.conteos, backgroundColor: accent, borderRadius: 4, maxBarThickness: 34 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: surface, titleColor: textStrong, bodyColor: textStrong,
+            borderColor: axis, borderWidth: 1, padding: 10, cornerRadius: 8,
+            callbacks: { label: function (ctx) { return ctx.parsed.y + ' ciclo(s)'; } }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textMuted, font: { size: 11 } } },
+          y: { beginAtZero: true, ticks: { color: textMuted, precision: 0, font: { size: 11 } }, grid: { color: grid } }
+        }
+      }
+    });
+
+    if (chartLinea) chartLinea.destroy();
+    chartLinea = new Chart(document.getElementById('chartLinea'), {
+      type: 'line',
+      data: {
+        labels: etiquetas,
+        datasets: [{
+          label: 'Duración promedio (horas)', data: agg.promedios, borderColor: accent,
+          backgroundColor: accentSoft, fill: true, tension: 0.35, spanGaps: true,
+          pointRadius: 4, pointBackgroundColor: accent, pointBorderColor: surface, pointBorderWidth: 2, borderWidth: 2.5
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: surface, titleColor: textStrong, bodyColor: textStrong,
+            borderColor: axis, borderWidth: 1, padding: 10, cornerRadius: 8,
+            callbacks: { label: function (ctx) { return ctx.parsed.y === null ? 'Sin ciclos cerrados' : ctx.parsed.y.toFixed(2) + ' h (' + formatearDuracion(ctx.parsed.y * 60) + ')'; } }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textMuted, font: { size: 11 } } },
+          y: { beginAtZero: true, grid: { color: grid, drawTicks: false }, ticks: { color: textMuted, font: { size: 11 }, callback: function (v) { return v + ' h'; } } }
+        }
+      }
+    });
+  }
+
+  // --- Tabla ---
+  function renderTabla(filtrados) {
+    var ordenados = filtrados.slice().sort(function (a, b) {
+      if (a.movil !== b.movil) return a.movil < b.movil ? -1 : 1;
+      return (a.fSalida + a.hSalida) < (b.fSalida + b.hSalida) ? -1 : 1;
+    });
+    el.tbody.innerHTML = '';
+    el.vacioTabla.hidden = ordenados.length > 0;
+    var nExcede = 0;
+    ordenados.forEach(function (d) {
+      var horas = horasDelCiclo(d);
+      var excede = horas !== null && horas > UMBRAL_HORAS_CICLO;
+      if (excede) nExcede++;
+
+      var tr = document.createElement('tr');
+      // Excede 9h pisa el amber de "fuera de base" -- es la severidad mas alta.
+      if (excede) tr.className = 'excede-umbral';
+      else if (d.estado === 'En ruta') tr.className = 'en-ruta';
+
+      var pillClase = excede ? 'critico' : (d.estado === 'En ruta' ? 'en-ruta' : 'cerrado');
+      var etiquetaEstado = excede ? (textoEstado(d.estado) + ' · +' + UMBRAL_HORAS_CICLO + 'h') : textoEstado(d.estado);
+      var celdaDuracion = '<td' + (excede ? ' class="duracion-critica"' : '') + '>' + formatearDuracion(d.durMin) + '</td>';
+
+      tr.innerHTML =
+        '<td>' + d.movil + '</td>' +
+        '<td><span class="pill ' + pillClase + '">' + etiquetaEstado + '</span></td>' +
+        '<td>' + d.fSalida + '</td><td>' + d.hSalida + '</td>' +
+        '<td>' + (d.fEntrada || '—') + '</td><td>' + (d.hEntrada || '—') + '</td>' +
+        celdaDuracion +
+        '<td>' + d.ciclo + '</td>';
+      el.tbody.appendChild(tr);
+    });
+    el.conteoFiltro.textContent = ordenados.length + ' de ' + datosActuales.length + ' ciclos' +
+      (nExcede > 0 ? ' · ' + nExcede + ' por encima de ' + UMBRAL_HORAS_CICLO + 'h' : '');
+  }
+
+  function renderTodo() {
+    var filtrados = datosFiltrados();
+    renderKpis(filtrados);
+    renderGraficos(filtrados);
+    renderTabla(filtrados);
+  }
+
+  [el.fFecha, el.fMovil, el.fEstado, el.fDiaSemana, el.fJornada, el.fDuracion].forEach(function (sel) { sel.addEventListener('change', renderTodo); });
+  el.btnLimpiar.addEventListener('click', function () {
+    el.fFecha.value = ''; el.fMovil.value = ''; el.fEstado.value = '';
+    el.fDiaSemana.value = ''; el.fJornada.value = ''; el.fDuracion.value = '';
+    renderTodo();
+  });
+
+  // Exporta lo que esta filtrado en pantalla a un .csv (separador ';' y BOM
+  // UTF-8 para que Excel en español lo abra directo con columnas y tildes
+  // bien). El Excel completo (.xlsx con formato) lo genera el script Python.
+  function csvCelda(v) {
+    var s = (v === null || v === undefined) ? '' : String(v);
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  el.btnExcel.addEventListener('click', function () {
+    var filas = datosFiltrados().slice().sort(function (a, b) {
+      if (a.movil !== b.movil) return a.movil < b.movil ? -1 : 1;
+      return (a.fSalida + a.hSalida) < (b.fSalida + b.hSalida) ? -1 : 1;
+    });
+    var lineas = [['Móvil', 'Estado', 'Fecha salida', 'Hora salida', 'Fecha entrada', 'Hora entrada', 'Duración (horas)', 'N° ciclo del día', 'Más de 8h'].map(csvCelda).join(';')];
+    filas.forEach(function (d) {
+      var h = horasDelCiclo(d);
+      lineas.push([
+        d.movil, textoEstado(d.estado), d.fSalida, d.hSalida, d.fEntrada || '', d.hEntrada || '',
+        h === null ? '' : h.toFixed(2).replace('.', ','), d.ciclo, (h !== null && h > 8) ? 'Sí' : 'No'
+      ].map(csvCelda).join(';'));
+    });
+    var blob = new Blob(['﻿' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ciclos_operativos_filtrado.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
+
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderTodo);
+  }
+
+  // Estado inicial: si el archivo trae datos reales incrustados (ver
+  // DATOS_REALES arriba), arranca mostrandolos directo, sin el banner de
+  // ejemplo y con la fecha de generacion en vez de "Cargar Excel" a mano.
+  if (!esEjemplo) {
+    el.banner.hidden = true;
+    el.nombreArchivo.textContent = 'Generado el ' + (GENERADO_EN || '—') + ' · ' + datosActuales.length + ' ciclos';
+  }
+
+  poblarFiltros();
+  renderTodo();
+})();
+</script>

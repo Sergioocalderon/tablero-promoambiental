@@ -729,6 +729,12 @@ geotab.addin.dashboardAnalisisFallas = function () {
     return lista;
   }
 
+  // El código 0 es válido: FMI 0 = "dato por encima del rango normal, nivel más severo". Con `|| '?'` el cero se perdía
+  // y la clase más grave salía como "FMI ?".
+  function valorODesconocido(v) {
+    return (v === null || v === undefined || v === '') ? '?' : v;
+  }
+
   // CAMBIO (2026-09-19, coherencia de datos): agrupar por SPN/FMI REAL
   // cuando el diagnóstico lo tiene, no por el ID interno de Geotab
   // (idDiagnostico/idFailureMode). Geotab puede tener DOS entidades
@@ -757,8 +763,8 @@ geotab.addin.dashboardAnalisisFallas = function () {
         porCodigo[clave] = {
           idDiagnostico: g.idDiagnostico,
           idFailureMode: g.idFailureMode,
-          spn: diagInfo.codigo || '?',
-          fmi: fmInfo.codigo || '?',
+          spn: valorODesconocido(diagInfo.codigo),
+          fmi: valorODesconocido(fmInfo.codigo),
           nombreFalla: diagInfo.nombre + (fmInfo.nombre ? ' — ' + fmInfo.nombre : ''),
           episodios: 0,
           vehiculosAfectados: {},

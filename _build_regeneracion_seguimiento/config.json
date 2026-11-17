@@ -1,0 +1,15 @@
+{
+    "name": "Seguimiento de Regeneraciones DPF",
+    "supportEmail": "sergio.calderon@promoambientaldistrito.com",
+    "version": "1.13",
+    "enableViewSecurityId": true,
+    "items": [
+        {
+            "url": "seguimientoRegeneracion.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Seguimiento de Regeneraciones DPF"
+            }
+        }
+    ]
+}
