@@ -37,8 +37,16 @@
 <input id="horas" type="number" min="1" max="168" />
 <div class="nota">Evita registrar historial viejo al abrir el chat por primera vez o tras un apagado largo.</div>
 
+<h2>Aviso por Telegram si deja de leer (opcional)</h2>
+<label for="tgToken">Token del bot de Telegram</label>
+<input id="tgToken" type="password" autocomplete="off" placeholder="el mismo TELEGRAM_BOT_TOKEN del bot de alertas" />
+<label for="tgChat">Chat ID</label>
+<input id="tgChat" type="text" placeholder="el mismo TELEGRAM_CHAT_ID" />
+<div class="nota">En modo REAL, si pasan 15 minutos sin poder leer el grupo (pestaña cerrada, otro chat, WhatsApp cambió su página) llega un aviso, y otro cuando se recupera. Vacío = sin avisos.</div>
+
 <button id="guardar">Guardar</button>
 <button id="probar" class="sec">Probar conexión</button>
+<button id="probarTg" class="sec">Probar aviso Telegram</button>
 <button id="vaciar" class="sec">Enviar cola ahora</button>
 <div id="msg"></div>
 

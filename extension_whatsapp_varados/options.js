@@ -1,5 +1,5 @@
 'use strict';
-var BASE = { url: '', token: '', grupo: 'Mantenimiento Promo', modo: 'simulacro', horasAtras: 24 };
+var BASE = { url: '', token: '', grupo: 'Mantenimiento Promo', modo: 'simulacro', horasAtras: 24, tgToken: '', tgChat: '' };
 function $(id) { return document.getElementById(id); }
 function decir(texto, clase) { var m = $('msg'); m.textContent = texto; m.className = clase || ''; }
 
@@ -9,6 +9,7 @@ function cargarCampos() {
   chrome.storage.local.get('cfg').then(function (r) {
     var c = Object.assign({}, BASE, r.cfg || {});
     $('url').value = c.url; $('token').value = c.token; $('grupo').value = c.grupo; $('modo').value = c.modo; $('horas').value = c.horasAtras;
+    $('tgToken').value = c.tgToken; $('tgChat').value = c.tgChat;
   });
 }
 
@@ -30,7 +31,8 @@ function cargar() {
 $('guardar').onclick = function () {
   var url = $('url').value.trim();
   if (url && !/^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(url)) { decir('La URL debe empezar por https://script.google.com/macros/s/ y terminar en /exec', 'mal'); return; }
-  chrome.storage.local.set({ cfg: { url: url, token: $('token').value.trim(), grupo: $('grupo').value.trim() || BASE.grupo, modo: $('modo').value, horasAtras: Math.max(1, Number($('horas').value) || 24) } })
+  chrome.storage.local.set({ cfg: { url: url, token: $('token').value.trim(), grupo: $('grupo').value.trim() || BASE.grupo, modo: $('modo').value, horasAtras: Math.max(1, Number($('horas').value) || 24),
+    tgToken: $('tgToken').value.trim(), tgChat: $('tgChat').value.trim() } })
     .then(function () { decir('Guardado.', 'ok'); cargarCampos(); cargar(); });
 };
 
@@ -44,7 +46,14 @@ $('probar').onclick = function () {
   }).catch(function (e) { decir('No se pudo conectar: ' + e.message, 'mal'); });
 };
 
-$('vaciar').onclick = function () { chrome.runtime.sendMessage({ tipo: 'vaciar' }, function () { decir('Cola enviada.', 'ok'); setTimeout(cargar, 800); }); };
+$('probarTg').onclick = function () {
+  decir('Enviando prueba… (use Guardar antes si cambió el token o el chat)');
+  chrome.runtime.sendMessage({ tipo: 'probarTelegram' }, function (r) {
+    if (r && r.ok) decir('Aviso de prueba enviado: revise Telegram.', 'ok'); else decir('No se pudo enviar: revise el token y el chat ID (y que estén guardados).', 'mal');
+  });
+};
+
+$('vaciar').onclick =function () { chrome.runtime.sendMessage({ tipo: 'vaciar' }, function () { decir('Cola enviada.', 'ok'); setTimeout(cargar, 800); }); };
 cargarCampos();
 cargar();
 setInterval(cargar, 5000);

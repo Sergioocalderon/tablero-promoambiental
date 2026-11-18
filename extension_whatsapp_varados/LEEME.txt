@@ -1,4 +1,4 @@
-REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.1.1
+REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.2.0
 =========================================================
 
 QUÉ HACE
@@ -39,6 +39,13 @@ USO DIARIO
  - Si falla internet o el receptor, los reportes quedan en una cola que se vacía sola cada minuto.
  - Un reporte ya registrado no se duplica (misma unidad, fecha y hora).
  - Un reporte que ya estaba en la hoja (por ejemplo, por el botón) tampoco se duplica.
+
+AVISO POR TELEGRAM SI DEJA DE LEER (opcional, desde v1.2.0)
+ - En la configuración, ponga el token del bot y el chat ID (los mismos del bot de alertas) y pulse
+   Guardar y luego "Probar aviso Telegram".
+ - En modo REAL, si pasan 15 min sin poder leer el grupo (pestaña cerrada o dormida, otro chat abierto,
+   WhatsApp cambió su página, extensión recargada) llega UN aviso con el motivo, y otro cuando se recupera.
+ - Si Chrome está cerrado o el PC apagado no hay aviso (no hay nada corriendo para enviarlo).
 
 LÍMITES (sea honesto con ellos)
  - Necesita un PC con Chrome y WhatsApp Web abiertos. Sin eso no lee nada.

@@ -3,7 +3,7 @@
    conexión o el PC estuvo apagado, la cola se vacía sola al volver. */
 'use strict';
 
-var CFG_BASE = { url: '', token: '', grupo: 'Mantenimiento Promo', modo: 'simulacro', horasAtras: 24 };
+var CFG_BASE = { url: '', token: '', grupo: 'Mantenimiento Promo', modo: 'simulacro', horasAtras: 24, tgToken: '', tgChat: '' };
 var MAX_INTENTOS = 5;
 var enCurso = false;
 
@@ -104,7 +104,64 @@ function vaciarCola() {
   }).then(function () { enCurso = false; return actualizarBadge(); }, function () { enCurso = false; });
 }
 
+/* ---- Vigilancia: aviso por Telegram si la pestaña de WhatsApp deja de leer el grupo ----
+   content.js manda un latido (sano / motivo). Si pasan MIN_SIN_LEER minutos sin un latido sano, se avisa UNA vez;
+   cuando vuelve a leer, se avisa que se recuperó. El estado vive en storage porque el proceso de fondo se reinicia. */
+var MIN_SIN_LEER = 15;
+var MOTIVOS = {
+  'otro-chat': 'WhatsApp Web está abierto en otro chat',
+  'sin-mensajes': 'no detecta mensajes en el grupo (WhatsApp pudo cambiar su página)',
+  'recargar': 'la extensión se actualizó y la pestaña quedó vieja: pulsar F5 en WhatsApp Web',
+  '': 'no llegan señales: la pestaña de WhatsApp Web está cerrada, dormida o el PC suspendido'
+};
+
+function horaCorta(ms) { var d = new Date(ms); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+
+function telegram(c, texto) {
+  if (!c.tgToken || !c.tgChat) return Promise.resolve(false);
+  return fetch('https://api.telegram.org/bot' + c.tgToken + '/sendMessage', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: c.tgChat, text: texto })
+  }).then(function (r) { return r.json(); }).then(function (j) { return !!(j && j.ok); }, function () { return false; });
+}
+
+function recibirLatido(m) {
+  return chrome.storage.local.get('vigia').then(function (r) {
+    var v = r.vigia || {};
+    v.motivo = m.motivo || '';
+    if (!m.sano) return chrome.storage.local.set({ vigia: v });
+    v.ultimoSano = Date.now();
+    if (!v.alertado) return chrome.storage.local.set({ vigia: v });
+    return leerCfg().then(function (c) {
+      return telegram(c, '✅ Varados: la extensión volvió a leer el grupo «' + c.grupo + '» (' + horaCorta(Date.now()) + ').').then(function (ok) {
+        if (ok) v.alertado = false;      // si el aviso no salió, se reintenta con el siguiente latido sano
+        return chrome.storage.local.set({ vigia: v });
+      });
+    });
+  });
+}
+
+function revisarVigilancia() {
+  return Promise.all([leerCfg(), chrome.storage.local.get('vigia')]).then(function (x) {
+    var c = x[0], v = x[1].vigia || {};
+    if (c.modo !== 'real' || !c.tgToken || !c.tgChat) return;
+    if (!v.ultimoSano) { v.ultimoSano = Date.now(); return chrome.storage.local.set({ vigia: v }); }   // recién instalada: empieza a contar
+    if (v.alertado || Date.now() - v.ultimoSano < MIN_SIN_LEER * 60000) return;
+    var texto = '⚠ Varados: la extensión NO está leyendo el grupo «' + c.grupo + '» desde las ' + horaCorta(v.ultimoSano) +
+      '.\nMotivo: ' + (MOTIVOS[v.motivo] || MOTIVOS['']) + '.\nLos reportes de ese tiempo se registrarán solos cuando vuelva a leer.';
+    return telegram(c, texto).then(function (ok) { if (ok) { v.alertado = true; return chrome.storage.local.set({ vigia: v }); } });
+  });
+}
+
 chrome.runtime.onMessage.addListener(function (m, _sender, responder) {
+  if (m && m.tipo === 'latido') {
+    recibirLatido(m).then(function () { responder({ ok: true }); }, function () { responder({ ok: false }); });
+    return true;
+  }
+  if (m && m.tipo === 'probarTelegram') {
+    leerCfg().then(function (c) { return telegram(c, '🔔 Prueba de la extensión de Varados: los avisos por Telegram funcionan.'); })
+      .then(function (ok) { responder({ ok: ok }); });
+    return true;
+  }
   if (m && m.tipo === 'reporte') {
     recibir(m).then(responder, function (e) { responder({ ok: false, error: String(e) }); });
     return true;
@@ -116,6 +173,6 @@ chrome.runtime.onMessage.addListener(function (m, _sender, responder) {
   return false;
 });
 
-chrome.alarms.onAlarm.addListener(function (a) { if (a.name === 'vaciar') vaciarCola(); });
+chrome.alarms.onAlarm.addListener(function (a) { if (a.name === 'vaciar') { vaciarCola(); revisarVigilancia(); } });
 chrome.runtime.onInstalled.addListener(function () { chrome.alarms.create('vaciar', { periodInMinutes: 1 }); });
 chrome.runtime.onStartup.addListener(function () { chrome.alarms.create('vaciar', { periodInMinutes: 1 }); vaciarCola(); });

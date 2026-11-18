@@ -229,8 +229,19 @@
     }, 1500);
   }
 
+  /* ---- Latido al proceso de fondo: si deja de llegar "sano", el fondo avisa por Telegram ---- */
+  var ultimoLatidoMs = 0, ultimoLatidoSano = null;
+  function latido() {
+    var motivo = stats.recargar ? 'recargar' : (stats.estado === 'otro-chat' ? 'otro-chat' : (!stats.detectados ? 'sin-mensajes' : ''));
+    var sano = !motivo && stats.estado !== 'iniciando';
+    if (sano === ultimoLatidoSano && Date.now() - ultimoLatidoMs < 60000) return;
+    ultimoLatidoMs = Date.now(); ultimoLatidoSano = sano;
+    try { chrome.runtime.sendMessage({ tipo: 'latido', sano: sano, motivo: motivo }, function () { void chrome.runtime.lastError; }); } catch (e) { /* contexto invalidado: el fondo lo notará por falta de latidos */ }
+  }
+
   /* ---- Aviso en pantalla ---- */
   function pintar() {
+    latido();
     var d = document.getElementById('__varados_banner');
     if (!d) {
       d = document.createElement('div');
