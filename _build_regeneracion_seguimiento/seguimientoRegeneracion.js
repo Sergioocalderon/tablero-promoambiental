@@ -1051,16 +1051,6 @@ geotab.addin.seguimientoRegeneracion = function () {
   }
 
   // --- Clasificación para el tablero ------------------------------------------------
-  function listaYa(resultados) {
-    return resultados.filter(function (r) { return r.abierto; }).sort(function (a, b) {
-      return (b.estado.nivel - a.estado.nivel) || (b.abierto.horasMotor - a.abierto.horasMotor);
-    });
-  }
-  function listaRegeneracion(resultados) {
-    return resultados.filter(function (r) { return r.regen; }).sort(function (a, b) {
-      return (b.regen.estado.nivel - a.regen.estado.nivel) || (b.regen.minutos - a.regen.minutos);
-    });
-  }
   // Un vehículo que ya está regenerando no es "próximo": aparece en su propia sección.
   function listaProximos(resultados) {
     return resultados.filter(function (r) { return r.proximo && !r.regen; }).sort(function (a, b) { return b.hollinActual.valor - a.hollinActual.valor; });
@@ -1075,38 +1065,46 @@ geotab.addin.seguimientoRegeneracion = function () {
     return pad2(p.d) + '-' + MESES[p.m] + '-' + p.a + ' ' + pad2(p.h) + ':' + pad2(p.mi);
   }
 
+  // Mismos grupos que el panel (accionDe): cada vehículo sale UNA sola vez, con su situación y qué hacer.
+  var ICONO_GRUPO = { LLAMAR: '🔴 📞', REVISAR: '🟠 🔧', ESPERAR: '🔵 ⏳' };
+
+  function hollinTexto(r) {
+    var g = r.regen, h = g && g.hollinActual ? g.hollinActual : r.hollinActual;
+    if (!h) return '';
+    var antes = g && g.hollinAntes !== null && Math.round(g.hollinAntes) !== Math.round(h.valor) ? Math.round(g.hollinAntes) + ' % → ' : '';
+    return ' · hollín ' + antes + Math.round(h.valor) + ' %';
+  }
+
+  function situacionTexto(r) {
+    var p = [];
+    if (r.abierto) p.push('lámpara desde ' + fmtFecha(r.abierto.desde) + ' (' + fmtHoras(r.abierto.horasMotor) + ' h de motor)' +
+      (r.estado.codigo === 'PARQUEADO' ? ', parqueado o fuera de servicio' : ''));
+    if (r.regen) p.push('regenerando ' + r.regen.tipo.etiqueta.toLowerCase() + ' desde ' + (r.regen.desdeAntes ? 'antes de ' : '') +
+      fmtFecha(r.regen.inicio) + ' (' + fmtDuracion(r.regen.minutos / 60) + ')');
+    return p.join(' · ');
+  }
+
   function mensajeCiudad(ciudad, resultados, ahora) {
-    var ya = listaYa(resultados).sort(function (a, b) { return b.abierto.horasMotor - a.abierto.horasMotor; });
+    var por = listaAtencion(resultados);
     var prox = listaProximos(resultados);
-    var reg = listaRegeneracion(resultados);
-    var L = ['🔧 REGENERACIÓN DPF — ' + ciudad, fmtFechaLarga(ahora), ''];
-    if (ya.length) {
-      L.push('🔴 REGENERAR YA — lámpara encendida (' + ya.length + ')');
-      ya.forEach(function (r) {
-        var extra = r.hollinActual ? ' · hollín ' + Math.round(r.hollinActual.valor) + ' %' : '';
-        var man = r.abierto.interruptorDesde !== null ? ' · interruptor manual activo' : '';
-        var nota = r.estado.codigo === 'PARQUEADO' ? ' · ⚠ parqueado o fuera de servicio' : '';
-        L.push('• ' + r.nombre + ' · desde ' + fmtFecha(r.abierto.desde) + ' · ' + fmtHoras(r.abierto.horasMotor) + ' h de motor' + extra + man + nota);
+    var L = ['🔧 REGENERACIÓN DPF — ' + ciudad, fmtFechaLarga(ahora), ''], hay = prox.length > 0;
+    GRUPOS_ACCION.forEach(function (g) {
+      var lista = por[g.codigo];
+      if (!lista.length) return;
+      hay = true;
+      L.push(ICONO_GRUPO[g.codigo] + ' ' + g.titulo.toUpperCase() + ' (' + lista.length + ')');
+      lista.forEach(function (r) {
+        L.push('• ' + r.nombre + hollinTexto(r) + ' · ' + situacionTexto(r));
+        L.push('   ↳ ' + r.accion.texto);
       });
       L.push('');
-    }
-    if (reg.length) {
-      L.push('🔥 EN REGENERACIÓN — testigo activo (' + reg.length + ')');
-      reg.forEach(function (r) {
-        var g = r.regen;
-        var hollin = g.hollinActual ? ' · hollín ' + (g.hollinAntes !== null && Math.round(g.hollinAntes) !== Math.round(g.hollinActual.valor) ? Math.round(g.hollinAntes) + ' % → ' : '') + Math.round(g.hollinActual.valor) + ' %' : '';
-        var nota = g.estado.codigo === 'EN_CURSO' ? '' : ' · ⚠ ' + g.estado.etiqueta.toLowerCase();
-        var tipoTxt = g.tipo.codigo === 'MANUAL' ? 'manual (activó ' + fmtFecha(g.tipo.primera) + ')' : 'automática';
-        L.push('• ' + r.nombre + ' · ' + tipoTxt + ' · desde ' + (g.desdeAntes ? 'antes de ' : '') + fmtFecha(g.inicio) + ' · ' + fmtDuracion(g.minutos / 60) + hollin + nota + (g.llamar ? ' · 📞 pedir manual' : ''));
-      });
-      L.push('');
-    }
+    });
     if (prox.length) {
       L.push('🟡 PRÓXIMOS — hollín sobre el umbral de su marca, lámpara apagada (' + prox.length + ')');
       prox.forEach(function (r) { L.push('• ' + r.nombre + ' · hollín ' + Math.round(r.hollinActual.valor) + ' % (umbral ' + r.umbralHollin + ' %)'); });
       L.push('');
     }
-    if (!ya.length && !prox.length && !reg.length) { L.push('✅ Sin vehículos para regenerar por ahora.'); L.push(''); }
+    if (!hay) { L.push('✅ Sin vehículos para regenerar por ahora.'); L.push(''); }
     L.push('Umbral de "próximo": International ' + HOLLIN_PROXIMO_DEFECTO + ' %, Foton 95 %, Kenworth 100 %. La lámpara se enciende hacia 125 % o más.');
     var sinDato = resultados.filter(function (r) { return !r.hollinActual; }).length;
     if (sinDato) L.push('(' + sinDato + ' de ' + resultados.length + ' vehículos de esta ciudad no reportan hollín: solo se les detecta la lámpara encendida.)');
