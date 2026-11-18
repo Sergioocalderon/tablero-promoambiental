@@ -10,6 +10,12 @@
   var contados = {};        // ids ya contados como reporte (para no contar el mismo cada vez que se revisa)
   var INTERVALO_MS = 4000;
   var ocupado = false;
+  // Puesta al día: se sube hasta la última lectura de esta extensión (menos 1 h de margen), mínimo horasAtras y máximo MAX_DIAS_ATRAS.
+  // Así, al volver tras días libres, se revisa TODO lo que pasó en los turnos de los compañeros y se registra lo que se les haya pasado.
+  var MAX_DIAS_ATRAS = 4;
+  var MARGEN_MS = 3600000;
+  var ultimaLectura = 0;    // ms de la última pasada normal con el grupo abierto (persistida)
+  var desdeMs = 0;          // desde cuándo se aceptan reportes en esta sesión
 
   function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
   function esperar(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
@@ -37,6 +43,14 @@
     var r = raiz().querySelectorAll('[data-id]'), out = [];
     for (var i = 0; i < r.length; i++) if (/^(true|false)_/.test(r[i].getAttribute('data-id') || '')) out.push(r[i]);
     if (out.length) return out;
+    // Formato nuevo (nov-2026): data-id sin prefijo ("3A97285A1786..."). Se toman los del chat abierto que no estén
+    // dentro de otro (p. ej. un mensaje citado), para contar también imágenes y saber cuándo dejó de cargar más.
+    var main = document.querySelector('#main');
+    if (main) {
+      var d = main.querySelectorAll('[data-id]');
+      for (var a = 0; a < d.length; a++) { var pa = d[a].parentElement; if (!(pa && pa.closest('[data-id]'))) out.push(d[a]); }
+      if (out.length) return out;
+    }
     // Respaldo: si WhatsApp cambió el data-id, se usan los bloques de texto que traen "[hora, fecha] autor:"
     var p = raiz().querySelectorAll('[data-pre-plain-text]');
     for (var j = 0; j < p.length; j++) out.push(p[j]);
@@ -88,7 +102,31 @@
     return new Date(y, +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0));
   }
 
-  function esViejo(f) { return (Date.now() - f.getTime()) > CFG.horasAtras * 3600000; }
+  function calcularDesde(ahora) {
+    var minimo = ahora - CFG.horasAtras * 3600000, maximo = ahora - MAX_DIAS_ATRAS * 86400000;
+    return ultimaLectura ? Math.max(maximo, Math.min(minimo, ultimaLectura - MARGEN_MS)) : minimo;
+  }
+
+  function esViejo(f) { return f.getTime() < Math.min(desdeMs || Infinity, Date.now() - CFG.horasAtras * 3600000); }
+
+  // Fecha de un mensaje: la de WhatsApp ("[10:51 p. m., 16/11/2026] Ana: ") o, si no está, la "Fecha y Hora" del reporte
+  function fechaNodo(n) {
+    var p = n.getAttribute('data-pre-plain-text') ? n : n.querySelector('[data-pre-plain-text]');
+    var m = p && String(p.getAttribute('data-pre-plain-text')).match(/\[(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?[^,\]]*,\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\]/i);
+    if (m) {
+      var h = +m[1], y = +m[6]; if (y < 100) y += 2000;
+      if (m[3] && /p/i.test(m[3]) && h < 12) h += 12;
+      if (m[3] && /a/i.test(m[3]) && h === 12) h = 0;
+      return new Date(y, +m[5] - 1, +m[4], h, +m[2]);
+    }
+    return fechaReporte(textoDe(n));
+  }
+
+  function fechaMasAntiguaVisible() {
+    var ns = nodosMensaje();
+    for (var i = 0; i < ns.length && i < 60; i++) { var f = fechaNodo(ns[i]); if (f) return f; }   // las imágenes no traen fecha: se busca el primer mensaje que sí
+    return null;
+  }
 
   // Si la extensión se recargó o actualizó, esta pestaña queda con código viejo desconectado ("context invalidated"):
   // lee, pero ya no puede entregar nada. Se avisa en pantalla para que se recargue la pestaña (F5).
@@ -135,45 +173,49 @@
         return enviar(it.id, it.texto).then(function (ok) { if (ok) { vistos[it.id] = 1; stats.enviados++; return n + 1; } return n; });
       });
     });
-    return cadena.then(function (n) { guardarVistos(); pintar(); return n; });
+    return cadena.then(function (n) {
+      if (!inicial && !ocupadoCatchup) ultimaLectura = Date.now();   // solo tras la puesta al día: si se corta a mitad, la próxima vez vuelve a subir
+      guardarVistos(); pintar(); return n;
+    });
   }
 
   /* ---- Puesta al día: sube por el chat para leer lo que llegó con el PC apagado ---- */
   var ocupadoCatchup = false;
 
   function contenedorScroll() {
-    var n = nodosMensaje()[0], p = n && n.parentElement;
+    var n = nodosMensaje()[0], p = n && n.parentElement, primero = null;
     while (p && p !== document.body) {
       var cs = getComputedStyle(p);
-      if (/(auto|scroll)/.test(cs.overflowY) && p.scrollHeight > p.clientHeight) return p;
+      if (/(auto|scroll)/.test(cs.overflowY)) {
+        if (p.scrollHeight > p.clientHeight) return p;
+        primero = primero || p;              // con pocos mensajes aún no desborda, pero es el que carga más al subir
+      }
       p = p.parentElement;
     }
-    return null;
-  }
-
-  function conocidosVisibles() {
-    return nodosMensaje().filter(function (n) { return vistosAlArrancar[idDe(n)]; }).length;
+    return primero;
   }
 
   function ponerseAlDia() {
-    var primeraVez = Object.keys(vistosAlArrancar).length === 0;
-    var maxVueltas = primeraVez ? 8 : 25;
+    var maxVueltas = 150;     // tope de seguridad; normalmente para antes por fecha
+    desdeMs = calcularDesde(Date.now());
+    stats.desde = new Date(desdeMs);
     ocupadoCatchup = true;
     var c = contenedorScroll();
-    if (!c) { ocupadoCatchup = false; return Promise.resolve(); }
-    var previo = 0, i = 0;
+    if (!c) { ocupadoCatchup = false; return escanear(true); }
+    var previo = 0, i = 0, sinCrecer = 0;
     function vuelta() {
-      if (i++ >= maxVueltas || !chatCorrecto()) return Promise.resolve();
+      var f = fechaMasAntiguaVisible();
+      if (f && f.getTime() < desdeMs) return escanear(true);   // ya está a la vista lo de antes del punto de partida
+      if (i++ >= maxVueltas || !chatCorrecto()) return escanear(true);
       c.scrollTop = 0;
       return esperar(1300).then(function () { return escanear(true); }).then(function () {
         var n = nodosMensaje().length;
-        if (n === previo) return;                        // ya no carga más: llegó al principio
+        if (n === previo) { if (++sinCrecer >= 3) return; } else sinCrecer = 0;   // 3 tandas sin cargar nada: llegó al principio (o WhatsApp no da más)
         previo = n;
-        if (!primeraVez && conocidosVisibles() > 0) return;   // ya apareció lo que se leyó la vez anterior
         return vuelta();
       });
     }
-    return vuelta().then(function () { c.scrollTop = c.scrollHeight; ocupadoCatchup = false; });
+    return vuelta().then(function () { c.scrollTop = c.scrollHeight; ocupadoCatchup = false; pintar(); });
   }
 
   /* ---- Persistencia ---- */
@@ -183,7 +225,7 @@
     pendienteGuardar = true;
     setTimeout(function () {
       pendienteGuardar = false;
-      try { chrome.storage.local.set({ vistos: Object.keys(vistos).slice(-4000) }); } catch (e) { /* sin storage */ }
+      try { chrome.storage.local.set({ vistos: Object.keys(vistos).slice(-4000), ultimaLectura: ultimaLectura }); } catch (e) { /* sin storage */ }
     }, 1500);
   }
 
@@ -205,7 +247,8 @@
       d.textContent = '📋 Abra el grupo «' + CFG.grupo + '» para leer los reportes';
     } else {
       d.style.background = CFG.modo === 'real' ? '#166534' : '#475569';
-      d.textContent = '📋 Varados · ' + modo + ' · mensajes ' + stats.detectados + ' · reportes ' + stats.reportes + ' · enviados ' + stats.enviados + (stats.viejos ? ' · antiguos omitidos ' + stats.viejos : '') + (stats.fallos ? ' · envíos fallidos ' + stats.fallos : '');
+      var desde = stats.desde ? ('0' + stats.desde.getDate()).slice(-2) + '/' + ('0' + (stats.desde.getMonth() + 1)).slice(-2) + ' ' + ('0' + stats.desde.getHours()).slice(-2) + ':' + ('0' + stats.desde.getMinutes()).slice(-2) : '';
+      d.textContent = '📋 Varados · ' + modo + (desde ? (ocupadoCatchup ? ' · poniéndose al día desde ' : ' · revisado desde ') + desde : '') + ' · mensajes ' + stats.detectados + ' · reportes ' + stats.reportes + ' · enviados ' + stats.enviados + (stats.viejos ? ' · antiguos omitidos ' + stats.viejos : '') + (stats.fallos ? ' · envíos fallidos ' + stats.fallos : '');
       // Sin mensajes: se muestra qué encuentra la página, para ajustar el lector sin abrir herramientas de desarrollo
       if (!stats.detectados) {
         d.style.background = '#9f1239';
@@ -247,8 +290,9 @@
   }
 
   function iniciar() {
-    chrome.storage.local.get(['cfg', 'vistos']).then(function (r) {
+    chrome.storage.local.get(['cfg', 'vistos', 'ultimaLectura']).then(function (r) {
       Object.assign(CFG, r.cfg || {});
+      ultimaLectura = +r.ultimaLectura || 0;
       (r.vistos || []).forEach(function (id) { vistos[id] = 1; vistosAlArrancar[id] = 1; });
       chrome.storage.onChanged.addListener(function (cambios) { if (cambios.cfg) Object.assign(CFG, cambios.cfg.newValue || {}); });
       // WhatsApp tarda en pintar el chat: se espera a que aparezca el grupo antes de ponerse al día
@@ -265,7 +309,8 @@
 
   if (window.__PRUEBA__) {
     window.__wa = { escanear: escanear, textoDe: textoDe, pareceReporte: pareceReporte, fechaReporte: fechaReporte, chatCorrecto: chatCorrecto,
-      stats: stats, vistos: vistos, CFG: CFG, nodosMensaje: nodosMensaje, ponerseAlDia: ponerseAlDia, vistosAlArrancar: vistosAlArrancar, observarChat: observarChat };
+      stats: stats, vistos: vistos, CFG: CFG, nodosMensaje: nodosMensaje, ponerseAlDia: ponerseAlDia, vistosAlArrancar: vistosAlArrancar, observarChat: observarChat,
+      fechaNodo: fechaNodo, calcularDesde: calcularDesde, setUltimaLectura: function (v) { ultimaLectura = v; }, getUltimaLectura: function () { return ultimaLectura; } };
   } else {
     iniciar();
   }

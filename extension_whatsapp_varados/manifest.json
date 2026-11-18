@@ -1,7 +1,7 @@
 ﻿{
   "manifest_version": 3,
   "name": "Reportes WhatsApp a Varados",
-  "version": "1.0.7",
+  "version": "1.1.1",
   "description": "Lee los reportes del radio operador en el grupo de WhatsApp Web y los registra solos en la hoja de Varados.",
   "permissions": ["storage", "alarms"],
   "host_permissions": [

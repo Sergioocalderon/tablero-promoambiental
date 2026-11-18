@@ -1,4 +1,4 @@
-REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.0.0
+REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.1.1
 =========================================================
 
 QUÉ HACE
@@ -31,8 +31,11 @@ PRUEBA ANTES DE USARLA DE VERDAD (importante)
 USO DIARIO
  - Deje abierta la pestaña de WhatsApp Web con el grupo a la vista y NO cambie de chat. Si abre otro chat,
    el aviso se pone naranja ("Abra el grupo...") y no lee hasta que vuelva.
- - Si apaga el PC o cierra Chrome: al volver y abrir WhatsApp Web con el grupo, la extensión SUBE por el chat y
-   lee lo que llegó mientras tanto (solo reportes con fecha propia de las últimas 24 h; configurable).
+ - Si apaga el PC o cierra Chrome: al volver y abrir WhatsApp Web con el grupo, la extensión SUBE por el chat
+   hasta la ÚLTIMA VEZ QUE ELLA LEYÓ (mínimo 24 h, máximo 4 días atrás) y revisa TODOS los reportes de ese
+   tramo, también los de los turnos de los compañeros. Los que ellos ya registraron con el botón no se
+   duplican; los que se les hayan pasado se registran. El aviso muestra "revisado desde dd/mm hh:mm".
+   En "Últimos movimientos": "registrado" = faltaba en la hoja; "duplicado" = ya estaba.
  - Si falla internet o el receptor, los reportes quedan en una cola que se vacía sola cada minuto.
  - Un reporte ya registrado no se duplica (misma unidad, fecha y hora).
  - Un reporte que ya estaba en la hoja (por ejemplo, por el botón) tampoco se duplica.
