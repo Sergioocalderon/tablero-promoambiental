@@ -1426,3 +1426,13 @@ SPN,521031,13,Módulo de Gestor de Parámetros de Ruta - Fuera de Calibración,M
 SPN,521032,14,Ensamblaje del sistema de postratamiento - Instrucciones especiales,Motor,MEDIA,FMI,X12
 SPN,524286,31,Conductor del actuador de freno del motor 3 circuito - voltaje por encima de lo normal o cortocircuitado a la fuente alta,Motor,BAJA,FMI,X12
 SPN,524286,31,Conductor del actuador de freno del motor 3 circuito - voltaje por debajo de lo normal o cortocircuitado a una fuente baja,Motor,BAJA,FMI,X12
+SPN,1814,5,"Intermitente delantero (VW): corriente demasiado baja o rotura del circuito/bombillo. Geotab lo nombra ""VDC completamente operativo"" (nombre J1939 genérico, no aplica a VW)",Eléctrico,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,1815,5,"Intermitente lateral derecho (VW): corriente demasiado baja o rotura del circuito/bombillo. Geotab lo nombra ""Solicitud de luz de freno VDC"" (no aplica a VW)",Eléctrico,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,1811,5,"Intermitente lateral izquierdo (VW): corriente demasiado baja o rotura del circuito/bombillo. Geotab lo nombra ""Contador de giro del volante"" (no aplica a VW)",Eléctrico,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,1814,6,"Intermitente delantero (VW): corriente demasiado alta o cortocircuito a tierra. Geotab lo nombra ""VDC completamente operativo"" (no aplica a VW)",Eléctrico,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,1815,6,"Intermitente lateral derecho (VW): corriente demasiado alta o cortocircuito a tierra. Geotab lo nombra ""Solicitud de luz de freno VDC"" (no aplica a VW)",Eléctrico,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,1811,6,"Intermitente lateral izquierdo (VW): corriente demasiado alta o cortocircuito a tierra. Geotab lo nombra ""Contador de giro del volante"" (no aplica a VW)",Eléctrico,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,100,2,Sensor de presión de aceite del motor: señal errónea o intermitente (en escáner Cummins ISF 3.8: código 435),Motor,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,4334,18,Presión del líquido AdBlue/DEF por debajo de lo normal (en escáner Cummins ISF 3.8: código 3574),Postratamiento,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,4334,2,Sensor de presión del líquido AdBlue/DEF: datos erróneos o intermitentes (en escáner Cummins ISF 3.8: código 3596),Postratamiento,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
+SPN,3362,31,"Unidad de dosificación de AdBlue/DEF: falla en las líneas de entrada, se interrumpe la dosificación (en escáner Cummins ISF 3.8: código 1682)",Postratamiento,MEDIA,Escaner VW 18/11/2026,VOLSKWAGEN - DELIVERY 9.170
