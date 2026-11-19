@@ -479,6 +479,46 @@ def clasificar_criticidad_geotab(falla):
     return 'BAJA'
 
 
+# Muchas fallas de motor llegan solo con la luz de check engine (MIL), que no cuenta arriba: salían BAJA aunque el
+# Diccionario_Fallas.csv las tenga como MEDIA/ALTA (caso 1157-NWX533, SPN 157/FMI 18, 2026-11-19). La criticidad final
+# es la mayor entre luces y diccionario: el diccionario solo puede subirla, nunca bajarla.
+RUTA_DICCIONARIO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Diccionario_Fallas.csv')
+_criticidad_por_codigo = None
+
+
+def criticidad_diccionario(spn, fmi, marca='', referencia_motor=''):
+    """Criticidad del diccionario para un SPN/FMI J1939: la fila de la marca (Motor_Aplica = nombre del grupo de marca)
+    o del motor (ej. 'X12') del vehículo si existe; si no, la 'Generico'. None si no está. Mismo orden que
+    herramientas/traducir_falla.py."""
+    global _criticidad_por_codigo
+    if _criticidad_por_codigo is None:
+        _criticidad_por_codigo = {}
+        try:
+            for f in pd.read_csv(RUTA_DICCIONARIO, dtype=str, encoding='utf-8-sig').fillna('').to_dict('records'):
+                if f['Tipo_Codigo'].strip() != 'SPN':
+                    continue   # SID/PID son J1587: su número no es un SPN de Geotab
+                _criticidad_por_codigo.setdefault((f['SPN'].strip(), f['FMI'].strip()), []).append(
+                    (f['Motor_Aplica'].strip().upper(), f['Criticidad'].strip().upper()))
+        except Exception as e:
+            print(f"*** No se pudo leer {RUTA_DICCIONARIO} (criticidad solo por luces): {e} ***")
+    if spn is None or fmi is None:
+        return None
+    filas = [(a, c) for a, c in _criticidad_por_codigo.get((str(spn), str(fmi)), []) if c in ('ALTA', 'MEDIA', 'BAJA')]
+    propias = {str(marca or '').strip().upper(), str(referencia_motor or '').strip().upper()} - {''}
+    for aplica, crit in filas:
+        if aplica in propias:
+            return crit
+    for aplica, crit in filas:
+        if aplica == 'GENERICO':
+            return crit
+    return None
+
+
+def criticidad_final(por_luces, por_diccionario):
+    orden = {'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
+    return por_diccionario if orden.get(por_diccionario, 0) > orden.get(por_luces, 0) else por_luces
+
+
 # ---------------------------------------------------------------------------
 # Sobre-revolucion (umbral general y umbral bajo 1300 RPM)
 # ---------------------------------------------------------------------------
@@ -971,6 +1011,16 @@ def _obtener_fallas_activas(api):
             ciudad, _ = resolver_ciudad_tipologia(devices.get(id_camion, {}).get('groups'), mapa_grupos)
             return ciudad
         activas = activas[activas['id_camion'].apply(_ciudad_del_vehiculo) == CIUDAD_FILTRO]
+
+    if not activas.empty:
+        def _con_diccionario(r):
+            marca = resolver_marca(devices.get(r['id_camion'], {}).get('groups'), mapa_grupos) or ''
+            referencia = next((v for k, v in REFERENCIA_MOTOR_POR_MARCA.items() if k in marca.lower()), '')
+            por_dic = criticidad_diccionario(dic_diag.get(r['diag_id'], {}).get('codigo'),
+                                             dic_fm.get(r['fm_id'], {}).get('codigo'), marca, referencia)
+            return criticidad_final(r['criticidad'], por_dic)
+        activas = activas.copy()
+        activas['criticidad'] = activas.apply(_con_diccionario, axis=1)
 
     return activas, devices, dic_diag, dic_fm, mapa_grupos
 

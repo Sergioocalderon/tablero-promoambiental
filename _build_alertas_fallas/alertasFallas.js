@@ -547,6 +547,66 @@ geotab.addin.alertasFallas = function () {
     return 'BAJA';
   }
 
+  // v1.22: muchas fallas de motor llegan solo con la luz de check engine (MIL), que no cuenta arriba, y salían BAJA aunque el
+  // Diccionario_Fallas.csv las tenga como MEDIA/ALTA (caso 1157-NWX533, SPN 157/FMI 18). La criticidad final es la mayor entre
+  // luces y diccionario: el diccionario solo sube, nunca baja. Mismo criterio que criticidad_diccionario en telegram_alertas.py.
+  // Si GitHub no responde se sigue solo con las luces (como antes) y se reintenta en el siguiente refresco.
+  var URL_DICCIONARIO = 'https://raw.githubusercontent.com/Sergioocalderon/tablero-promoambiental/main/Diccionario_Fallas.csv';
+  var diccionarioCache = null;
+
+  function leerCsv(texto) {
+    var filas = [], fila = [], campo = '', comillas = false;
+    for (var i = 0; i < texto.length; i++) {
+      var c = texto[i];
+      if (comillas) {
+        if (c === '"' && texto[i + 1] === '"') { campo += '"'; i++; }
+        else if (c === '"') comillas = false;
+        else campo += c;
+      } else if (c === '"') comillas = true;
+      else if (c === ',') { fila.push(campo); campo = ''; }
+      else if (c === '\n') { fila.push(campo.replace(/\r$/, '')); filas.push(fila); fila = []; campo = ''; }
+      else campo += c;
+    }
+    if (campo || fila.length) { fila.push(campo); filas.push(fila); }
+    return filas;
+  }
+
+  function obtenerDiccionarioCriticidad() {
+    if (diccionarioCache) return Promise.resolve(diccionarioCache);
+    return fetch(URL_DICCIONARIO).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function (texto) {
+      var filas = leerCsv(texto.replace(/^﻿/, ''));
+      var cab = filas[0] || [];
+      var iTipo = cab.indexOf('Tipo_Codigo'), iSpn = cab.indexOf('SPN'), iFmi = cab.indexOf('FMI');
+      var iCrit = cab.indexOf('Criticidad'), iAplica = cab.indexOf('Motor_Aplica');
+      var dic = {};
+      filas.slice(1).forEach(function (f) {
+        if ((f[iTipo] || '').trim() !== 'SPN') return;   // SID/PID son J1587: su número no es un SPN de Geotab
+        var crit = (f[iCrit] || '').trim().toUpperCase();
+        if (!ORDEN_CRITICIDAD[crit]) return;
+        var clave = (f[iSpn] || '').trim() + '|' + (f[iFmi] || '').trim();
+        (dic[clave] = dic[clave] || []).push({ aplica: (f[iAplica] || '').trim().toUpperCase(), crit: crit });
+      });
+      diccionarioCache = dic;
+      return dic;
+    }).catch(function (e) {
+      console.warn('Alertas por Severidad: no se pudo leer el diccionario de fallas, criticidad solo por luces', e);
+      return {};
+    });
+  }
+
+  // Fila de la marca (grupo de Geotab) o del motor (ej. 'X12') del vehículo si existe; si no, la 'Generico'.
+  function criticidadDiccionario(dic, spn, fmi, marca, referenciaMotor) {
+    if (spn === null || spn === undefined || fmi === null || fmi === undefined) return null;
+    var filas = dic[spn + '|' + fmi] || [];
+    var propias = [(marca || '').trim().toUpperCase(), (referenciaMotor || '').trim().toUpperCase()];
+    for (var i = 0; i < filas.length; i++) if (filas[i].aplica && propias.indexOf(filas[i].aplica) !== -1) return filas[i].crit;
+    for (var j = 0; j < filas.length; j++) if (filas[j].aplica === 'GENERICO') return filas[j].crit;
+    return null;
+  }
+
   // --- Turno operativo, mismos rangos horarios que clasificar_turno en
   // app.py/geotab_comun.py (prefijo T en vez de R, igual que el add-in de PTO). ---
   function clasificarTurno(hora) {
@@ -612,11 +672,14 @@ geotab.addin.alertasFallas = function () {
 
   // --- Clasifica cada falla: criticidad + nombre + categoria de sistema -----
   function agregarClasificacion(fallasActivas) {
-    return obtenerCatalogosDiagnosticos().then(function (catalogos) {
+    return Promise.all([obtenerCatalogosDiagnosticos(), obtenerDiccionarioCriticidad()]).then(function (res) {
+      var catalogos = res[0], dicCriticidad = res[1];
       fallasActivas.forEach(function (f) {
         var diagInfo = catalogos.dicDiag[f.idDiagnostico] || { nombre: 'Diagnóstico desconocido', codigo: null };
         var fmInfo = catalogos.dicFm[f.idFailureMode] || { nombre: '', codigo: null };
-        f.criticidad = clasificarCriticidadEvento(f);
+        var porLuces = clasificarCriticidadEvento(f);
+        var porDiccionario = criticidadDiccionario(dicCriticidad, diagInfo.codigo, fmInfo.codigo, f.marca, f.referenciaMotor);
+        f.criticidad = (ORDEN_CRITICIDAD[porDiccionario] || 0) > ORDEN_CRITICIDAD[porLuces] ? porDiccionario : porLuces;
         f.spn = valorODesconocido(diagInfo.codigo);
         f.fmi = valorODesconocido(fmInfo.codigo);
         f.categoria = categorizarFalla(diagInfo.nombre);
@@ -2826,7 +2889,9 @@ geotab.addin.alertasFallas = function () {
     if (conVehiculo) {
       var botonVehiculo = crear('button', {
         background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', fontFamily: T.font,
-        fontSize: '0.82rem', fontWeight: '700', color: esBaja ? D.textSoft : '#FFFFFF', whiteSpace: 'nowrap'
+        // v1.22: con nowrap los nombres largos ("1148-NWW623 - NWW623-1148") se salían de la columna y tapaban el Nivel
+        fontSize: '0.82rem', fontWeight: '700', color: esBaja ? D.textSoft : '#FFFFFF', whiteSpace: 'normal',
+        overflowWrap: 'anywhere', textAlign: 'left', maxWidth: '100%'
       }, it.claveVehiculo);
       botonVehiculo.type = 'button';
       botonVehiculo.title = 'Ver solo este vehículo';

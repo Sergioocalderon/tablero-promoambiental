@@ -1,7 +1,7 @@
 {
     "name": "Alertas por Severidad",
     "supportEmail": "sergio.calderon@promoambientaldistrito.com",
-    "version": "1.21",
+    "version": "1.22",
     "items": [
         {
             "url": "alertasFallas.html",
