@@ -136,6 +136,7 @@ def cargar_estado():
         "regeneracion_dpf_notificados": [], "temperatura_motor_notificados": [],
         "vehiculos_seguimiento": [], "seguimiento_fallas_notificadas": [],
         "seguimiento_revolucion_notificados": [], "seguimiento_dpf_notificados": [],
+        "chip_nfc_notificados": [],
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -150,7 +151,7 @@ def cargar_estado():
             "revolucion_notificados", "fallas_activas", "suscriptores", "regeneracion_dpf_notificados",
             "temperatura_motor_notificados",
             "vehiculos_seguimiento", "seguimiento_fallas_notificadas",
-            "seguimiento_revolucion_notificados", "seguimiento_dpf_notificados",
+            "seguimiento_revolucion_notificados", "seguimiento_dpf_notificados", "chip_nfc_notificados",
         ):
             valor = datos.get(clave)
             if isinstance(valor, list):
@@ -182,6 +183,7 @@ def guardar_estado(estado):
         "seguimiento_fallas_notificadas": estado.get("seguimiento_fallas_notificadas", [])[-MAX_CLAVES_GUARDADAS:],
         "seguimiento_revolucion_notificados": estado.get("seguimiento_revolucion_notificados", [])[-MAX_CLAVES_GUARDADAS:],
         "seguimiento_dpf_notificados": estado.get("seguimiento_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
+        "chip_nfc_notificados": estado.get("chip_nfc_notificados", [])[-MAX_CLAVES_GUARDADAS:],
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -2462,6 +2464,71 @@ def enviar_resumenes_por_hora(api, estado):
         estado['ultima_hora_resumen'] = ultima_hora.isoformat()
 
 
+# ---------------------------------------------------------------------------
+# Chip NFC del conductor (2026-11-18): avisar si un vehiculo con lector NFC arranca
+# el turno y nadie pasa el chip. Geotab deja el viaje a nombre del ultimo conductor
+# que lo paso (ej. el turno de dia), asi que sin este aviso el olvido no se nota.
+# Vehiculos con lector = los que tuvieron algun pase de chip (DriverChange tipo
+# DriverKey) en los ultimos 30 dias: los nuevos lectores entran solos.
+# ---------------------------------------------------------------------------
+ALERTA_CHIP_NFC = True
+MINUTOS_GRACIA_CHIP = 20        # desde el primer viaje real del turno hasta avisar
+MINUTOS_PASE_ANTES_TURNO = 45   # un pase poco antes de las 05:00 / 17:00 cuenta para ese turno
+KM_MINIMO_VIAJE_CHIP = 0.5      # movimientos de patio no cuentan como "arranco el turno"
+
+
+def _turno_de(momento_local):
+    """(fecha, 'día'|'noche', inicio) del turno operativo: dia 05-17, noche 17-05 (fechada al dia en que empieza)."""
+    base = momento_local.replace(minute=0, second=0, microsecond=0)
+    if 5 <= momento_local.hour < 17:
+        return momento_local.date(), 'día', base.replace(hour=5)
+    inicio = base.replace(hour=17) if momento_local.hour >= 17 else (base - timedelta(days=1)).replace(hour=17)
+    return inicio.date(), 'noche', inicio
+
+
+def revisar_chip_nfc(api, claves_ya_notificadas, ahora_local=None):
+    """Devuelve las claves notificadas en esta corrida (solo las que Telegram confirmo)."""
+    ahora_local = ahora_local or datetime.now(ZONA_BOGOTA)
+    fecha, nombre_turno, inicio = _turno_de(ahora_local)
+    ahora_utc = ahora_local.astimezone(timezone.utc)
+    pases = [c for c in api_get_con_reintentos(api, 'DriverChange', {'fromDate': (ahora_utc - timedelta(days=30)).isoformat(),
+                                                                       'toDate': ahora_utc.isoformat()})
+             if c.get('type') == 'DriverKey']
+    vehiculos = {(c['device'] or {}).get('id') for c in pases if isinstance(c.get('device'), dict)}
+    if not vehiculos:
+        return []
+    usuarios = {u['id']: f"{u.get('firstName', '')} {u.get('lastName', '')}".strip() for u in api_get_con_reintentos(api, 'User')}
+    nombres = {d['id']: d.get('name', d['id']) for d in api_get_con_reintentos(api, 'Device')}
+    nuevas = []
+    for vid in sorted(vehiculos):
+        clave = f"{vid}|{fecha.isoformat()}|{nombre_turno}"
+        if clave in claves_ya_notificadas:
+            continue
+        pases_v = [c for c in pases if (c.get('device') or {}).get('id') == vid]
+        desde_pase = (inicio - timedelta(minutes=MINUTOS_PASE_ANTES_TURNO)).astimezone(timezone.utc)
+        if any(c['dateTime'] >= desde_pase for c in pases_v):
+            continue   # alguien ya paso el chip en este turno
+        viajes = [t for t in api_get_con_reintentos(api, 'Trip', {'deviceSearch': {'id': vid}, 'fromDate': inicio.astimezone(timezone.utc).isoformat(),
+                                                                  'toDate': ahora_utc.isoformat()})
+                  if float(t.get('distance') or 0) >= KM_MINIMO_VIAJE_CHIP]
+        if not viajes:
+            continue   # no ha salido a operar en este turno
+        primero = min(t['start'] for t in viajes)
+        if ahora_utc - primero < timedelta(minutes=MINUTOS_GRACIA_CHIP):
+            continue
+        km = sum(float(t.get('distance') or 0) for t in viajes)
+        mismo_turno = [c for c in pases_v if _turno_de(c['dateTime'].astimezone(ZONA_BOGOTA))[1] == nombre_turno]
+        conductor = max(mismo_turno, key=lambda c: c['dateTime'])['driver'] if mismo_turno else None
+        ultimo = usuarios.get(conductor.get('id') if isinstance(conductor, dict) else conductor)
+        texto = (f"🔑 Chip sin pasar — {nombres.get(vid, vid)}\n"
+                 f"Arrancó el turno de {nombre_turno} a las {primero.astimezone(ZONA_BOGOTA):%H:%M} ({km:.1f} km) y nadie ha pasado el chip NFC."
+                 + (f"\nÚltimo que lo pasó en turno de {nombre_turno}: {ultimo}." if ultimo else '')
+                 + "\nMientras no lo pase, Geotab deja los viajes a nombre del conductor anterior.")
+        if enviar_telegram(texto):
+            nuevas.append(clave)
+    return nuevas
+
+
 def main():
     api = conectar_geotab()
     estado = cargar_estado()
@@ -2515,6 +2582,13 @@ def main():
             claves_temp_previas = set(estado.get('temperatura_motor_notificados', []))
             claves_temp_nuevas = revisar_temperatura_motor(api, claves_temp_previas)
             estado['temperatura_motor_notificados'] = list(claves_temp_previas | set(claves_temp_nuevas))
+
+        if ALERTA_CHIP_NFC:
+            try:
+                claves_chip_previas = set(estado.get('chip_nfc_notificados', []))
+                estado['chip_nfc_notificados'] = list(claves_chip_previas | set(revisar_chip_nfc(api, claves_chip_previas)))
+            except Exception as e:
+                print(f"*** Aviso de chip NFC fallo en esta corrida: {e} ***")
 
         try:
             revisar_seguimiento(api, estado, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla)
