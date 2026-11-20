@@ -4032,3 +4032,435 @@ SPN,188,17,"Velocidad del motor en ralentí: datos válidos, pero por debajo del
 SPN,1590,9,Modo de control de crucero adaptativo: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,KENWORTH - T370,7425
 SPN,1590,19,Modo de control de crucero adaptativo: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,KENWORTH - T370,7426
 SPN,5603,19,Comando de desactivación del control de crucero: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,KENWORTH - T370,7427
+SPN,629,12,Falla interna crítica del módulo de control del motor: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,111 / 343
+SPN,102,3,Circuito del sensor de presión del colector de admisión 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,122
+SPN,102,4,Circuito del sensor de presión 1 del colector de admisión: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,123
+SPN,102,16,"Presión del colector de admisión 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,124
+SPN,102,18,"Presión del colector de admisión 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,125
+SPN,91,3,Circuito del sensor 1 de posición de la palanca o del pedal del acelerador: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,131
+SPN,91,4,Circuito del sensor 1 de posición de la palanca o del pedal del acelerador: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,132
+SPN,100,3,Circuito del sensor de presión 1 del rifle de aceite del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,135
+SPN,100,4,Circuito del sensor 1 de presión del rifle de aceite del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,141
+SPN,100,18,"Presión del rifle de aceite del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,143
+SPN,110,3,Circuito del sensor de temperatura 1 del refrigerante del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,144
+SPN,110,4,Circuito del sensor de temperatura 1 del refrigerante del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,145
+SPN,110,16,"Temperatura del refrigerante del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,146
+SPN,110,0,"Temperatura del refrigerante del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,151
+SPN,105,3,Temperatura del múltiple 1 de admisión del motor - Voltaje por arriba del normal o cortocircuitado a fuente alta,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,153
+SPN,105,4,Temperatura del múltiple de admisión del motor 1 - Voltaje por abajo del normal o cortocircuitado a fuente baja,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,154
+SPN,3510,4,Circuito del suministro 2 del sensor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,187
+SPN,111,3,Circuito del sensor del nivel de refrigerante 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,195
+SPN,111,4,Circuito del sensor del nivel de refrigerante 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,196
+SPN,111,18,"Nivel de refrigerante: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,197 / 3366
+SPN,3510,3,Circuito del suministro 2 del sensor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,227
+SPN,190,0,"Posición/velocidad del cigüeñal del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,234
+SPN,3511,4,Circuito del suministro 3 del sensor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,238
+SPN,3511,3,Circuito del suministro 3 del sensor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,239
+SPN,84,2,"Velocidad del vehículo basada en las ruedas: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,241
+SPN,171,3,Circuito del sensor 1 de temperatura ambiente del aire: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,249
+SPN,171,4,Circuito del sensor 1 de temperatura ambiente del aire: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,256
+SPN,1347,4,Circuito del conjunto 1 de presurización de la bomba de combustible del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,271
+SPN,1347,3,Circuito del conjunto 1 presurización de la bomba de combustible del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,272
+SPN,639,9,Error de tiempo de espera de PGN de multiplexación según SAE J1939: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,285 / 427
+SPN,639,13,Red J1939 n.º 1: descalibrada,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,286
+SPN,108,2,"Presión barométrica: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,295
+SPN,651,5,Circuito 1 del controlador del solenoide del inyector: corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,322
+SPN,655,5,Circuito 5 del controlador del solenoide del inyector: corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,323
+SPN,653,5,Circuito 3 del controlador del solenoide del inyector: corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,324
+SPN,656,5,Circuito 6 del controlador del solenoide del inyector: corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,325
+SPN,652,5,Circuito 2 del controlador del solenoide del inyector: corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,331
+SPN,654,5,Circuito 4 del controlador del solenoide del inyector: corriente por debajo de lo normal o circuito abierto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,332
+SPN,110,2,"Temperatura del refrigerante del motor: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,334
+SPN,1267,3,Circuito del controlador del relevador de accesorios del vehículo de apagado en ralentí: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,338
+SPN,1267,4,Circuito del controlador del relevador de accesorios del vehículo de apagado en ralentí: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,339
+SPN,630,12,Software de memoria de calibración del módulo de control del motor: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,346 / 3697
+SPN,3597,12,Alimentación del inyector: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,351
+SPN,3509,4,Circuito del suministro 1 del sensor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,352
+SPN,729,5,Circuito del calentador 1 de aire de admisión del motor: corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,383
+SPN,3509,3,Circuito del suministro 1 del sensor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,386
+SPN,100,1,"Presión del rifle de aceite del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,415
+SPN,97,15,"Indicador de agua en el combustible: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,418
+SPN,97,3,Circuito del sensor del indicador de agua en el combustible: voltaje por encima de lo normal o en cortocircuito a fuente de alto voltaje,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,428 / 1845
+SPN,100,2,"Presión del rifle de aceite del motor: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,435
+SPN,105,2,"Temperatura del colector admisión 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,436
+SPN,157,3,Circuito del sensor de presión del conducto 1 de medición del inyector: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,451
+SPN,157,4,Circuito del sensor de presión del conducto 1 de medición del inyector: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,452
+SPN,1349,3,Circuito del sensor de presión del conducto 2 de medición del inyector: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,483
+SPN,1349,4,Circuito del sensor de presión del conducto 2 de medición del inyector: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,484
+SPN,105,16,"Temperatura del colector de admisión 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,488
+SPN,3514,3,Circuito del suministro 6 del sensor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,515
+SPN,3514,4,Circuito del suministro 6 del sensor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,516
+SPN,157,16,"Presión del conducto de medición 1 del inyector: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,553
+SPN,101,16,"Presión del cárter: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,555
+SPN,101,0,"Presión del cárter: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,556
+SPN,157,18,"Presión del conducto 1 de medición del inyector: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,559
+SPN,103,16,"Velocidad del turbocargador 1: datos válidos, pero por encima del rango de funcionamiento normal - Nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,595
+SPN,167,16,"Voltaje del sistema de carga eléctrica: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,596
+SPN,167,18,"Voltaje del sistema de carga eléctrica: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,597
+SPN,1378,31,Intervalo de cambio de aceite del motor: condición existente,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,649
+SPN,103,18,"Velocidad del turbocargador 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,687
+SPN,190,2,"Posición/velocidad del cigüeñal del motor: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,689
+SPN,1172,3,Circuito de temperatura de admisión del compresor del turbocargador 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,691
+SPN,1172,4,Circuito de temperatura de admisión del compresor del turbocargador 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,692
+SPN,1172,2,"Temperatura de admisión del compresor del turbocargador 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,693
+SPN,723,7,Desajuste del cigüeñal y el árbol de levas de posición/velocidad del motor: el sistema mecánico no responde o está desajustado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,731
+SPN,157,7,Presión del conducto 1 de medición del inyector: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,755
+SPN,723,2,"Sensor de posición/velocidad del árbol de levas del motor: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,778
+SPN,1590,2,"Modo de control de crucero adaptativo: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,784
+SPN,3597,2,"Alimentación perdido con el encendido activo: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1117
+SPN,651,7,Cilindro 1 del impulsor del solenoide del inyector: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1139
+SPN,652,7,Cilindro 2 del impulsor del solenoide del inyector: el sistema mecánico no responde o está desajustado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1141
+SPN,653,7,Cilindro 3 del impulsor del solenoide del inyector: el sistema mecánico no responde o está desajustado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1142
+SPN,654,7,Cilindro 4 del impulsor del solenoide del inyector: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1143
+SPN,655,7,Cilindro 5 del impulsor del solenoide del inyector: el sistema mecánico no responde o está desajustado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1144
+SPN,656,7,Cilindro 6 del impulsor del solenoide del inyector: el sistema mecánico no responde o está desajustado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1145
+SPN,27,2,"Posición de la válvula de EGR: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1228
+SPN,2623,3,Circuito del sensor 2 de posición de la palanca o del pedal del acelerador: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1239
+SPN,2623,4,Circuito del sensor 2 de posición de la palanca o del pedal del acelerador: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1241
+SPN,91,2,"Sensor 1 de posición de la palanca o del pedal del acelerador: datos erráticos, intermitentes o incorrectos",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1242
+SPN,974,4,Circuito del sensor de posición de la palanca 1 o del pedal del acelerador remoto: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1361
+SPN,91,19,Posición 1 del pedal del acelerador: datos de red recibidos con error,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1515
+SPN,974,3,Circuito del sensor de posición de la palanca 1 o del pedal del acelerador remoto: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1595
+SPN,4796,31,Falta el catalizador de oxidación de diésel de postratamiento 1: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1664
+SPN,1761,4,Circuito del sensor de nivel del tanque de fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1668
+SPN,1761,3,Circuito del sensor de nivel del tanque de fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1669
+SPN,1761,1,"Nivel del tanque de fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel más grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1673
+SPN,3031,4,Sensor de temperatura del tanque de fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1677
+SPN,3031,3,Sensor de temperatura del tanque del fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1678
+SPN,3031,2,"Temperatura del tanque de fluido de escape diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1679
+SPN,3362,31,Líneas de entrada de la unidad de dosificación del fluido de escape diésel de postratamiento 1: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1682
+SPN,3363,3,Calentador del tanque del fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1683
+SPN,3363,4,Calentador del tanque de fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1684
+SPN,3364,4,Circuito del sensor de calidad del fluido de escape diésel 1 de postratamiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1685
+SPN,3364,3,Circuito del sensor de calidad del fluido de escape diésel 1 de postratamiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1686
+SPN,5298,18,"Eficiencia de conversión del catalizador de oxidación de diésel de preparación de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1691
+SPN,3226,2,"Sensor de NOx de salida de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1694
+SPN,3513,3,Circuito 5 del suministro del sensor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1695
+SPN,3513,4,Circuito del suministro 5 del sensor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1696
+SPN,3363,18,"Calentador del tanque de fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1712
+SPN,3363,16,"Calentador del tanque de fluido de escape diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1713
+SPN,3364,13,Calidad del fluido de escape diésel 1 de postratamiento: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1714
+SPN,3364,11,Calidad del fluido de escape diésel 1 de postratamiento: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1715
+SPN,101,3,Circuito de presión del cárter: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1843
+SPN,101,4,Circuito de presión del cárter: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1844
+SPN,97,16,"Indicador de agua en el combustible: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1852
+SPN,411,2,"Presión diferencial de recirculación del gas de escape: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1866
+SPN,412,2,"Temperatura de recirculación del gas de escape: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1867
+SPN,3251,3,Circuito del sensor de presión diferencial del filtro de partículas diésel 1 de postratamiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1879
+SPN,3251,4,Circuito del sensor de presión diferencial del filtro de partículas diésel 1 de postratamiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1881
+SPN,3251,2,"Presión diferencial del filtro de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1883
+SPN,3216,4,Circuito del sensor de NOx de admisión de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1885
+SPN,3226,4,Circuito del sensor de NOx de salida de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1887
+SPN,641,9,Circuito del controlador del actuador de VGT: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1894
+SPN,2791,13,Controlador de la válvula de EGR: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1896
+SPN,641,12,Controlador del actuador de VGT: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1897
+SPN,3251,16,Presión diferencial del filtro de partículas diésel 1 de postratamiento: datos válidos pero por encima del rango de funcionamiento normal: nivel moderadamente grave,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1921
+SPN,3251,0,Presión diferencial del filtro de partículas diésel 1 de postratamiento: datos válidos pero por encima del rango de funcionamiento normal: nivel más grave,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,1922
+SPN,3597,18,"Voltaje 1 de suministro de salida de potencia de la ECU: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1938
+SPN,101,2,"Presión del cárter: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,1942
+SPN,101,15,"Presión del cárter: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1974
+SPN,641,15,"Temperatura del controlador del actuador de VGT: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1976
+SPN,3936,15,"Sistema del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1981
+SPN,4795,31,Falta el filtro de partículas diésel de postratamiento 1: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,1993
+SPN,3512,3,Circuito del suministro 4 del sensor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2185
+SPN,3512,4,Circuito del suministro 4 del sensor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2186
+SPN,641,11,Circuito del controlador del actuador del VGT: causa raíz desconocida,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,2198
+SPN,96,3,Circuito del sensor del nivel de combustible (tanque principal): voltaje por encima de lo normal o en cortocircuito a fuente de alto voltaje,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2222
+SPN,96,4,Circuito del sensor del nivel de combustible (tanque principal): voltaje por debajo de lo normal o en cortocircuito a fuente de bajo voltaje,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2223
+SPN,27,4,Circuito de posición de la válvula de EGR: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2272
+SPN,411,3,Circuito del sensor de presión diferencial de recirculación del gas de escape: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2273
+SPN,411,4,Circuito del sensor de presión diferencial de recirculación de gas de escape: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2274
+SPN,103,15,"Velocidad del turbocargador 1: datos válidos, pero por encima del rango de funcionamiento normal - Nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2288
+SPN,633,31,Circuito de la válvula de control de inyección electrónica de combustible: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2311
+SPN,1209,3,Circuito del sensor de presión 1 del banco de gas de escape 1: voltaje por encima de lo normal o en cortocircuito a fuente de alto voltaje,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2373
+SPN,1209,4,Circuito del sensor de presión 1 del banco de gas de escape 1: voltaje por debajo de lo normal o en cortocircuito a fuente de bajo voltaje,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2374
+SPN,412,3,Circuito del sensor de temperatura de recirculación del gas de escape: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2375
+SPN,412,4,Circuito del sensor de temperatura de recirculación del gas de escape: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2376
+SPN,641,7,Circuito del controlador del actuador de VGT (motor): el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,2387
+SPN,171,2,"Temperatura de aire ambiente: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2398
+SPN,190,16,"Posición/velocidad del cigüeñal del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2468
+SPN,1209,2,"Presión 1 del gas de escape: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2554
+SPN,729,3,Circuito del calentador de aire de admisión 1 del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2555
+SPN,729,4,Circuito 1 del calentador de aire de admisión del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2556
+SPN,5298,17,Eficiencia de conversión del catalizador de oxidación diésel 1 de postratamiento: datos válidos pero por debajo del rango de funcionamiento normal: nivel menos grave,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2638
+SPN,3251,15,Presión diferencial del filtro de partículas diésel 1 de postratamiento: datos válidos pero por encima del rango de funcionamiento normal: nivel menos grave,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2639
+SPN,110,31,Temperatura del refrigerante del motor: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2646
+SPN,3936,2,"Sistema del filtro de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2692
+SPN,6304,31,Interruptor de freno y posición del pedal del acelerador incompatibles: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2718
+SPN,3226,9,Sensor de NOx de salida de postratamiento 1: tasa de actualización anormal,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,2771
+SPN,3703,31,Regeneración de postratamiento inhibida debido al interruptor de inhibición: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2777 / 6416
+SPN,412,15,"Temperatura de recirculación de gas de escape: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2961
+SPN,412,16,"Temperatura de recirculación del gas de escape: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2962
+SPN,110,15,"Temperatura del refrigerante del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,2963
+SPN,105,15,"Temperatura del colector1 de admisión: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,2964
+SPN,102,2,"Presión del colector admisión 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,2973
+SPN,3610,3,Circuito del sensor de presión de salida del filtro de partículas diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3133
+SPN,3610,4,Circuito del sensor de presión de salida del filtro de partículas diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3134
+SPN,3610,2,"Presión de salida del filtro de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3135
+SPN,3667,3,Circuito de cierre de aire del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,FMI,INTERNATIONAL - 7600,3139
+SPN,3667,4,Circuito de cierre del aire del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,FMI,INTERNATIONAL - 7600,3141
+SPN,4360,3,Circuito del sensor de temperatura de admisión de SCR de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,BAJA,Heredado_Generico,INTERNATIONAL - 7600,3142
+SPN,4363,3,Circuito del sensor de temperatura de salida de SCR de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3146
+SPN,4363,4,Circuito del sensor de temperatura de salida del filtro de SCR de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3147
+SPN,4363,2,"Sensor de temperatura de salida de SCR de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3148
+SPN,4794,31,Falta el sistema del catalizador de SCR de postratamiento 1: condición existente,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3151
+SPN,4363,0,"Temperatura de salida de SCR de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3165
+SPN,3216,9,Sensor de NOx de admisión de postratamiento 1: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3232
+SPN,4363,16,"Temperatura de salida de SCR de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3235
+SPN,4340,3,Circuito del calentador 1 de la línea de fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3237
+SPN,4340,4,Circuito del calentador 1 de la línea del fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3238
+SPN,4342,3,Circuito del calentador 2 de la línea de fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3239
+SPN,4342,4,Circuito del calentador 2 de la línea del fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3241
+SPN,3363,7,Calentador del tanque de fluido de escape diésel de postratamiento 1: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3242
+SPN,3060,18,"Monitor del sistema de enfriamiento del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3243
+SPN,4765,16,"Temperatura de admisión del catalizador de oxidación de diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3251
+SPN,3242,16,"Temperatura de admisión del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3253
+SPN,3242,15,"Temperatura de admisión del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3254
+SPN,3246,16,"Temperatura de salida del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3255
+SPN,3246,15,"Temperatura de salida del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3256
+SPN,3242,0,"Temperatura de admisión del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3311
+SPN,3246,0,"Temperatura de salida del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3312
+SPN,4765,4,Circuito del sensor de temperatura de admisión del catalizador de oxidación de diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3313
+SPN,4765,3,Circuito del sensor de temperatura de admisión del catalizador de oxidación de diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3314
+SPN,4765,2,"Temperatura de admisión del catalizador de oxidación de diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3315
+SPN,3242,4,Circuito del sensor de temperatura de admisión del filtro de partículas diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3316
+SPN,3242,3,Circuito del sensor de temperatura de admisión del filtro de partículas diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3317
+SPN,3242,2,"Temperatura de admisión del filtro de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3318
+SPN,3246,3,Circuito del sensor de temperatura de salida del filtro de partículas diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3319
+SPN,3246,4,Circuito del sensor de temperatura de salida del filtro de partículas diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3321
+SPN,3246,2,"Temperatura de salida del filtro de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3322
+SPN,91,9,Posición 1 del pedal del acelerador: frecuencia de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3326
+SPN,191,9,Velocidad del eje de salida de la transmisión: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3328
+SPN,5395,18,"Cantidad de combustible en ralentí del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3338
+SPN,4752,18,"Eficiencia del enfriador de recirculación del gas de escape del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3342
+SPN,5285,18,"Eficiencia del enfriador del aire de carga del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3343
+SPN,102,10,Presión del colector de admisión 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3361
+SPN,1818,31,Control de freno de protección antivuelco: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3374
+SPN,5397,31,Regeneración demasiado frecuente del filtro de partículas diésel 1 postratamiento - Condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3375
+SPN,5319,31,Regeneración incompleta del filtro de partículas diésel 1 de postratamiento - Condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3376
+SPN,3058,18,"Sistema de recirculación de gas de escape (EGR) del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3382
+SPN,3058,16,"Sistema de recirculación de gas de escape (EGR) del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3383
+SPN,3058,10,Sistema de recirculación de gas de escape (EGR) del motor: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3389
+SPN,3750,31,No se reunieron las condiciones del filtro 1 de partículas diésel de postratamiento para la regeneración activa: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3396
+SPN,191,19,Velocidad del eje de salida de la transmisión: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3418
+SPN,4344,3,Circuito del calentador 3 de la línea de fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3422
+SPN,4344,4,Circuito del calentador 3 de la línea del fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3423
+SPN,3222,5,Calentador del sensor de gas de admisión de postratamiento: corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3446
+SPN,563,9,Controlador del frenado antibloqueo (ABS): tasa de actualización anormal,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3488
+SPN,251,10,Reloj de tiempo real: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3492
+SPN,1081,7,Indicador de arranque en espera del motor: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3494
+SPN,1761,17,"Nivel del tanque de fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel menos grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3497
+SPN,1761,18,"Nivel del tanque de fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3498
+SPN,84,19,Velocidad del vehículo basada en las ruedas: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3525
+SPN,84,9,Velocidad del vehículo basada en las ruedas: tasa de actualización anormal,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3526
+SPN,558,19,Interruptor de validación en ralentí de la palanca o del pedal del acelerador: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3527
+SPN,558,9,Interruptor de validación en ralentí de la palanca o el pedal del acelerador: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3528
+SPN,51,3,Circuito del sensor de posición del actuador del acelerador de admisión del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3539
+SPN,51,4,Circuito del sensor de posición del actuador del acelerador de admisión del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3541
+SPN,51,2,"Sensor de posición del actuador del acelerador de admisión del motor: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3542
+SPN,3226,10,Sensor de NOx de salida de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3545
+SPN,4096,31,Tanque de fluido de escape diésel de postratamiento vacío: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3547
+SPN,3361,3,Unidad de dosificación del fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3558
+SPN,3361,4,Unidad de dosificación del fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3559
+SPN,5491,3,Relevador del calentador de la línea de fluido de escape diésel de postratamiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3562
+SPN,5491,4,Relevador del calentador de la línea de fluido de escape diésel de postratamiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3563
+SPN,5394,3,Circuito de la válvula 1 de dosificación del fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3565
+SPN,5394,5,Circuito de la válvula 1 de dosificación de fluido de escape diésel de postratamiento 1: corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3567
+SPN,5394,7,Válvula 1 de dosificación del fluido de escape diésel de postratamiento 1: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3568
+SPN,4334,3,Circuito del sensor de presión del fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3571
+SPN,4334,4,Circuito del sensor de presión del fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3572
+SPN,4334,18,"Presión del fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3574
+SPN,4334,16,"Presión del fluido de escape diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3575
+SPN,5031,10,Calentador del sensor de NOx de salida de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3583
+SPN,4334,2,"Presión del fluido de escape diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3596
+SPN,5024,10,Calentador del sensor de NOx de admisión de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3649
+SPN,251,13,Reloj de tiempo real: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3656
+SPN,3228,2,"Alimentación del sensor de NOx de salida de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3681
+SPN,3218,2,"Alimentación del sensor de NOx de admisión de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3682
+SPN,5246,0,"Inducción del operador de SCR de postratamiento: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,3712
+SPN,188,16,"Velocidad del motor en ralentí: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3715
+SPN,188,18,"Velocidad del motor en ralentí: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3716
+SPN,3226,13,Sensor de NOx de salida de postratamiento 1: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3717
+SPN,3216,13,NOx de admisión de postratamiento 1: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3718
+SPN,3216,10,Sensor de NOx de admisión de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3725
+SPN,1675,31,Protección de arranque fallido del modo de arrancador del motor: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3737
+SPN,3216,20,Sensor de NOx de admisión de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3748
+SPN,3226,20,Sensor de NOx de salida de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3749
+SPN,2978,9,Pérdidas parásitas del motor calculadas: par en porcentaje: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3838
+SPN,5603,9,Comando de desactivación del control de crucero: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3843
+SPN,5605,31,Comando de pausa en el control de crucero: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3844
+SPN,5603,31,Comando de desactivación del control de crucero: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,3845
+SPN,3364,18,"Calidad del fluido de escape diésel de postratamiento: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3867
+SPN,3364,9,Calidad del fluido de escape diésel 1 de postratamiento - Tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3868
+SPN,3364,2,"Calidad del fluido de escape diésel 1 de postratamiento: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,3878
+SPN,5835,3,Circuito del sensor de partículas de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4143
+SPN,5835,4,Circuito del sensor de partículas de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4144
+SPN,2623,8,"Frecuencia del circuito del sensor 2 de posición de la palanca o del pedal del acelerador: frecuencia, ancho del pulso o periodo anormal",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4149
+SPN,5742,9,Módulo del sensor de temperatura del filtro de partículas diésel de postratamiento: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4151
+SPN,5743,9,Módulo del sensor de temperatura de reducción catalítica selectiva de postratamiento: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4152
+SPN,7323,4,Circuito del controlador del lado bajo del calentador del sensor de partículas de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4154
+SPN,5742,12,Módulo del sensor de temperatura del filtro de partículas diésel de postratamiento: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,4158
+SPN,5743,12,Módulo del sensor de temperatura de reducción catalítica selectiva de postratamiento: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,4159
+SPN,5742,3,Módulo del sensor de temperatura del filtro de partículas diésel de postratamiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4161
+SPN,5742,4,Módulo del sensor de temperatura del filtro de partículas diésel de postratamiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4162
+SPN,5742,16,"Módulo del sensor de temperatura del filtro de partículas diésel de postratamiento: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4163
+SPN,5743,3,Módulo del sensor de temperatura de reducción catalítica selectiva de postratamiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4164
+SPN,5743,4,Módulo del sensor de temperatura de reducción catalítica selectiva de postratamiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4165
+SPN,5743,16,"Módulo del sensor de temperatura de reducción catalítica selectiva de postratamiento: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4166
+SPN,3695,2,"Interruptor de inhibición de regeneración de postratamiento: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4213
+SPN,563,31,Frenado antibloqueo (ABS) activo: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4215
+SPN,3515,3,Circuito del sensor de temperatura 2 del fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4233
+SPN,3515,4,Circuito del sensor de temperatura 2 del fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4234
+SPN,3515,10,Temperatura 2 del fluido de escape diésel de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4243
+SPN,5742,11,Módulo del sensor de temperatura del filtro de partículas diésel de postratamiento: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4259
+SPN,5743,11,Módulo del sensor de temperatura de reducción catalítica selectiva de postratamiento: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4261
+SPN,91,8,"Frecuencia del circuito del sensor 1 de posición de la palanca o del pedal del acelerador: frecuencia, ancho del pulso o periodo anormal",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,4289
+SPN,5097,3,Indicador activo de freno del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4293
+SPN,5097,4,Indicador activo de freno del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4294
+SPN,6773,16,"Estado de regeneración del sensor de partículas de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4449
+SPN,3667,7,Cierre del aire del motor: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,4484
+SPN,237,13,Número de identificación vehicular: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4517
+SPN,5862,3,Circuito del sensor de temperatura de gas intermedio de SCR de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4518
+SPN,5862,4,Circuito del sensor de temperatura de gas intermedio de SCR de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4519
+SPN,5862,2,"Sensor de temperatura del gas intermedio de SCR de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4521
+SPN,5862,0,"Temperatura del gas intermedio del catalizador de SCR de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,4524
+SPN,5862,16,"Temperatura de gas intermedio de SCR de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4525
+SPN,521,2,"Posición del pedal de freno: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4526
+SPN,3031,9,Temperatura del tanque de fluido de escape diésel de postratamiento 1: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4572
+SPN,4792,14,Sistema del catalizador de SCR de postratamiento 1: instrucciones especiales,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4585
+SPN,5321,31,Monitor del sistema de presión del colector de admisión del motor: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4612
+SPN,4331,18,"Cantidad de dosificación real del fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4658
+SPN,1761,9,Nivel del tanque de fluido de escape diésel de postratamiento 1: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4677
+SPN,5585,18,"Presión de arranque del conducto 1 de medición del inyector del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4691
+SPN,1239,16,"Fuga del combustible del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4726
+SPN,157,15,"Presión del conducto 1 de medición del inyector del motor: datos válidos, pero por encima del rango de funcionamiento normal - Nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4727
+SPN,1209,18,"Presión del gas de escape: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4728
+SPN,3031,13,Sensor de temperatura del tanque de fluido de escape diésel de postratamiento 1: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4731
+SPN,1761,13,Sensor del nivel del tanque de fluido de escape diésel de postratamiento 1: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4732
+SPN,3031,11,Temperatura del tanque del fluido de escape diésel de postratamiento 1: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4737
+SPN,1761,11,Sensor del nivel del tanque de fluido de escape diésel de postratamiento 1: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4739
+SPN,3217,20,Sensor de oxígeno de admisión de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4747
+SPN,3217,21,Sensor de oxígeno de admisión de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4748
+SPN,3227,20,Oxígeno de salida 1 de postratamiento: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4749
+SPN,3227,21,Oxígeno de salida 1 de postratamiento: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4751
+SPN,3521,11,Propiedad del fluido de escape diésel de postratamiento 1: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4768
+SPN,1761,10,Sensor de nivel del tanque de fluido de escape diésel de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4769
+SPN,6653,16,"Presión de arranque en frío 1 del conducto de medición del inyector del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4841
+SPN,6655,3,Circuito del indicador de alimentación de la ECU de mantenimiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4951
+SPN,6655,4,Circuito del indicador de alimentación de la ECU de mantenimiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4952
+SPN,6713,13,Software del actuador del turbocargador de geometría variable: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,4956
+SPN,6713,31,Software del actuador del turbocargador de geometría variable: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,4957
+SPN,6713,9,Software del actuador del turbocargador de geometría variable: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5177
+SPN,3667,2,"Estado de cierre del aire del motor: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5221
+SPN,747,13,Correspondencia de motor/transmisión: descalibrada,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5297
+SPN,3720,15,"Porcentaje de carga de cenizas del filtro de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5383
+SPN,6778,3,Alimentación del sensor de partículas de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5577
+SPN,6778,4,Alimentación del sensor de partículas de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5578
+SPN,6778,16,"Alimentación del sensor de partículas de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5579
+SPN,7329,2,"Alimentación del calentador del sensor de partículas de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5581
+SPN,6777,10,Estado de detección del sensor de partículas de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5583
+SPN,6773,7,Estado de regeneración del sensor de partículas diésel de postratamiento 1: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,5584
+SPN,4364,31,Eficiencia de conversión de SCR de postratamiento 1: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5655
+SPN,3226,11,Sensor de NOx de salida de postratamiento 1: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5689
+SPN,3251,10,Presión diferencial del filtro de partículas diésel de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5715
+SPN,3610,10,Presión de salida del filtro de partículas diésel de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5716
+SPN,7321,4,Circuito del controlador del lado alto del calentador del sensor de partículas de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5792
+SPN,5835,21,Sensor de partículas de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5837
+SPN,5717,10,Autodiagnóstico del sensor de NOx de salida de postratamiento 1: tasa de cambio anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5838
+SPN,4375,3,Circuito de comando de la bomba de fluido de escape diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5864
+SPN,4375,4,Circuito de comando de la bomba de fluido de escape diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5865
+SPN,520953,3,Retroalimentación del relevador de la unidad de dosificación del fluido de escape diésel de postratamiento: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5866
+SPN,520953,4,Retroalimentación del relevador de la unidad de dosificación del fluido de escape diésel de postratamiento: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5867
+SPN,3464,3,Circuito del controlador del actuador de control del acelerador electrónico: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5879
+SPN,3464,4,Circuito del controlador del actuador de control del acelerador electrónico: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5881
+SPN,1323,11,Falla de encendido del motor en el cilindro n.º 1: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5895
+SPN,1324,11,Falla de encendido del motor en el cilindro n.º 2: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5896
+SPN,1325,11,Falla de encendido del motor en el cilindro n.º 3: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5897
+SPN,1326,11,Falla de encendido del motor en el cilindro n.º 4: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5898
+SPN,1327,11,Falla de encendido del motor en el cilindro n.º 5: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5899
+SPN,1328,11,Falla de encendido del motor en el cilindro n.º 6: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5911
+SPN,1322,11,Falla de encendido del motor en varios cilindros: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5914
+SPN,4334,7,Presión del fluido de escape de diésel de postratamiento 1: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,5935
+SPN,4334,15,"Presión del fluido de escape diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,5936
+SPN,103,7,Velocidad del turbocargador 1 del motor: el sistema mecánico no responde o está desajustado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,5943
+SPN,102,20,Presión del colector 1 de admisión: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5989
+SPN,102,21,Presión del colector 1 de admisión: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,5991
+SPN,5246,16,"Gravedad de la inducción del operador de SCR de postratamiento: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6254
+SPN,1569,15,"Disminución de par de protección del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6255
+SPN,168,15,"Voltaje de la batería 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6256
+SPN,168,17,"Voltaje de la batería 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6257
+SPN,1075,3,Bomba eléctrica de elevación para el suministro de combustible del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6258
+SPN,1075,4,Bomba eléctrica de elevación para el suministro de combustible del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6259
+SPN,677,3,Circuito del relevador del motor del arrancador del motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6261
+SPN,677,4,Circuito del relevador del motor del arrancador del motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6262
+SPN,647,3,Circuito de control del ventilador: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6263
+SPN,647,4,Circuito de control del ventilador: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6264
+SPN,5862,14,Temperatura de gas intermedio de SCR de postratamiento 1: instrucciones especiales,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6266
+SPN,96,9,Nivel 1 del combustible: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6339
+SPN,96,13,Nivel de combustible 1: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6341
+SPN,38,9,Nivel 2 del combustible: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6342
+SPN,38,13,Nivel de combustible 2: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6343
+SPN,974,19,Pedal del acelerador remoto de multiplexado según SAE J1939 o sistema del sensor de la palanca: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6417
+SPN,1072,3,Circuito del controlador del actuador 1 del freno de motor: voltaje por encima de lo normal o en cortocircuito a fuente de alto voltaje,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6418
+SPN,1072,4,Circuito 1 del controlador del actuador del freno de motor: voltaje por debajo de lo normal o en cortocircuito a fuente de bajo voltaje,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6419
+SPN,1073,3,Circuito de salida 2 del controlador del actuador del freno de motor: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6421
+SPN,1073,4,Circuito de salida 2 del controlador del actuador del freno de motor: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6422
+SPN,641,14,Controlador del actuador de VGT: instrucciones especiales,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6432
+SPN,3216,21,Sensor de NOx de admisión de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6459
+SPN,3216,2,"NOx de admisión de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6461
+SPN,3226,21,Sensor de NOx de salida de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6463
+SPN,4375,2,"Porcentaje de accionamiento de la bomba de fluido de escape diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6485
+SPN,4331,16,"Cantidad de dosificación real del fluido de escape diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6486
+SPN,7317,9,Estado del control de crucero predictivo: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6575
+SPN,190,11,Velocidad del motor: causa raíz desconocida,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6595
+SPN,5842,14,Mal funcionamiento del sistema de monitoreo de SCR: instrucciones especiales,Motor,MEDIA,FMI,INTERNATIONAL - 7600,6613
+SPN,2978,2,"Pérdidas parásitas del motor calculadas: par en porcentaje: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - 7600,6637
+SPN,5569,4,Circuito de temperatura 1 interna de la ECU del sensor de hollín del filtro de partículas diésel 1 de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6642 / 6644
+SPN,5569,3,Circuito de temperatura 1 interna de la ECU del sensor de hollín 1 del filtro de partículas diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6643 / 6645
+SPN,5569,2,"Temperatura interna de la ECU del sensor de hollín del filtro 1 de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6646
+SPN,6780,3,Sensor de temperatura de hollín del filtro de partículas diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6647
+SPN,6780,4,Sensor de temperatura del hollín del filtro de partículas diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6648
+SPN,6780,2,"Sensor de temperatura de hollín del filtro de partículas diésel de postratamiento 1: datos erráticos, intermitentes o incorrectos",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6649
+SPN,7854,3,Módulo del sensor de hollín del filtro de partículas diésel de postratamiento 1: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6651
+SPN,7854,4,Módulo del sensor de hollín del filtro de partículas diésel de postratamiento 1: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6652
+SPN,7854,6,Módulo del sensor de hollín del filtro de partículas diésel de postratamiento 1: corriente por encima de lo normal o circuito conectado a tierra,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6653
+SPN,5835,9,Sensor de partículas de postratamiento 1: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6688
+SPN,7854,12,Convertidor de voltaje del módulo del sensor de hollín del filtro de partículas diésel de postratamiento 1: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,6722
+SPN,5569,16,"Temperatura interna de la ECU del sensor de hollín del filtro 1 de partículas diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6735
+SPN,521026,12,Mal funcionamiento del software del módulo administrador de parámetros de ruta: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,6737
+SPN,521031,3,Módulo administrador de parámetros de ruta: voltaje por encima de lo normal o en cortocircuito a fuente de voltaje alto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6738
+SPN,521031,4,Módulo administrador de parámetros de ruta: voltaje por debajo de lo normal o en cortocircuito a fuente de voltaje bajo,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6739
+SPN,521027,14,Mal funcionamiento de CAN 1 del módulo administrador de parámetros de ruta: instrucciones especiales,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6741
+SPN,521022,31,Corriente de la antena de GPS del módulo administrador de parámetros de ruta: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6742
+SPN,521023,11,Mal funcionamiento de USB del módulo administrador de parámetros de ruta: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6743
+SPN,521031,13,Módulo administrador de parámetros de ruta: descalibrado,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6744
+SPN,521024,12,Mal funcionamiento de la carga del mapa del módulo administrador de parámetros de ruta: componente o dispositivo inteligente en mal estado,Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,6745
+SPN,521024,31,Mal funcionamiento de la carga del mapa del módulo administrador de parámetros de ruta: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6746
+SPN,521028,14,Mal funcionamiento de CAN 2 del módulo administrador de parámetros de ruta: instrucciones especiales,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6747
+SPN,521029,31,Mal funcionamiento del hardware del módulo administrador de parámetros de ruta: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6748
+SPN,521030,31,Mal funcionamiento de prueba de chispa del módulo administrador de parámetros de ruta: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6749
+SPN,7936,9,Módulo de control de navegación: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6753
+SPN,7820,6,Antena de GPS del módulo administrador de parámetros de ruta: corriente por encima de lo normal o circuito conectado a tierra,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6761
+SPN,7820,9,Antena de GPS del módulo administrador de parámetros de ruta: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6762
+SPN,7820,5,Antena GPS del módulo administrador de parámetros de ruta: corriente por debajo de lo normal o circuito abierto,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6763
+SPN,7820,11,Señal de entrada de la antena de GPS del módulo administrador de parámetros de ruta: causa raíz desconocida,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6764
+SPN,3521,16,"Propiedad del fluido de escape diésel de postratamiento 1: datos válidos, pero por encima del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6765
+SPN,3521,18,"Propiedad del fluido de escape diésel de postratamiento 1: datos válidos, pero por debajo del rango de funcionamiento normal: nivel moderadamente grave",Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6766
+SPN,3521,31,Propiedad de fluido de escape diésel de postratamiento 1: condición existente,Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,6767
+SPN,521032,14,Conjunto del sistema de postratamiento: instrucciones especiales,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6771
+SPN,4765,20,Sensor de temperatura de admisión del catalizador de oxidación de diésel de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6779
+SPN,4765,21,Sensor de temperatura de admisión del catalizador de oxidación de diésel de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6781
+SPN,4766,20,Sensor de temperatura del gas de salida del catalizador de oxidación de diésel de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6782
+SPN,4766,21,Sensor de temperatura del gas de salida del catalizador de oxidación de diésel de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6783
+SPN,3246,20,Sensor de temperatura de salida del filtro de partículas diésel de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6784
+SPN,3246,21,Sensor de temperatura de salida del filtro de partículas diésel de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6785
+SPN,3610,20,Sensor de presión de salida del filtro de partículas diésel de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6786
+SPN,4363,20,Sensor de temperatura de salida de SCR de postratamiento 1: datos no racionales: derivación alta,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6791
+SPN,4363,21,Sensor de temperatura de salida de SCR de postratamiento 1: datos no racionales: derivación baja,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6792
+SPN,91,13,Posición 1 del pedal del acelerador: descalibrada,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,6919
+SPN,3058,0,"Sistema de recirculación de gas de escape (EGR) del motor: datos válidos, pero por encima del rango de funcionamiento normal: nivel más grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,7232
+SPN,102,1,"Presión del colector de admisión del motor: datos válidos, pero por debajo del rango de funcionamiento normal: nivel menos grave",Motor,ALTA,Heredado_X12,INTERNATIONAL - 7600,7233
+SPN,188,17,"Velocidad del motor en ralentí: datos válidos, pero por debajo del rango de funcionamiento normal: nivel menos grave",Motor,BAJA,Heredado_X12,INTERNATIONAL - 7600,7234
+SPN,1590,9,Modo de control de crucero adaptativo: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,7425
+SPN,1590,19,Modo de control de crucero adaptativo: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,7426
+SPN,5603,19,Comando de desactivación del control de crucero: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - 7600,7427
