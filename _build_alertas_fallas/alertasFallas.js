@@ -89,6 +89,11 @@ geotab.addin.alertasFallas = function () {
   var COLOR_DESTACADO = '#C00000';
   var CATEGORIAS_DESTACADAS = { 'ABS': true, 'Neumáticos': true, 'Postratamiento/Escape': true, 'Motor': true };
   var CATEGORIAS_OCULTAS = { 'Telemática/GPS': true, 'General': true };
+  var IDS_TESTIGO = {
+    DiagnosticGeneralVehicleWarningLightId: true, DiagnosticLowPriorityWarningLightId: true,
+    DiagnosticMalfunctionIndicatorLampId: true, DiagnosticRedStopLampId: true,
+    DiagnosticAmberWarningLampId: true, DiagnosticProtectLampId: true
+  };
 
   // Paleta categoría -> color, SOLO para los marcadores/leyenda del mapa del
   // Expediente Consolidado (ver ensamblarYDescargarExpedienteConsolidado más
@@ -99,7 +104,7 @@ geotab.addin.alertasFallas = function () {
     'ABS': '#0ea5e9', 'Neumáticos': '#78716c', 'Frenos': '#dc2626',
     'Postratamiento/Escape': '#16a34a', 'Motor': '#ea580c', 'Transmisión': '#7c3aed',
     'Eje/Suspensión': '#0891b2', 'Eléctrico': '#eab308', 'HVAC': '#06b6d4',
-    'Dirección': '#be185d', 'Telemática/GPS': '#64748b', 'General': '#94a3b8'
+    'Dirección': '#be185d', 'Telemática/GPS': '#64748b', 'General': '#94a3b8', 'Testigo del tablero': '#a8a29e'
   };
 
   // Puerto exacto de CATEGORIAS_SISTEMA en telegram_alertas.py -- se evalua en
@@ -505,13 +510,16 @@ geotab.addin.alertasFallas = function () {
     var desdeReal = desde < minimoDesde ? desde : minimoDesde;
 
     return obtenerFaultDataPaginado(desdeReal, hasta).then(function (registros) {
-      var porClave = {};
+      var porClave = {}, ultimoActivo = {};
       (registros || []).forEach(function (r) {
         if (!r.device || !r.dateTime) return;
         var clave = idDeRef(r.device) + '|' + idDeRef(r.diagnostic) + '|' + idDeRef(r.failureMode);
         var actual = porClave[clave];
         if (!actual || new Date(r.dateTime) > new Date(actual.dateTime)) porClave[clave] = r;
+        var act = ultimoActivo[clave];
+        if (r.faultState === 'Active' && (!act || new Date(r.dateTime) > new Date(act.dateTime))) ultimoActivo[clave] = r;
       });
+      var limiteIntermitente = hasta.getTime() - CONFIRMACION_HORAS * 60 * 60 * 1000;
 
       // Primero el registro MAS RECIENTE por clave (sin importar su faultState), y
       // RECIEN AHI se filtra por 'Active' -- mismo orden que _obtener_fallas_activas
@@ -525,8 +533,16 @@ geotab.addin.alertasFallas = function () {
       Object.keys(porClave).forEach(function (clave) {
         var r = porClave[clave];
         if (r.dismiss === true) return;
-        if (r.faultState !== 'Active') return;
+        // v1.24: un código que pulsa Active→None en segundos (caso 1157, SPN 157/FMI 18) se muestra
+        // como "Intermitente" si tuvo un registro Active en las últimas 24 h, en vez de ocultarse.
+        var intermitente = false;
+        if (r.faultState !== 'Active') {
+          var a = ultimoActivo[clave];
+          if (!a || a.dismiss === true || new Date(a.dateTime).getTime() < limiteIntermitente) return;
+          r = a; intermitente = true;
+        }
         activas.push({
+          intermitente: intermitente,
           idVehiculo: idDeRef(r.device),
           idDiagnostico: idDeRef(r.diagnostic),
           idFailureMode: idDeRef(r.failureMode),
@@ -682,7 +698,9 @@ geotab.addin.alertasFallas = function () {
         f.criticidad = (ORDEN_CRITICIDAD[porDiccionario] || 0) > ORDEN_CRITICIDAD[porLuces] ? porDiccionario : porLuces;
         f.spn = valorODesconocido(diagInfo.codigo);
         f.fmi = valorODesconocido(fmInfo.codigo);
-        f.categoria = categorizarFalla(diagInfo.nombre);
+        // Testigos del tablero (Geotab les pone código 168/175 sin FMI): NO son el SPN 168 (batería) ni el 175 (temp. aceite).
+        f.esTestigo = !!IDS_TESTIGO[f.idDiagnostico] || /luz de advertencia|warning light/i.test(diagInfo.nombre);
+        f.categoria = f.esTestigo ? 'Testigo del tablero' : categorizarFalla(diagInfo.nombre);
         f.destacado = !!CATEGORIAS_DESTACADAS[f.categoria];
         f.nombreFalla = diagInfo.nombre + (fmInfo.nombre ? ' — ' + fmInfo.nombre : '');
         f.activo = true; // explicito: en este punto f ya paso el filtro faultState==='Active' de obtenerFallasActivas()
@@ -694,6 +712,10 @@ geotab.addin.alertasFallas = function () {
 
   // El código 0 es válido: FMI 0 = "dato por encima del rango normal, nivel más severo". Con `|| '?'` el cero se perdía y la
   // clase más grave salía como "FMI ?" y "Significado no disponible" (caso 1226-FXW563).
+  function textoCodigo(it) {
+    return it.esTestigo ? 'Testigo' : 'SPN ' + it.spn + '/FMI ' + it.fmi;
+  }
+
   function valorODesconocido(v) {
     return (v === null || v === undefined || v === '') ? '?' : v;
   }
@@ -2070,7 +2092,7 @@ geotab.addin.alertasFallas = function () {
       momento: it.fecha, idDiagnostico: it.idDiagnostico, idFailureMode: it.idFailureMode,
       nombreDiagnostico: it.nombreFalla,
       spn: it.spn, fmi: it.fmi, categoria: it.categoria, activo: it.activo !== false,
-      codigo: 'SPN ' + it.spn + '/FMI ' + it.fmi,
+      codigo: textoCodigo(it),
       descripcion: it.nombreFalla,
       criticidad: it.criticidad, sinConfirmar: !!it.sinConfirmar, estadoConf: it.estadoConf, horasSinReporte: it.horasSinReporte, kmDesde: it.kmDesde, motivo: it.motivo,
       duracionTexto: 'Reportada el ' + formatearFechaHora(it.fecha) + ' — código activo según el último registro consultado en Geotab.',
@@ -2550,7 +2572,7 @@ geotab.addin.alertasFallas = function () {
       if (!g) {
         g = porClave[clave] = {
           clave: clave, idDiagnostico: it.idDiagnostico, idFailureMode: it.idFailureMode,
-          nombreFalla: it.nombreFalla, spn: it.spn, fmi: it.fmi, categoria: it.categoria,
+          nombreFalla: it.nombreFalla, spn: it.spn, fmi: it.fmi, categoria: it.categoria, esTestigo: it.esTestigo,
           criticidad: it.criticidad, conteo: 0, fechaReferencia: it.fecha, posicion: null,
           sinConfirmar: true, estadoConf: it.estadoConf, horasSinReporte: it.horasSinReporte
         };
@@ -2574,7 +2596,7 @@ geotab.addin.alertasFallas = function () {
       ? '<span class="en-mapa">Ver mapa</span>'
       : '<span class="sin-gps">Ubicaci\u00f3n no disponible</span>';
     return '<tr>' +
-      '<td class="codigo-celda">SPN ' + escapeHtml(g.spn) + '<br>FMI ' + escapeHtml(g.fmi) + '</td>' +
+      '<td class="codigo-celda">' + (g.esTestigo ? 'Testigo' : 'SPN ' + escapeHtml(g.spn) + '<br>FMI ' + escapeHtml(g.fmi)) + '</td>' +
       '<td>' + escapeHtml(g.nombreFalla) +
         (g.sinConfirmar ? '<div class="sin-gps">' + (g.estadoConf === 'sin-evidencia' ? 'Sin evidencia' : 'Sin confirmación reciente') + ': hace ' + textoAntiguedad(g.horasSinReporte) + '</div>' : '') +
         '<div><span class="badge-cat" style="background:' + colorCat + '">' + escapeHtml(g.categoria) + '</span></div>' +
@@ -2914,12 +2936,17 @@ geotab.addin.alertasFallas = function () {
       if (it.tipoSE === 'dispositivo') celdaNivel.appendChild(crear('div', { fontSize: '0.64rem', color: D.naranja, marginTop: '3px' }, it.motivoCorto));
     }
     if (!it.activo) celdaNivel.appendChild(crearPildoraEstadoActivo(false));
-    fila.appendChild(celdaNivel);
-
+    if (it.intermitente) {
+      var pildoraInt = celdaNivel.appendChild(crear('div', { marginTop: '4px' })).appendChild(crear('span', {
+        display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: 'rgba(245,158,11,0.16)',
+        color: '#F59E0B', fontWeight: '700', fontSize: '0.64rem', letterSpacing: '0.04em', textTransform: 'uppercase'
+      }, 'Intermitente'));
+      pildoraInt.title = 'Se activó en las últimas ' + CONFIRMACION_HORAS + ' h y su último registro es inactivo: aparece y desaparece. Revisar cableado/conector del sensor.';
+    }
     fila.appendChild(celdaFalla({
       fontFamily: "'Courier New', monospace", fontSize: '0.76rem', color: esBaja ? '#7AA6D6' : D.azul,
       fontWeight: '700', whiteSpace: 'nowrap'
-    }, 'SPN ' + it.spn + '/FMI ' + it.fmi));
+    }, textoCodigo(it)));
 
     fila.appendChild(celdaFalla({
       whiteSpace: 'nowrap', color: esBaja ? D.muted : D.textSoft, fontWeight: it.destacado ? '700' : '400'
