@@ -4874,3 +4874,389 @@ SPN,188,17,"Velocidad del motor en ralentí: datos válidos, pero por debajo del
 SPN,1590,9,Modo de control de crucero adaptativo: tasa de actualización anormal,Motor,MEDIA,Heredado_X12,INTERNATIONAL - MV607,7425
 SPN,1590,19,Modo de control de crucero adaptativo: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - MV607,7426
 SPN,5603,19,Comando de desactivación del control de crucero: datos de red recibidos con errores,Motor,MEDIA,Heredado_X12,INTERNATIONAL - MV607,7427
+SPN,629,12,Falla Interna Crítica del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,111
+SPN,629,12,Falla Interna Crítica del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,111
+SPN,612,2,"Perdidas Ambas de las Dos Señales Magnéticas de Velocidad/Posición del Motor - Dato Errático, Intermitente, o Incorrecto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,115
+SPN,612,2,"Perdidas Ambas de las Dos Señales Magnéticas de Velocidad/Posición del Motor - Dato Errático, Intermitente, o Incorrecto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,115
+SPN,102,3,Circuito del Sensor de Presión 1 del Múltiple de Admisión - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,122
+SPN,102,3,Circuito del Sensor de Presión 1 del Múltiple de Admisión - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,122
+SPN,102,4,Circuito del Sensor de Presión 1 del Múltiple de Admisión - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,123
+SPN,102,4,Circuito del Sensor de Presión 1 del Múltiple de Admisión - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,123
+SPN,102,18,Presión del Múltiple de Admisión 1 - Dato Válido Pero Abajo del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,125
+SPN,102,18,Presión del Múltiple de Admisión 1 - Dato Válido Pero Abajo del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,125
+SPN,91,3,Circuito 1 del Sensor de Posición del Pedal o Palanca del Acelerador - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,131
+SPN,91,3,Circuito 1 del Sensor de Posición del Pedal o Palanca del Acelerador - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,131
+SPN,91,4,Circuito del Sensor de Posición 1 del Pedal o Palanca del Acelerador - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,132
+SPN,91,4,Circuito del Sensor de Posición 1 del Pedal o Palanca del Acelerador - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,132
+SPN,100,3,Circuito del Sensor de Presión 1 de la Galería de Aceite del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,135
+SPN,100,3,Circuito del Sensor de Presión 1 de la Galería de Aceite del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,135
+SPN,100,4,Circuito del Sensor de Presión 1 de la Galería de Aceite del Motor - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,141
+SPN,100,4,Circuito del Sensor de Presión 1 de la Galería de Aceite del Motor - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,141
+SPN,100,18,Presión de la Vena de Aceite del Motor - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,143
+SPN,100,18,Presión de la Vena de Aceite del Motor - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,143
+SPN,110,3,Circuito del Sensor 1 de Temperatura de Refrigerante del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,144
+SPN,110,3,Circuito del Sensor 1 de Temperatura de Refrigerante del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,144
+SPN,110,4,Circuito del Sensor de Temperatura 1 del Refrigerante del Motor - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,145
+SPN,110,4,Circuito del Sensor de Temperatura 1 del Refrigerante del Motor - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,145
+SPN,110,16,Temperatura del Refrigerante del Motor - Dato Válido Pero Por Arriba del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,146
+SPN,110,16,Temperatura del Refrigerante del Motor - Dato Válido Pero Por Arriba del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,146
+SPN,110,0,Temperatura del Refrigerante del Motor - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,151
+SPN,110,0,Temperatura del Refrigerante del Motor - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,151
+SPN,105,3,Circuito del Sensor de Temperatura del Múltiple de Admisión 1 - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,153
+SPN,105,3,Circuito del Sensor de Temperatura del Múltiple de Admisión 1 - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,153
+SPN,105,4,Circuito del Sensor de Temperatura del Múltiple de Admisión 1 - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,154
+SPN,105,4,Circuito del Sensor de Temperatura del Múltiple de Admisión 1 - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,154
+SPN,105,0,Temperatura 1 del Múltiple de Admisión - Datos Válidos pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Generico,VOLSKWAGEN - DELIVERY 9.170,155
+SPN,105,0,Temperatura 1 del Múltiple de Admisión - Datos Válidos pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Generico,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,155
+SPN,3510,4,Circuito 2 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,BAJA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,187
+SPN,3510,4,Circuito 2 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,BAJA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,187
+SPN,111,3,Circuito 1 del Sensor de Nivel de Refrigerante - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,195
+SPN,111,3,Circuito 1 del Sensor de Nivel de Refrigerante - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,195
+SPN,111,4,Circuito 1 del Sensor de Nivel del Refrigerante - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,196
+SPN,111,4,Circuito 1 del Sensor de Nivel del Refrigerante - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,196
+SPN,175,3,Circuito 1 del Sensor de Temperatura de Aceite del Motor - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,212
+SPN,175,3,Circuito 1 del Sensor de Temperatura de Aceite del Motor - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,212
+SPN,175,4,Circuito 1 del Sensor de Temperatura de Aceite del Motor - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,213
+SPN,175,4,Circuito 1 del Sensor de Temperatura de Aceite del Motor - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,213
+SPN,175,0,Temperatura del Aceite del Motor - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,214
+SPN,175,0,Temperatura del Aceite del Motor - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,214
+SPN,108,3,Circuito del Sensor de Presión Barométrica - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,221
+SPN,108,3,Circuito del Sensor de Presión Barométrica - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,221
+SPN,108,4,Circuito del Sensor de Presión Barométrica - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,222
+SPN,108,4,Circuito del Sensor de Presión Barométrica - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,222
+SPN,3510,3,Circuito de Alimentación 2 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,227
+SPN,3510,3,Circuito de Alimentación 2 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,227
+SPN,190,0,Velocidad/Posición del Cigüeñal del Motor - Datos Válidos pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,234
+SPN,190,0,Velocidad/Posición del Cigüeñal del Motor - Datos Válidos pero Por Arriba de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,234
+SPN,3511,4,Circuito 3 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,238
+SPN,3511,4,Circuito 3 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,238
+SPN,3511,3,Circuito de Alimentación 3 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,239
+SPN,3511,3,Circuito de Alimentación 3 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,239
+SPN,84,2,"Velocidad del Vehículo Basada en las Ruedas - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,241
+SPN,84,2,"Velocidad del Vehículo Basada en las Ruedas - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,241
+SPN,84,10,Se ha Detectado una Alteración en el Circuito del Sensor de Velocidad del Vehículo Basada en las Ruedas - Índice de Cambio Anormal,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,242
+SPN,84,10,Se ha Detectado una Alteración en el Circuito del Sensor de Velocidad del Vehículo Basada en las Ruedas - Índice de Cambio Anormal,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,242
+SPN,171,3,Circuito 1 del Sensor de Temperatura de Aire Ambiente - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,249
+SPN,171,3,Circuito 1 del Sensor de Temperatura de Aire Ambiente - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,249
+SPN,171,4,"Circuito del Sensor de Temperatura de Aire Ambiente 1 - Voltaje Por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,256
+SPN,171,4,"Circuito del Sensor de Temperatura de Aire Ambiente 1 - Voltaje Por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,256
+SPN,1347,4,Circuito del Ensamble de Presurización 1 de la Bomba de Combustible del Motor - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,271
+SPN,1347,4,Circuito del Ensamble de Presurización 1 de la Bomba de Combustible del Motor - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,271
+SPN,1347,3,Circuito del Ensamble de Presurización 1 de la Bomba de Combustible del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,272
+SPN,1347,3,Circuito del Ensamble de Presurización 1 de la Bomba de Combustible del Motor - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,272
+SPN,639,9,Error de Finalización PGN de la Multiplexión SAE J1939 - Índice de Actualización Anormal,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,285
+SPN,639,9,Error de Finalización PGN de la Multiplexión SAE J1939 - Índice de Actualización Anormal,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,285
+SPN,639,13,Error de Configuración de la Multiplexión SAE J1939 - Descalibrado,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,286
+SPN,639,13,Error de Configuración de la Multiplexión SAE J1939 - Descalibrado,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,286
+SPN,974,19,Sistema del Sensor de Posición del Pedal o Palanca del Acelerador Remoto con Multiplexión SAE J1939 - Datos con Error Recibidos por Red,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,288
+SPN,974,19,Sistema del Sensor de Posición del Pedal o Palanca del Acelerador Remoto con Multiplexión SAE J1939 - Datos con Error Recibidos por Red,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,288
+SPN,108,2,"Presión Barométrica - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,295
+SPN,108,2,"Presión Barométrica - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,295
+SPN,651,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 1 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,322
+SPN,651,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 1 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,322
+SPN,655,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 5 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,323
+SPN,655,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 5 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,323
+SPN,653,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 3 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,324
+SPN,653,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 3 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,324
+SPN,656,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 6 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,325
+SPN,656,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 6 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,325
+SPN,652,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 2 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,331
+SPN,652,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 2 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,331
+SPN,654,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 4 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,332
+SPN,654,5,"Circuito Excitador del Solenoide del Inyector del Cilindro 4 - Corriente Por Debajo de lo Normal, o Circuito Abierto",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,332
+SPN,110,2,"Temperatura de Refrigerante del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,334
+SPN,110,2,"Temperatura de Refrigerante del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,334
+SPN,1267,3,Circuito Excitador del Relevador de Paro en Ralentí de Accesorios del Vehículo - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,338
+SPN,1267,3,Circuito Excitador del Relevador de Paro en Ralentí de Accesorios del Vehículo - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,338
+SPN,1267,4,Circuito Excitador del Relevador de Paro en Ralentí de Accesorios del Vehículo - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,339
+SPN,1267,4,Circuito Excitador del Relevador de Paro en Ralentí de Accesorios del Vehículo - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,339
+SPN,629,12,Falla de Advertencia del Hardware Interno del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,343
+SPN,629,12,Falla de Advertencia del Hardware Interno del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,343
+SPN,630,12,Software de Memoria de Calibración del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,346
+SPN,630,12,Software de Memoria de Calibración del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,346
+SPN,3597,12,Fuente de Alimentación del Inyector - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,351
+SPN,3597,12,Fuente de Alimentación del Inyector - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,351
+SPN,3509,4,Circuito 1 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,352
+SPN,3509,4,Circuito 1 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,352
+SPN,3509,3,Circuito de Alimentación 1 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,386
+SPN,3509,3,Circuito de Alimentación 1 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,386
+SPN,100,1,Presión de la Vena de Aceite del Motor - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,415
+SPN,100,1,Presión de la Vena de Aceite del Motor - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,415
+SPN,97,15,Indicador de Agua en el Combustible - Datos Válidos Pero Arriba de la Gama Normal de Operación - El Nivel Menos Grave,Motor,BAJA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,418
+SPN,97,15,Indicador de Agua en el Combustible - Datos Válidos Pero Arriba de la Gama Normal de Operación - El Nivel Menos Grave,Motor,BAJA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,418
+SPN,175,2,"Temperatura del Aceite del Motor - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,425
+SPN,175,2,"Temperatura del Aceite del Motor - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,425
+SPN,639,9,Enlace de Datos SAE J1939 - Velocidad de Actualización Anormal,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,427
+SPN,639,9,Enlace de Datos SAE J1939 - Velocidad de Actualización Anormal,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,427
+SPN,100,2,"Presión de la Vena de Aceite del Motor - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,435
+SPN,105,2,"Temperatura 1 del Múltiple de Admisión - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,436
+SPN,105,2,"Temperatura 1 del Múltiple de Admisión - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,436
+SPN,168,18,Voltaje de la Batería 1 - Dato Válido Pero Por Debajo del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,ALTA,Heredado_Generico,VOLSKWAGEN - DELIVERY 9.170,441
+SPN,168,18,Voltaje de la Batería 1 - Dato Válido Pero Por Debajo del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,ALTA,Heredado_Generico,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,441
+SPN,168,16,Voltaje de la Batería 1 - Dato Válido Pero Arriba del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,442
+SPN,168,16,Voltaje de la Batería 1 - Dato Válido Pero Arriba del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,442
+SPN,157,3,Circuito del Sensor de Presión del Riel de Dosificación del Inyector 1 - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,BAJA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,451
+SPN,157,3,Circuito del Sensor de Presión del Riel de Dosificación del Inyector 1 - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,BAJA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,451
+SPN,157,4,"Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Voltaje Por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,452
+SPN,157,4,"Circuito del Sensor de Presión del Riel 1 de Dosificación del Inyector - Voltaje Por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,452
+SPN,157,16,Presión del Riel 1 de Dosificación del Inyector - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Severo,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,553
+SPN,157,16,Presión del Riel 1 de Dosificación del Inyector - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Severo,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,553
+SPN,101,16,Presión del Cárter del Motor - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,555
+SPN,101,16,Presión del Cárter del Motor - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,555
+SPN,101,0,Presión del Cárter del Motor - Datos Válidos pero Por Encima de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Texto,VOLSKWAGEN - DELIVERY 9.170,556
+SPN,101,0,Presión del Cárter del Motor - Datos Válidos pero Por Encima de la Gama Normal de Operación - Nivel Más Grave,Motor,ALTA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,556
+SPN,157,18,Presión del Riel 1 de Dosificación del Inyector - Datos Válidos Pero Por Debajo del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,559
+SPN,157,18,Presión del Riel 1 de Dosificación del Inyector - Datos Válidos Pero Por Debajo del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,559
+SPN,167,16,Voltaje del Sistema Eléctrico de Carga - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,596
+SPN,167,16,Voltaje del Sistema Eléctrico de Carga - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,596
+SPN,167,18,Voltaje del Sistema Eléctrico de Carga - Datos Válidos Pero Abajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,597
+SPN,167,18,Voltaje del Sistema Eléctrico de Carga - Datos Válidos Pero Abajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,597
+SPN,1378,31,Intervalo de Cambio de Aceite del Motor - Existe la Condición,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,649
+SPN,1378,31,Intervalo de Cambio de Aceite del Motor - Existe la Condición,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,649
+SPN,103,18,Velocidad del Turbocargador 1 - Datos Válidos Pero Por Debajo del Intervalo Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,687
+SPN,103,18,Velocidad del Turbocargador 1 - Datos Válidos Pero Por Debajo del Intervalo Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,687
+SPN,190,2,"Velocidad/Posición del Cigüeñal del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,689
+SPN,190,2,"Velocidad/Posición del Cigüeñal del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,689
+SPN,1172,3,Circuito de Temperatura de Admisión del Compresor del Turbocargador 1 - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,691
+SPN,1172,3,Circuito de Temperatura de Admisión del Compresor del Turbocargador 1 - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,691
+SPN,1172,4,Circuito de Temperatura de Admisión del Compresor del Turbocargador 1 - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,692
+SPN,1172,4,Circuito de Temperatura de Admisión del Compresor del Turbocargador 1 - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,692
+SPN,1172,2,"Temperatura de Admisión del Compresor del Turbocargador 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,693
+SPN,1172,2,"Temperatura de Admisión del Compresor del Turbocargador 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,693
+SPN,723,7,Desalineación de Velocidad/Posición del Motor entre el Árbol de Levas y el Cigüeñal - Sistema Mecánico No Respondiendo o Fuera de Ajuste,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,731
+SPN,723,7,Desalineación de Velocidad/Posición del Motor entre el Árbol de Levas y el Cigüeñal - Sistema Mecánico No Respondiendo o Fuera de Ajuste,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,731
+SPN,723,2,"Sensor de Velocidad/Posición del Árbol de Levas del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,778
+SPN,723,2,"Sensor de Velocidad/Posición del Árbol de Levas del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,778
+SPN,1590,2,"Modo de Control de Crucero Adaptable - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,784
+SPN,1590,2,"Modo de Control de Crucero Adaptable - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,784
+SPN,3597,2,"Suministro de Energía Perdido Con Conexión del Encendido - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1117
+SPN,3597,2,"Suministro de Energía Perdido Con Conexión del Encendido - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1117
+SPN,27,2,"Posición de la Válvula EGR - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1228
+SPN,27,2,"Posición de la Válvula EGR - Datos Erráticos, Intermitentes, o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1228
+SPN,2623,3,Circuito 2 del Sensor de Posición del Pedal o Palanca del Acelerador - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1239
+SPN,2623,3,Circuito 2 del Sensor de Posición del Pedal o Palanca del Acelerador - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1239
+SPN,2623,4,Circuito del Sensor 2 de Posición del Pedal o Palanca del Acelerador - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1241
+SPN,2623,4,Circuito del Sensor 2 de Posición del Pedal o Palanca del Acelerador - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1241
+SPN,91,2,"Sensor de Posición 1 del Pedal o Palanca del Acelerador - Datos Erráticos, Intermitentes o Incorrectos",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1242
+SPN,91,2,"Sensor de Posición 1 del Pedal o Palanca del Acelerador - Datos Erráticos, Intermitentes o Incorrectos",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1242
+SPN,1761,4,"Circuito del Sensor de Nivel del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1668
+SPN,1761,4,"Circuito del Sensor de Nivel del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1668
+SPN,1761,3,"Circuito del Sensor de Nivel del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1669
+SPN,1761,3,"Circuito del Sensor de Nivel del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1669
+SPN,1761,1,Nivel del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Datos Válidos Pero por Debajo de la Gama Normal de Operación - Nivel Más Grave,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1673
+SPN,1761,1,Nivel del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Datos Válidos Pero por Debajo de la Gama Normal de Operación - Nivel Más Grave,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1673
+SPN,3031,4,"Sensor de Temperatura del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1677
+SPN,3031,4,"Sensor de Temperatura del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1677
+SPN,3031,3,"Sensor de Temperatura del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1678
+SPN,3031,3,"Sensor de Temperatura del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1678
+SPN,3031,2,"Temperatura del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1679
+SPN,3031,2,"Temperatura del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1679
+SPN,3362,31,Líneas de Entrada de la Unidad de Dosificación 1 de Fluido del Escape Diesel del Postratamiento - La Condición Existe,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1682
+SPN,3363,3,"Calentador del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1683
+SPN,3363,3,"Calentador del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1683
+SPN,3363,4,"Calentador del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1684
+SPN,3363,4,"Calentador del Tanque de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1684
+SPN,3226,2,"Sensor de NOx de la Salida del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1694
+SPN,3226,2,"Sensor de NOx de la Salida del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1694
+SPN,3513,3,Circuito de Alimentación 5 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1695
+SPN,3513,3,Circuito de Alimentación 5 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1695
+SPN,3513,4,Circuito 5 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1696
+SPN,3513,4,Circuito 5 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1696
+SPN,3363,18,Calentador 1 del Tanque de Fluido del Escape Diesel del Postratamiento - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,1712
+SPN,3363,18,Calentador 1 del Tanque de Fluido del Escape Diesel del Postratamiento - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1712
+SPN,3363,16,Calentador 1 del Tanque de Fluido del Escape Diesel del Postratamiento - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,1713
+SPN,3363,16,Calentador 1 del Tanque de Fluido del Escape Diesel del Postratamiento - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1713
+SPN,101,3,Circuito de Presión de la Caja del Cigüeñal - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1843
+SPN,101,3,Circuito de Presión de la Caja del Cigüeñal - Voltaje Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1843
+SPN,101,4,Circuito de Presión de la Caja de Cigüeñal - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1844
+SPN,101,4,Circuito de Presión de la Caja de Cigüeñal - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1844
+SPN,97,16,Indicador de Agua en el Combustible - Dato Válido Pero Por Arriba del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1852
+SPN,97,16,Indicador de Agua en el Combustible - Dato Válido Pero Por Arriba del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1852
+SPN,3251,3,"Circuito del Sensor de Presión Diferencial del Filtro de Partículas Diésel del Postratamiento - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1879
+SPN,3251,3,"Circuito del Sensor de Presión Diferencial del Filtro de Partículas Diésel del Postratamiento - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1879
+SPN,3251,4,Circuito del Sensor de Presión Diferencial del Filtro de Partículas Diesel del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1881
+SPN,3251,4,Circuito del Sensor de Presión Diferencial del Filtro de Partículas Diesel del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1881
+SPN,3251,2,"Presión Diferencial del Filtro de Partículas Diésel del Postratamiento - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1883
+SPN,3251,2,"Presión Diferencial del Filtro de Partículas Diésel del Postratamiento - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1883
+SPN,3226,4,"Circuito del Sensor de NOx de Salida del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1887
+SPN,3226,4,"Circuito del Sensor de NOx de Salida del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1887
+SPN,2791,13,Control de la Válvula EGR - Fuera de Calibración,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1896
+SPN,2791,13,Control de la Válvula EGR - Fuera de Calibración,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1896
+SPN,3597,18,Voltaje de Alimentación 1 de Potencia de Salida de la ECU - Dato Válido Pero Por Debajo del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,1938
+SPN,3597,18,Voltaje de Alimentación 1 de Potencia de Salida de la ECU - Dato Válido Pero Por Debajo del Rango Normal de Operación - Nivel Moderadamente Severo,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1938
+SPN,101,2,"Presión de la Caja de Cigüeñal - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,1942
+SPN,101,2,"Presión de la Caja de Cigüeñal - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1942
+SPN,3555,17,Densidad del Aire Ambiente - Dato Válido Pero Por Debajo del Rango Normal de Operación - Nivel Menos Severo,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,1943
+SPN,3555,17,Densidad del Aire Ambiente - Dato Válido Pero Por Debajo del Rango Normal de Operación - Nivel Menos Severo,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1943
+SPN,3936,15,Sistema del Filtro de Partículas Diesel del Postratamiento 1 - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,VOLSKWAGEN - DELIVERY 9.170,1981
+SPN,3936,15,Sistema del Filtro de Partículas Diesel del Postratamiento 1 - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1981
+SPN,4795,31,Filtro de Partículas Diesel del Postratamiento 1 Faltante - Existe la Condición,Motor,BAJA,FMI,VOLSKWAGEN - DELIVERY 9.170,1993
+SPN,4795,31,Filtro de Partículas Diesel del Postratamiento 1 Faltante - Existe la Condición,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,1993
+SPN,3512,3,Circuito de Alimentación 4 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2185
+SPN,3512,3,Circuito de Alimentación 4 de Sensores - Voltaje Por Encima de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2185
+SPN,3512,4,Circuito 4 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2186
+SPN,3512,4,Circuito 4 de Alimentación de Sensores - Voltaje Por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2186
+SPN,641,11,Circuito Excitador del Actuador del VGT - Causa Raíz Desconocida,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2198
+SPN,641,11,Circuito Excitador del Actuador del VGT - Causa Raíz Desconocida,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2198
+SPN,27,4,Circuito de Posición de la Válvula EGR - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2272
+SPN,27,4,Circuito de Posición de la Válvula EGR - Voltaje Abajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2272
+SPN,103,15,Velocidad del Turbocargador 1 - Dato Válido Pero Por Arriba del Rango Normal de Operación - el Nivel Menos Grave,Motor,BAJA,Texto,VOLSKWAGEN - DELIVERY 9.170,2288
+SPN,103,15,Velocidad del Turbocargador 1 - Dato Válido Pero Por Arriba del Rango Normal de Operación - el Nivel Menos Grave,Motor,BAJA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2288
+SPN,633,31,Circuito Electrónico de la Válvula de Control de Inyección de Combustible - Existe la Condición,Motor,BAJA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2311
+SPN,633,31,Circuito Electrónico de la Válvula de Control de Inyección de Combustible - Existe la Condición,Motor,BAJA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2311
+SPN,2789,15,Temperatura de Admisión de la Turbina del Turbocargador - Dato Válido Pero Arriba del Rango Normal de Operación - el Nivel Menos Severo,Motor,BAJA,Texto,VOLSKWAGEN - DELIVERY 9.170,2346
+SPN,2789,15,Temperatura de Admisión de la Turbina del Turbocargador - Dato Válido Pero Arriba del Rango Normal de Operación - el Nivel Menos Severo,Motor,BAJA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2346
+SPN,2629,15,Temperatura de Salida (Calculada) del Compresor del Turbocargador - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,VOLSKWAGEN - DELIVERY 9.170,2347
+SPN,2629,15,Temperatura de Salida (Calculada) del Compresor del Turbocargador - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2347
+SPN,95,16,Presión Diferencial del Filtro de Combustible - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Heredado_Generico,VOLSKWAGEN - DELIVERY 9.170,2372
+SPN,95,16,Presión Diferencial del Filtro de Combustible - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Heredado_Generico,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2372
+SPN,1209,3,"Circuito del Sensor 1 de Presión del Gas del Escape del Banco 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2373
+SPN,1209,3,"Circuito del Sensor 1 de Presión del Gas del Escape del Banco 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2373
+SPN,1209,4,"Circuito del Sensor 1 de Presión del Gas de Escape del Banco 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2374
+SPN,1209,4,"Circuito del Sensor 1 de Presión del Gas de Escape del Banco 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2374
+SPN,641,7,Circuito Excitador del Actuador del VGT (Motor) - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2387
+SPN,641,7,Circuito Excitador del Actuador del VGT (Motor) - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2387
+SPN,171,2,"Temperatura del Aire Ambiente - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2398
+SPN,171,2,"Temperatura del Aire Ambiente - Dato Errático, Intermitente, o Incorrecto",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2398
+SPN,111,17,Nivel del Refrigerante - Dato Válido Pero Por Abajo del Rango Normal de Operación - el Nivel Menos Severo,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2448
+SPN,111,17,Nivel del Refrigerante - Dato Válido Pero Por Abajo del Rango Normal de Operación - el Nivel Menos Severo,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2448
+SPN,641,13,Controlador del Actuador VGT - Descalibrado,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2449
+SPN,641,13,Controlador del Actuador VGT - Descalibrado,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2449
+SPN,2789,16,Temperatura de Admisión de la Turbina del Turbocargador - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,2451
+SPN,2789,16,Temperatura de Admisión de la Turbina del Turbocargador - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2451
+SPN,729,3,"Circuito del Calentador 1 del Aire de Admisión del Motor - Voltaje Por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2555
+SPN,729,3,"Circuito del Calentador 1 del Aire de Admisión del Motor - Voltaje Por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2555
+SPN,729,4,"Circuito del Calentador 1 del Aire de Admisión del Motor - Voltaje Por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2556
+SPN,729,4,"Circuito del Calentador 1 del Aire de Admisión del Motor - Voltaje Por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2556
+SPN,641,31,Circuito Controlador del Actuador VGT - Existe la Condición,Motor,BAJA,FMI,VOLSKWAGEN - DELIVERY 9.170,2635
+SPN,641,31,Circuito Controlador del Actuador VGT - Existe la Condición,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2635
+SPN,6304,31,Posición del Interruptor del Freno y del Pedal del Acelerador Incompatibles - Existe Condición,Motor,BAJA,FMI,VOLSKWAGEN - DELIVERY 9.170,2718
+SPN,6304,31,Posición del Interruptor del Freno y del Pedal del Acelerador Incompatibles - Existe Condición,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2718
+SPN,3226,9,Sensor de NOx de la Salida del Postratamiento 1 - Índice de Actualización Anormal,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2771
+SPN,3226,9,Sensor de NOx de la Salida del Postratamiento 1 - Índice de Actualización Anormal,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2771
+SPN,110,15,Temperatura del Refrigerante del Motor - Dato Válido Pero Arriba del Rango Normal de Operación - Nivel Menos Severo,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2963
+SPN,110,15,Temperatura del Refrigerante del Motor - Dato Válido Pero Arriba del Rango Normal de Operación - Nivel Menos Severo,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2963
+SPN,105,15,Temperatura del Múltiple de Admisión 1 - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,VOLSKWAGEN - DELIVERY 9.170,2964
+SPN,105,15,Temperatura del Múltiple de Admisión 1 - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2964
+SPN,102,2,"Presión del Múltiple de Admisión 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,2973
+SPN,102,2,"Presión del Múltiple de Admisión 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2973
+SPN,3361,2,"Temperatura de la Unidad de Dosificación de Fluido del Escape Diesel del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,2976
+SPN,3361,2,"Temperatura de la Unidad de Dosificación de Fluido del Escape Diesel del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,2976
+SPN,3667,3,"Circuito de Cierre de Aire del Motor - Voltaje por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3139
+SPN,3667,3,"Circuito de Cierre de Aire del Motor - Voltaje por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3139
+SPN,3667,4,"Circuito de Cierre de Aire del Motor - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3141
+SPN,3667,4,"Circuito de Cierre de Aire del Motor - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3141
+SPN,4360,3,"Circuito del Sensor de Temperatura de Admisión SCR del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,BAJA,Heredado_Generico,VOLSKWAGEN - DELIVERY 9.170,3142
+SPN,4360,3,"Circuito del Sensor de Temperatura de Admisión SCR del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,BAJA,Heredado_Generico,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3142
+SPN,4363,3,"Circuito del Sensor de Temperatura de Salida SCR del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3146
+SPN,4363,3,"Circuito del Sensor de Temperatura de Salida SCR del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3146
+SPN,4363,4,"Circuito del Sensor de Temperatura de Salida SCR del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3147
+SPN,4363,4,"Circuito del Sensor de Temperatura de Salida SCR del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3147
+SPN,4363,2,"Sensor de Temperatura de Salida SCR del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3148
+SPN,4363,2,"Sensor de Temperatura de Salida SCR del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3148
+SPN,4794,31,Sistema de Catalizador SCR 1 del Postratamiento Faltante - Existe la Condición,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3151
+SPN,4794,31,Sistema de Catalizador SCR 1 del Postratamiento Faltante - Existe la Condición,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3151
+SPN,4363,15,Temperatura de Salida SCR 1 del Postratamiento - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,VOLSKWAGEN - DELIVERY 9.170,3236
+SPN,4363,15,Temperatura de Salida SCR 1 del Postratamiento - Datos Válidos Pero Por Arriba de la Gama Normal de Operación - Nivel Menos Grave,Motor,BAJA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3236
+SPN,4340,3,"Circuito del Calentador 1 de la Línea de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3237
+SPN,4340,3,"Circuito del Calentador 1 de la Línea de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3237
+SPN,4340,4,"Circuito del Calentador 1 de la Línea de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3238
+SPN,4340,4,"Circuito del Calentador 1 de la Línea de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3238
+SPN,4342,3,"Circuito del Calentador 2 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3239
+SPN,4342,3,"Circuito del Calentador 2 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3239
+SPN,3363,7,Calentador del Tanque de Fluido del Escape Diesel del Postratamiento 1 - El Sistema Mecánico No Responde o está Desajustado,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,3242
+SPN,3363,7,Calentador del Tanque de Fluido del Escape Diesel del Postratamiento 1 - El Sistema Mecánico No Responde o está Desajustado,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3242
+SPN,4340,5,Circuito del Calentador 1 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3258
+SPN,4340,5,Circuito del Calentador 1 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3258
+SPN,4342,5,Circuito del Calentador 2 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3261
+SPN,4342,5,Circuito del Calentador 2 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3261
+SPN,91,9,Sistema del Sensor del Pedal o Palanca del Acelerador Multiplexado SAE J1939 - Índice de Actualización Anormal,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3326
+SPN,91,9,Sistema del Sensor del Pedal o Palanca del Acelerador Multiplexado SAE J1939 - Índice de Actualización Anormal,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3326
+SPN,191,9,Velocidad del Eje de Salida de la Transmisión - Índice de Actualización Anormal,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3328
+SPN,191,9,Velocidad del Eje de Salida de la Transmisión - Índice de Actualización Anormal,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3328
+SPN,3058,18,Sistema de Recirculación del Gas de Escape del Motor (EGR) - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,3382
+SPN,3058,18,Sistema de Recirculación del Gas de Escape del Motor (EGR) - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3382
+SPN,3058,16,Sistema de Recirculación del Gas de Escape (EGR) del Motor - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,3383
+SPN,3058,16,Sistema de Recirculación del Gas de Escape (EGR) del Motor - Datos Válidos Pero Por Encima del Intervalo Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3383
+SPN,191,19,Velocidad de la Flecha de Salida de la Transmisión - Recibió Datos de Red Con Error,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3418
+SPN,191,19,Velocidad de la Flecha de Salida de la Transmisión - Recibió Datos de Red Con Error,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3418
+SPN,4344,3,"Circuito del Calentador 3 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3422
+SPN,4344,3,"Circuito del Calentador 3 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3422
+SPN,4344,5,Circuito del Calentador 3 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3425
+SPN,4344,5,Circuito del Calentador 3 de la Línea de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3425
+SPN,251,10,Reloj de Tiempo Real - Velocidad de Cambio Anormal,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3492
+SPN,251,10,Reloj de Tiempo Real - Velocidad de Cambio Anormal,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3492
+SPN,84,19,Velocidad del Vehículo Basada en las Llantas - Recibió Datos de Red con Error,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3525
+SPN,84,19,Velocidad del Vehículo Basada en las Llantas - Recibió Datos de Red con Error,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3525
+SPN,84,9,Velocidad del Vehículo Basada en las Llantas - Índice de Actualización Anormal,Motor,BAJA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3526
+SPN,84,9,Velocidad del Vehículo Basada en las Llantas - Índice de Actualización Anormal,Motor,BAJA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3526
+SPN,558,19,Interruptor de Validación de Ralentí del Pedal o Palanca del Acelerador - Recibió Datos de la Red Con Error,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3527
+SPN,558,19,Interruptor de Validación de Ralentí del Pedal o Palanca del Acelerador - Recibió Datos de la Red Con Error,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3527
+SPN,51,3,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3539
+SPN,51,3,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3539
+SPN,51,4,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3541
+SPN,51,4,Circuito del Sensor de Posición del Actuador del Regulador de Admisión del Motor - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3541
+SPN,51,2,"Sensor de Posición del Actuador del Regulador de Admisión del Motor - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3542
+SPN,51,2,"Sensor de Posición del Actuador del Regulador de Admisión del Motor - Datos erráticos, intermitentes o incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3542
+SPN,3361,3,"Unidad de Dosificación de Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3558
+SPN,3361,3,"Unidad de Dosificación de Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3558
+SPN,3361,4,"Unidad de Dosificación de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3559
+SPN,3361,4,"Unidad de Dosificación de Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3559
+SPN,5491,3,Relevador del Calentador de la Línea de Fluido del Escape Diesel del Postratamiento - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3562
+SPN,5491,3,Relevador del Calentador de la Línea de Fluido del Escape Diesel del Postratamiento - Voltaje Por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3562
+SPN,5491,4,"Relevador del Calentador de la Línea de Fluido de Escape Diesel del Postratamiento - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3563
+SPN,5491,4,"Relevador del Calentador de la Línea de Fluido de Escape Diesel del Postratamiento - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3563
+SPN,5394,3,"Circuito de la Válvula 1 de Dosificación de Fluido del Escape Diesel del Postratamiento 1 - Voltaje Por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3565
+SPN,5394,3,"Circuito de la Válvula 1 de Dosificación de Fluido del Escape Diesel del Postratamiento 1 - Voltaje Por Arriba de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3565
+SPN,5394,5,Circuito de la Válvula 1 de Dosificación de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3567
+SPN,5394,5,Circuito de la Válvula 1 de Dosificación de Fluido del Escape Diésel del Postratamiento 1 - Corriente por Debajo de lo Normal o Circuito Abierto,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3567
+SPN,5394,7,Válvula 1 de Dosificación de Fluido del Escape Diésel del Postratamiento 1 - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,3568
+SPN,5394,7,Válvula 1 de Dosificación de Fluido del Escape Diésel del Postratamiento 1 - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3568
+SPN,4334,3,"Circuito del Sensor de Presión del Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3571
+SPN,4334,3,"Circuito del Sensor de Presión del Fluido del Escape Diesel del Postratamiento 1 - Voltaje por Encima de lo Normal, o en Corto con Fuente Alta",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3571
+SPN,4334,4,"Circuito del Sensor de Presión del Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3572
+SPN,4334,4,"Circuito del Sensor de Presión del Fluido del Escape Diésel del Postratamiento 1 - Voltaje por Debajo de lo Normal, o en Corto con Fuente Baja",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3572
+SPN,4334,18,Presión del Fluido del Escape Diésel del Postratamiento 1 - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3574
+SPN,4334,16,Presión del Fluido del Escape Diésel del Postratamiento 1 - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,ALTA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3575
+SPN,4334,16,Presión del Fluido del Escape Diésel del Postratamiento 1 - Datos Válidos Pero Por Encima de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,ALTA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3575
+SPN,4376,3,Válvula de Retorno del Fluido del Escape Diésel del Postratamiento - Voltaje por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3577
+SPN,4376,3,Válvula de Retorno del Fluido del Escape Diésel del Postratamiento - Voltaje por Arriba de lo Normal o en Corto con Fuente Alta,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3577
+SPN,4376,4,Válvula de Retorno del Fluido del Escape Diesel del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3578
+SPN,4376,4,Válvula de Retorno del Fluido del Escape Diesel del Postratamiento - Voltaje por Debajo de lo Normal o en Corto con Fuente Baja,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3578
+SPN,4334,2,"Presión del Fluido del Escape Diésel del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3596
+SPN,3228,2,"Fuente de Alimentación del Sensor de NOx de la Salida del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3681
+SPN,3228,2,"Fuente de Alimentación del Sensor de NOx de la Salida del Postratamiento 1 - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3681
+SPN,630,12,Memoria de Calibración del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,3697
+SPN,630,12,Memoria de Calibración del Módulo de Control del Motor - Dispositivo o Componente Inteligente Defectuoso,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3697
+SPN,5491,7,Relevador del Calentador de la Línea de Fluido de Escape Diésel de Postratamiento 1 - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,3713
+SPN,5491,7,Relevador del Calentador de la Línea de Fluido de Escape Diésel de Postratamiento 1 - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3713
+SPN,1675,31,Protección de Sobremarcha del Modo de la Marcha del Motor - Existe la Condición,Motor,BAJA,FMI,VOLSKWAGEN - DELIVERY 9.170,3737
+SPN,1675,31,Protección de Sobremarcha del Modo de la Marcha del Motor - Existe la Condición,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3737
+SPN,3226,20,Sensor de NOx de Salida del Postratamiento 1 - Datos no Racionales - Desviación a Alto,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,3749
+SPN,3226,20,Sensor de NOx de Salida del Postratamiento 1 - Datos no Racionales - Desviación a Alto,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3749
+SPN,3364,1,Calidad del Fluido del Escape Diésel del Postratamiento - Datos Válidos Pero Abajo de la Gama Normal de Operación - El Nivel Más Grave,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,3866
+SPN,3364,1,Calidad del Fluido del Escape Diésel del Postratamiento - Datos Válidos Pero Abajo de la Gama Normal de Operación - El Nivel Más Grave,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3866
+SPN,3364,18,Calidad del Fluido del Escape Diésel del Postratamiento - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,VOLSKWAGEN - DELIVERY 9.170,3867
+SPN,3364,18,Calidad del Fluido del Escape Diésel del Postratamiento - Datos Válidos Pero Por Debajo de la Gama Normal de Operación - Nivel Moderadamente Grave,Motor,MEDIA,Texto,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3867
+SPN,3364,9,Calidad del Fluido del Escape Diésel del Postratamiento - Índice de Actualización anormal,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3868
+SPN,3364,9,Calidad del Fluido del Escape Diésel del Postratamiento - Índice de Actualización anormal,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3868
+SPN,3364,2,"Calidad del Fluido del Escape Diésel del Postratamiento - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,3878
+SPN,3364,2,"Calidad del Fluido del Escape Diésel del Postratamiento - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,3878
+SPN,3667,7,Cierre de Aire del Motor - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,FMI,VOLSKWAGEN - DELIVERY 9.170,4484
+SPN,3667,7,Cierre de Aire del Motor - El Sistema Mecánico No Responde o Está Desajustado,Motor,ALTA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4484
+SPN,521,2,"Posición del Pedal del Freno - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,4526
+SPN,521,2,"Posición del Pedal del Freno - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4526
+SPN,3031,9,Temperatura del Tanque de Fluido del Escape Diésel 1 del Postratamiento - Índice de actualización anormal,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,4572
+SPN,3031,9,Temperatura del Tanque de Fluido del Escape Diésel 1 del Postratamiento - Índice de actualización anormal,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4572
+SPN,3031,13,Sensor de Temperatura del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Descalibrado,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,4731
+SPN,3031,13,Sensor de Temperatura del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Descalibrado,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4731
+SPN,1761,13,Sensor de Nivel del Tanque de Fluido de Escape Diésel 1 del Postratamiento - Descalibrado,Motor,MEDIA,Heredado_Manual,VOLSKWAGEN - DELIVERY 9.170,4732
+SPN,1761,13,Sensor de Nivel del Tanque de Fluido de Escape Diésel 1 del Postratamiento - Descalibrado,Motor,MEDIA,Heredado_Manual,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4732
+SPN,3031,11,Temperatura del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Causa Raíz No Conocida,Motor,BAJA,FMI,VOLSKWAGEN - DELIVERY 9.170,4737
+SPN,3031,11,Temperatura del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Causa Raíz No Conocida,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4737
+SPN,1761,11,Sensor de Nivel del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Causa Raíz No Conocida,Motor,BAJA,FMI,VOLSKWAGEN - DELIVERY 9.170,4739
+SPN,1761,11,Sensor de Nivel del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Causa Raíz No Conocida,Motor,BAJA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4739
+SPN,1761,10,Sensor de Nivel del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Índice de Cambio Anormal,Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,4769
+SPN,1761,10,Sensor de Nivel del Tanque de Fluido del Escape Diésel del Postratamiento 1 - Índice de Cambio Anormal,Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,4769
+SPN,3667,2,"Estado de Cierre del Aire del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,VOLSKWAGEN - DELIVERY 9.170,5221
+SPN,3667,2,"Estado de Cierre del Aire del Motor - Datos Erráticos, Intermitentes o Incorrectos",Motor,MEDIA,FMI,INTERNATIONAL - MV607: MOTOR ISB/ISD6.7,5221
