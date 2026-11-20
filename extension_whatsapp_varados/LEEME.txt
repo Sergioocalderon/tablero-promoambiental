@@ -1,4 +1,4 @@
-REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.2.0
+REPORTES WHATSAPP A VARADOS - extensión de Chrome v1.2.1
 =========================================================
 
 QUÉ HACE
@@ -37,7 +37,8 @@ USO DIARIO
    duplican; los que se les hayan pasado se registran. El aviso muestra "revisado desde dd/mm hh:mm".
    En "Últimos movimientos": "registrado" = faltaba en la hoja; "duplicado" = ya estaba.
  - Si falla internet o el receptor, los reportes quedan en una cola que se vacía sola cada minuto.
- - Un reporte ya registrado no se duplica (misma unidad, fecha y hora).
+ - Un reporte ya registrado no se duplica (misma unidad, fecha y hora). Desde v1.2.1 tampoco se reenvían las
+   respuestas que lo citan ("en camino"...), y en la puesta al día se envía primero lo más reciente.
  - Un reporte que ya estaba en la hoja (por ejemplo, por el botón) tampoco se duplica.
 
 AVISO POR TELEGRAM SI DEJA DE LEER (opcional, desde v1.2.0)

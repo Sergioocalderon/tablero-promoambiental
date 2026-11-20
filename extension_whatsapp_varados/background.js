@@ -43,16 +43,39 @@ function quitar(id) {
   });
 }
 
+// v1.2.1: un mismo reporte llega varias veces (las respuestas que lo citan, p. ej. "en camino", traen el texto completo).
+// Clave = unidad + "Fecha y Hora" del reporte; sin fecha y hora propia no se puede saber si es el mismo y se envía.
+var DIAS_CLAVES = 4;   // igual al máximo de la puesta al día de content.js
+function claveReporte(texto) {
+  var t = String(texto);
+  var u = (t.match(/Unidad\s+(\d+)/i) || t.match(/Interno:\s*(\d+)/i) || [])[1];
+  var f = ((t.match(/Fecha y Hora:\s*([^\n]*)/i) || [])[1] || '').replace(/\D/g, '');
+  return u && f.length >= 10 ? u + '|' + f : null;
+}
+
+// Claves ya contestadas por el receptor (registrado, duplicado, ignorado o a revisar): sus copias no se vuelven a enviar.
+function marcarListo(k) {
+  if (!k) return Promise.resolve();
+  return chrome.storage.local.get('listos').then(function (r) {
+    var l = r.listos || {}, limite = Date.now() - DIAS_CLAVES * 86400000;
+    l[k] = Date.now();
+    Object.keys(l).forEach(function (x) { if (l[x] < limite) delete l[x]; });
+    return chrome.storage.local.set({ listos: l });
+  });
+}
+
 function recibir(m) {
   return leerCfg().then(function (c) {
     if (c.modo !== 'real') {
       return registrar('simulacro', m.id, 'Se habría enviado: ' + resumen(m.texto)).then(function () { return { ok: true, simulacro: true }; });
     }
-    return chrome.storage.local.get('cola').then(function (r) {
-      var cola = r.cola || [];
-      if (!cola.some(function (x) { return x.id === m.id; })) cola.push({ id: m.id, texto: m.texto, intentos: 0, ts: Date.now() });
-      return chrome.storage.local.set({ cola: cola });
-    }).then(function () { vaciarCola(); return { ok: true, encolado: true }; });
+    var k = claveReporte(m.texto);
+    return chrome.storage.local.get(['cola', 'listos']).then(function (r) {
+      var cola = r.cola || [], listos = r.listos || {};
+      if (k && (listos[k] || cola.some(function (x) { return x.clave === k; }))) return { ok: true, repetido: true };
+      if (!cola.some(function (x) { return x.id === m.id; })) cola.push({ id: m.id, texto: m.texto, clave: k, intentos: 0, ts: Date.now() });
+      return chrome.storage.local.set({ cola: cola }).then(function () { vaciarCola(); return { ok: true, encolado: true }; });
+    });
   });
 }
 
@@ -63,7 +86,8 @@ function tiempos(it, res, t0) {
     (res && res.ms ? ' · receptor ' + s(res.ms.total) + ' (abrir ' + s(res.ms.abrir) + ', leer ' + s(res.ms.leer) + ', escribir ' + s(res.ms.escribir) + ')' : '');
 }
 
-// Envía la cola en orden. Se detiene al primer problema y reintenta en la próxima alarma (1 min).
+// Envía la cola, lo más nuevo primero (v1.2.1: tras una puesta al día lo reciente es lo que suele faltar en la hoja).
+// Se detiene al primer problema y reintenta en la próxima alarma (1 min).
 function vaciarCola() {
   if (enCurso) return Promise.resolve();
   enCurso = true;
@@ -74,15 +98,15 @@ function vaciarCola() {
       return chrome.storage.local.get('cola').then(function (r) {
         var cola = r.cola || [];
         if (!cola.length) return;
-        var it = cola[0], t0 = Date.now();
+        var it = cola[cola.length - 1], t0 = Date.now();
         return fetch(c.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: c.token, texto: it.texto, recibido: it.ts }) })
           .then(function (resp) { return resp.json(); })
           .then(function (res) {
             if (res && res.ok) {
-              return quitar(it.id).then(function () { return registrar(res.duplicado ? 'duplicado' : 'registrado', it.id, resumen(it.texto) + (res.fila ? ' · fila ' + res.fila : '') + (res.sinFechaEnMensaje ? ' · sin fecha en el mensaje' : '') + tiempos(it, res, t0)); }).then(siguiente);
+              return quitar(it.id).then(function () { return marcarListo(it.clave); }).then(function () { return registrar(res.duplicado ? 'duplicado' : 'registrado', it.id, resumen(it.texto) + (res.fila ? ' · fila ' + res.fila : '') + (res.sinFechaEnMensaje ? ' · sin fecha en el mensaje' : '') + tiempos(it, res, t0)); }).then(siguiente);
             }
             if (res && res.ignorado) {
-              return quitar(it.id).then(function () {
+              return quitar(it.id).then(function () { return marcarListo(it.clave); }).then(function () {
                 return res.revisar ? registrar('revisar', it.id, resumen(it.texto) + ' · ' + (res.error || 'revisar a mano')) : registrar('ignorado', it.id, 'El receptor no lo tomó como reporte');
               }).then(siguiente);
             }
