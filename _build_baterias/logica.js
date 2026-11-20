@@ -40,9 +40,14 @@
   var MINIMO_VIGILAR_12V = 7.3;     // < 7,3 V: por debajo de todos los vehículos con ESR >= 50 (rango 7,3-9,0)
   var TENDENCIA_VIGILAR_V = 0.3;    // el mínimo cae >= 0,3 V vs la semana anterior (el peor cambio semanal visto fue 0,2 V)
   var TENDENCIA_REVISAR_V = 0.5;
-  var RECUPERA_UMBRAL_V = -0.5;     // carga - reposo < -0,5 V = no recupera
+  // v1.2: la recuperación se mide con el voltaje del GO en los 5 min siguientes al arranque, no con la curva de
+  // "Voltaje de arranque" (~10 s, termina antes de que cargue el alternador). Con la curva, el 1167/1164 salían
+  // "no recupera" en 91 %/69 % de los arranques desde la instalación del lector NFC; con el GO a 5 min: 6 %/0 %, y
+  // ningún vehículo de la flota llega al 50 % (medido 19-nov-2026, 7 días, 82 vehículos; mediana del máximo 13,9 V).
+  var RECUPERA_VENTANA_MS = 5 * 60000;
+  var RECUPERA_CARGA_MIN_12V = 13.0;  // máximo del GO en 5 min < 13 V (26 V en 24 V) = el alternador no cargó
   var RECUPERA_FRACCION = 0.5;      // en >= 50 % de los arranques
-  var RECUPERA_MIN_ARRANQUES = 10;
+  var RECUPERA_MIN_ARRANQUES = 10;  // arranques con lectura del GO en la ventana
 
   var NIVEL_TEXTO = { 3: 'Alerta', 2: 'Revisar', 1: 'Vigilar', 0: 'Normal' };
 
@@ -94,11 +99,25 @@
     return arranques;
   }
 
+  // Agrega a cada arranque cargaGo: máximo del voltaje del GO (escala 12 V) en los 5 min siguientes; null sin lecturas.
+  // puntosGo: [[ms, voltios], ...] del mismo vehículo, ordenados.
+  function agregarCargaGo(arranques, puntosGo) {
+    var j = 0;
+    arranques.forEach(function (a) {
+      while (j < puntosGo.length && puntosGo[j][0] <= a.t) j++;
+      var max = null;
+      for (var i = j; i < puntosGo.length && puntosGo[i][0] <= a.t + RECUPERA_VENTANA_MS; i++) if (max === null || puntosGo[i][1] > max) max = puntosGo[i][1];
+      a.cargaGo = max === null ? null : max * 12 / a.nominal;
+    });
+    return arranques;
+  }
+
   // Resumen de los arranques con inicio en (desdeMs, hastaMs]
   function resumirVentana(arranques, desdeMs, hastaMs) {
     var w = arranques.filter(function (a) { return a.t > desdeMs && a.t <= hastaMs; });
     if (!w.length) return { n: 0 };
-    var rec = w.map(function (a) { return a.carga - a.reposo; });
+    var conGo = w.filter(function (a) { return a.cargaGo !== null && a.cargaGo !== undefined; });
+    var rec = conGo.map(function (a) { return a.cargaGo - a.reposo; });
     return {
       n: w.length,
       nominal: moda(w.map(function (a) { return a.nominal; })),
@@ -106,7 +125,8 @@
       caida: mediana(w.map(function (a) { return a.caida; })),
       reposo: mediana(w.map(function (a) { return a.reposo; })),
       rec: mediana(rec),
-      fracNoRec: rec.filter(function (r) { return r < RECUPERA_UMBRAL_V; }).length / w.length
+      nRec: conGo.length,
+      fracNoRec: conGo.length ? conGo.filter(function (a) { return a.cargaGo < RECUPERA_CARGA_MIN_12V; }).length / conGo.length : null
     };
   }
 
@@ -150,7 +170,7 @@
       fuente: esrVigente ? 'ESR Geotab' : 'Señales de arranque',
       esr: diario.length ? diario[diario.length - 1].valor : null, esrBanda: null, esrBase: null, esrEdadH: esrEdadH, esrVigente: esrVigente,
       arranques7d: s7.n, minimoV: s7.n ? s7.minimo * k : null, caidaV: s7.n ? s7.caida * k : null, reposoV: s7.n ? s7.reposo * k : null,
-      recuperacionV: s7.n ? s7.rec * k : null, noRecuperaPct: s7.n ? s7.fracNoRec : null,
+      recuperacionV: (s7.n && s7.rec !== null) ? s7.rec * k : null, noRecuperaPct: s7.n ? s7.fracNoRec : null, arranquesRec7d: s7.n ? s7.nRec : 0,
       cambioMinimoV: (suficientes && sPrev.n >= MIN_ARRANQUES_VENTANA) ? (s7.minimo - sPrev.minimo) * k : null,
       ultimoArranqueMs: ultimoArranqueMs, ultimoDatoMs: Math.max(ultimoEsrMs || 0, ultimoArranqueMs || 0) || null,
       resumen7d: s7, resumenPrev: sPrev
@@ -184,8 +204,8 @@
         if (caidaSemana >= TENDENCIA_REVISAR_V) subir(2, 'El voltaje mínimo cayó ' + v1(caidaSemana * k) + ' V vs la semana anterior');
         else if (caidaSemana >= TENDENCIA_VIGILAR_V) subir(1, 'El voltaje mínimo cayó ' + v1(caidaSemana * k) + ' V vs la semana anterior');
       }
-      if (s7.n >= RECUPERA_MIN_ARRANQUES && s7.fracNoRec >= RECUPERA_FRACCION) {
-        subir(2, 'No recupera voltaje tras arrancar en ' + Math.round(s7.fracNoRec * 100) + ' % de los arranques: revisar alternador o cableado');
+      if (s7.nRec >= RECUPERA_MIN_ARRANQUES && s7.fracNoRec >= RECUPERA_FRACCION) {
+        subir(2, 'No llega a ' + v1(RECUPERA_CARGA_MIN_12V * k) + ' V en los 5 min tras arrancar en ' + Math.round(s7.fracNoRec * 100) + ' % de los arranques: revisar alternador o cableado');
       }
     }
 

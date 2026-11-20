@@ -136,7 +136,7 @@ def cargar_estado():
         "regeneracion_dpf_notificados": [], "temperatura_motor_notificados": [],
         "vehiculos_seguimiento": [], "seguimiento_fallas_notificadas": [],
         "seguimiento_revolucion_notificados": [], "seguimiento_dpf_notificados": [],
-        "chip_nfc_notificados": [],
+        "chip_nfc_notificados": [], "regen_seguidas_notificados": [],
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -151,7 +151,7 @@ def cargar_estado():
             "revolucion_notificados", "fallas_activas", "suscriptores", "regeneracion_dpf_notificados",
             "temperatura_motor_notificados",
             "vehiculos_seguimiento", "seguimiento_fallas_notificadas",
-            "seguimiento_revolucion_notificados", "seguimiento_dpf_notificados", "chip_nfc_notificados",
+            "seguimiento_revolucion_notificados", "seguimiento_dpf_notificados", "chip_nfc_notificados", "regen_seguidas_notificados",
         ):
             valor = datos.get(clave)
             if isinstance(valor, list):
@@ -184,6 +184,7 @@ def guardar_estado(estado):
         "seguimiento_revolucion_notificados": estado.get("seguimiento_revolucion_notificados", [])[-MAX_CLAVES_GUARDADAS:],
         "seguimiento_dpf_notificados": estado.get("seguimiento_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
         "chip_nfc_notificados": estado.get("chip_nfc_notificados", [])[-MAX_CLAVES_GUARDADAS:],
+        "regen_seguidas_notificados": estado.get("regen_seguidas_notificados", [])[-MAX_CLAVES_GUARDADAS:],
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -1292,6 +1293,62 @@ def revisar_regeneracion_pendiente(api, claves_ya_notificadas):
     else:
         print(f"Total regeneraciones DPF pendientes notificadas en esta corrida: {len(claves_nuevas)}")
 
+    return claves_nuevas
+
+
+# Regeneraciones seguidas: un vehículo que regenera muchas veces el mismo día no está limpiando bien el DPF
+# (o el sensor de hollín miente). Calibrado 2026-11-19 con 30 días de flota: lo normal es 1-2 sesiones al día;
+# ">= 3 en el mismo día" pasó 13 veces en 30 días (~0,4 avisos/día) en 4 vehículos, casi todo 1148-NWW623.
+# Sesión = diagnóstico de regeneración activa >= 1 (1 activa, 2 necesaria); cortes < 15 min son la misma sesión.
+ALERTA_REGEN_SEGUIDAS = True
+MIN_REGENERACIONES_DIA = 3
+GAP_FUSION_REGEN_MIN = 15
+
+
+def sesiones_regeneracion(puntos):
+    """[(dateTime, valor)] ordenados -> [inicio de cada sesión], fusionando cortes < GAP_FUSION_REGEN_MIN."""
+    sesiones, ini, ultimo_fin = [], None, None
+    for t, v in puntos:
+        if v >= 1 and ini is None:
+            if ultimo_fin is not None and (t - ultimo_fin).total_seconds() < GAP_FUSION_REGEN_MIN * 60:
+                ini = sesiones.pop()   # retoma la sesión anterior
+            else:
+                ini = t
+        elif v < 1 and ini is not None:
+            sesiones.append(ini); ultimo_fin = t; ini = None
+    if ini is not None:
+        sesiones.append(ini)
+    return sesiones
+
+
+def revisar_regeneraciones_seguidas(api, claves_ya_notificadas):
+    """Avisa UNA vez por vehículo y día (Bogotá) cuando un compactador de Bogotá lleva MIN_REGENERACIONES_DIA o más
+    sesiones de regeneración que empezaron hoy. Clave f"{id}|{fecha}", solo si el envío salió."""
+    devices = {d['id']: d for d in api_get_con_reintentos(api, 'Device')}
+    mapa_grupos = obtener_mapa_grupos(api)
+    ids = vehiculos_compactadores_bogota_con_dpf(devices, mapa_grupos)
+    ahora_local = datetime.now(ZONA_BOGOTA)
+    inicio_dia = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    fecha = inicio_dia.strftime('%Y-%m-%d')
+    pendientes = [i for i in ids if f"{i}|{fecha}" not in claves_ya_notificadas]
+    if not pendientes:
+        return []
+    # 1 h antes de medianoche: una sesión que venía de ayer no se cuenta como de hoy, pero se ve que ya estaba abierta
+    series = _traer_serie_statusdata(api, ID_REGEN_ACTIVA_DPF, pendientes,
+                                     (inicio_dia - timedelta(hours=1)).astimezone(timezone.utc), datetime.now(timezone.utc))
+    claves_nuevas = []
+    for id_veh in pendientes:
+        de_hoy = [t for t in sesiones_regeneracion(series.get(id_veh, [])) if t.tz_convert(ZONA_BOGOTA) >= inicio_dia]
+        if len(de_hoy) < MIN_REGENERACIONES_DIA:
+            continue
+        horas = ', '.join(t.tz_convert(ZONA_BOGOTA).strftime('%H:%M') for t in de_hoy)
+        texto = (f"🔁 REGENERACIONES SEGUIDAS — {devices.get(id_veh, {}).get('name', id_veh)}\n"
+                 f"{len(de_hoy)} regeneraciones hoy (inicios: {horas}).\n"
+                 f"Lo normal es 1-2 al día: el DPF no está quedando limpio o el sensor de hollín puede estar fallando. "
+                 f"Revisar en el panel de Seguimiento de Regeneraciones y, si sigue, llevar a taller.")
+        if enviar_telegram(texto):
+            claves_nuevas.append(f"{id_veh}|{fecha}")
+    print(f"Regeneraciones seguidas notificadas en esta corrida: {len(claves_nuevas)}")
     return claves_nuevas
 
 
@@ -2627,6 +2684,13 @@ def main():
         claves_dpf_previas = set(estado['regeneracion_dpf_notificados'])
         claves_dpf_nuevas = revisar_regeneracion_pendiente(api, claves_dpf_previas)
         estado['regeneracion_dpf_notificados'] = list(claves_dpf_previas | set(claves_dpf_nuevas))
+
+        if ALERTA_REGEN_SEGUIDAS:
+            try:
+                claves_seg_previas = set(estado.get('regen_seguidas_notificados', []))
+                estado['regen_seguidas_notificados'] = list(claves_seg_previas | set(revisar_regeneraciones_seguidas(api, claves_seg_previas)))
+            except Exception as e:
+                print(f"*** Aviso de regeneraciones seguidas fallo en esta corrida: {e} ***")
 
         if ALERTA_TEMPERATURA_MOTOR:
             claves_temp_previas = set(estado.get('temperatura_motor_notificados', []))

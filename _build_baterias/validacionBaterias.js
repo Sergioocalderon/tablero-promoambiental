@@ -45,9 +45,14 @@ geotab.addin.validacionBaterias = function () {
   var MINIMO_VIGILAR_12V = 7.3;     // < 7,3 V: por debajo de todos los vehículos con ESR >= 50 (rango 7,3-9,0)
   var TENDENCIA_VIGILAR_V = 0.3;    // el mínimo cae >= 0,3 V vs la semana anterior (el peor cambio semanal visto fue 0,2 V)
   var TENDENCIA_REVISAR_V = 0.5;
-  var RECUPERA_UMBRAL_V = -0.5;     // carga - reposo < -0,5 V = no recupera
+  // v1.2: la recuperación se mide con el voltaje del GO en los 5 min siguientes al arranque, no con la curva de
+  // "Voltaje de arranque" (~10 s, termina antes de que cargue el alternador). Con la curva, el 1167/1164 salían
+  // "no recupera" en 91 %/69 % de los arranques desde la instalación del lector NFC; con el GO a 5 min: 6 %/0 %, y
+  // ningún vehículo de la flota llega al 50 % (medido 19-nov-2026, 7 días, 82 vehículos; mediana del máximo 13,9 V).
+  var RECUPERA_VENTANA_MS = 5 * 60000;
+  var RECUPERA_CARGA_MIN_12V = 13.0;  // máximo del GO en 5 min < 13 V (26 V en 24 V) = el alternador no cargó
   var RECUPERA_FRACCION = 0.5;      // en >= 50 % de los arranques
-  var RECUPERA_MIN_ARRANQUES = 10;
+  var RECUPERA_MIN_ARRANQUES = 10;  // arranques con lectura del GO en la ventana
 
   var NIVEL_TEXTO = { 3: 'Alerta', 2: 'Revisar', 1: 'Vigilar', 0: 'Normal' };
 
@@ -99,11 +104,25 @@ geotab.addin.validacionBaterias = function () {
     return arranques;
   }
 
+  // Agrega a cada arranque cargaGo: máximo del voltaje del GO (escala 12 V) en los 5 min siguientes; null sin lecturas.
+  // puntosGo: [[ms, voltios], ...] del mismo vehículo, ordenados.
+  function agregarCargaGo(arranques, puntosGo) {
+    var j = 0;
+    arranques.forEach(function (a) {
+      while (j < puntosGo.length && puntosGo[j][0] <= a.t) j++;
+      var max = null;
+      for (var i = j; i < puntosGo.length && puntosGo[i][0] <= a.t + RECUPERA_VENTANA_MS; i++) if (max === null || puntosGo[i][1] > max) max = puntosGo[i][1];
+      a.cargaGo = max === null ? null : max * 12 / a.nominal;
+    });
+    return arranques;
+  }
+
   // Resumen de los arranques con inicio en (desdeMs, hastaMs]
   function resumirVentana(arranques, desdeMs, hastaMs) {
     var w = arranques.filter(function (a) { return a.t > desdeMs && a.t <= hastaMs; });
     if (!w.length) return { n: 0 };
-    var rec = w.map(function (a) { return a.carga - a.reposo; });
+    var conGo = w.filter(function (a) { return a.cargaGo !== null && a.cargaGo !== undefined; });
+    var rec = conGo.map(function (a) { return a.cargaGo - a.reposo; });
     return {
       n: w.length,
       nominal: moda(w.map(function (a) { return a.nominal; })),
@@ -111,7 +130,8 @@ geotab.addin.validacionBaterias = function () {
       caida: mediana(w.map(function (a) { return a.caida; })),
       reposo: mediana(w.map(function (a) { return a.reposo; })),
       rec: mediana(rec),
-      fracNoRec: rec.filter(function (r) { return r < RECUPERA_UMBRAL_V; }).length / w.length
+      nRec: conGo.length,
+      fracNoRec: conGo.length ? conGo.filter(function (a) { return a.cargaGo < RECUPERA_CARGA_MIN_12V; }).length / conGo.length : null
     };
   }
 
@@ -155,7 +175,7 @@ geotab.addin.validacionBaterias = function () {
       fuente: esrVigente ? 'ESR Geotab' : 'Señales de arranque',
       esr: diario.length ? diario[diario.length - 1].valor : null, esrBanda: null, esrBase: null, esrEdadH: esrEdadH, esrVigente: esrVigente,
       arranques7d: s7.n, minimoV: s7.n ? s7.minimo * k : null, caidaV: s7.n ? s7.caida * k : null, reposoV: s7.n ? s7.reposo * k : null,
-      recuperacionV: s7.n ? s7.rec * k : null, noRecuperaPct: s7.n ? s7.fracNoRec : null,
+      recuperacionV: (s7.n && s7.rec !== null) ? s7.rec * k : null, noRecuperaPct: s7.n ? s7.fracNoRec : null, arranquesRec7d: s7.n ? s7.nRec : 0,
       cambioMinimoV: (suficientes && sPrev.n >= MIN_ARRANQUES_VENTANA) ? (s7.minimo - sPrev.minimo) * k : null,
       ultimoArranqueMs: ultimoArranqueMs, ultimoDatoMs: Math.max(ultimoEsrMs || 0, ultimoArranqueMs || 0) || null,
       resumen7d: s7, resumenPrev: sPrev
@@ -189,8 +209,8 @@ geotab.addin.validacionBaterias = function () {
         if (caidaSemana >= TENDENCIA_REVISAR_V) subir(2, 'El voltaje mínimo cayó ' + v1(caidaSemana * k) + ' V vs la semana anterior');
         else if (caidaSemana >= TENDENCIA_VIGILAR_V) subir(1, 'El voltaje mínimo cayó ' + v1(caidaSemana * k) + ' V vs la semana anterior');
       }
-      if (s7.n >= RECUPERA_MIN_ARRANQUES && s7.fracNoRec >= RECUPERA_FRACCION) {
-        subir(2, 'No recupera voltaje tras arrancar en ' + Math.round(s7.fracNoRec * 100) + ' % de los arranques: revisar alternador o cableado');
+      if (s7.nRec >= RECUPERA_MIN_ARRANQUES && s7.fracNoRec >= RECUPERA_FRACCION) {
+        subir(2, 'No llega a ' + v1(RECUPERA_CARGA_MIN_12V * k) + ' V en los 5 min tras arrancar en ' + Math.round(s7.fracNoRec * 100) + ' % de los arranques: revisar alternador o cableado');
       }
     }
 
@@ -222,6 +242,8 @@ geotab.addin.validacionBaterias = function () {
 
   var ID_DIAG_ESR = 'DiagnosticElectricalSystemRatingId';        // "Clasificación del sistema eléctrico"
   var ID_DIAG_ARRANQUE = 'DiagnosticCrankingVoltageId';          // "Voltaje de arranque"
+  var ID_DIAG_VOLTAJE_GO = 'DiagnosticGoDeviceVoltageId';        // voltaje del GO: recuperación 5 min tras arrancar (v1.2)
+  var DIAS_VOLTAJE_GO = 7;                                       // solo la ventana actual (~3.400 filas/día en la flota)
   var NOMBRE_GRUPO_RAIZ = '*Promoambiental';   // la base de Geotab se comparte con otras cuentas: se acota por este grupo
   var DIAS_ESR = 30;
   var DIAS_ARRANQUES = 14;                     // 7 días actuales + 7 previos para la tendencia
@@ -374,17 +396,19 @@ geotab.addin.validacionBaterias = function () {
     var ahoraMs = Date.now();
     return obtenerAlcance().then(function (vehiculos) {
       var ids = vehiculos.reduce(function (m, v) { m[v.id] = true; return m; }, {});
-      var avance = { esr: [0, 1], arr: [0, 1] };
-      function reportar() { if (alProgreso) alProgreso(avance.esr[0] + avance.arr[0], avance.esr[1] + avance.arr[1]); }
+      var avance = { esr: [0, 1], arr: [0, 1], go: [0, 1] };
+      function reportar() { if (alProgreso) alProgreso(avance.esr[0] + avance.arr[0] + avance.go[0], avance.esr[1] + avance.arr[1] + avance.go[1]); }
       return Promise.all([
         traerDiagnostico(ID_DIAG_ESR, ahoraMs - DIAS_ESR * MS_DIA, ahoraMs, DIAS_ESR, ids, function (h, t) { avance.esr = [h, t]; reportar(); })
           .catch(function (err) { err.message = 'ESR de Geotab: ' + describirError(err); throw err; }),
         traerDiagnostico(ID_DIAG_ARRANQUE, ahoraMs - DIAS_ARRANQUES * MS_DIA, ahoraMs, TRAMO_DIAS_ARRANQUES, ids, function (h, t) { avance.arr = [h, t]; reportar(); })
-          .catch(function (err) { err.message = 'Voltaje de arranque: ' + describirError(err); throw err; })
+          .catch(function (err) { err.message = 'Voltaje de arranque: ' + describirError(err); throw err; }),
+        traerDiagnostico(ID_DIAG_VOLTAJE_GO, ahoraMs - DIAS_VOLTAJE_GO * MS_DIA - RECUPERA_VENTANA_MS, ahoraMs, TRAMO_DIAS_ARRANQUES, ids, function (h, t) { avance.go = [h, t]; reportar(); })
+          .catch(function (err) { err.message = 'Voltaje del GO: ' + describirError(err); throw err; })
       ]).then(function (res) {
-        var esrPorVeh = res[0], arrPorVeh = res[1];
+        var esrPorVeh = res[0], arrPorVeh = res[1], goPorVeh = res[2];
         var filas = vehiculos.map(function (v) {
-          var arranques = segmentarArranques(arrPorVeh[v.id] || []);
+          var arranques = agregarCargaGo(segmentarArranques(arrPorVeh[v.id] || []), goPorVeh[v.id] || []);
           var ev = evaluarVehiculo({ esrPuntos: esrPorVeh[v.id] || [], arranques: arranques, ahoraMs: ahoraMs });
           ev.vehiculo = v;
           ev.serieEsr = esrDiario(esrPorVeh[v.id] || []);
@@ -779,7 +803,7 @@ geotab.addin.validacionBaterias = function () {
         }, orden: function (f) { return f.cambioMinimoV; } },
       { titulo: 'Recuperación (V)', alinear: 'right', valor: function (f) {
           var s = crear('span', null, fmtVcon(f.recuperacionV));
-          if (f.noRecuperaPct !== null && f.arranques7d >= RECUPERA_MIN_ARRANQUES && f.noRecuperaPct >= RECUPERA_FRACCION) { s.style.color = COLOR_NIVEL[2].texto; s.style.fontWeight = '700'; }
+          if (f.noRecuperaPct !== null && f.arranquesRec7d >= RECUPERA_MIN_ARRANQUES && f.noRecuperaPct >= RECUPERA_FRACCION) { s.style.color = COLOR_NIVEL[2].texto; s.style.fontWeight = '700'; }
           return s;
         }, orden: function (f) { return f.recuperacionV; } },
       { titulo: 'Arranques 7 d', alinear: 'right', valor: function (f) { return f.arranques7d; }, orden: function (f) { return f.arranques7d; } },
@@ -931,7 +955,7 @@ geotab.addin.validacionBaterias = function () {
       'Fuente 1 — ESR de Geotab (0-100, "Clasificación del sistema eléctrico"): es la referencia. Se usa si su último dato tiene menos de ' + HORAS_ESR_VIGENTE + ' h. Alerta: ESR < ' + ESR_ALERTA + '. Revisar: ESR < ' + ESR_REVISAR + ' o caída de ' + ESR_CAIDA_PUNTOS + ' pts o más bajo su mediana de ' + DIAS_ESR + ' días.',
       'Fuente 2 — Señales de arranque ("Voltaje de arranque"): de cada arranque se toman reposo, mínimo, caída y recuperación; el estado usa la mediana de los últimos 7 días (mínimo ' + MIN_ARRANQUES_VENTANA + ' arranques). Sin ESR vigente, en 12 V: mínimo < ' + fmtV(MINIMO_VIGILAR_12V) + ' V = Vigilar y < ' + fmtV(MINIMO_REVISAR_12V) + ' V = Revisar (umbrales medidos en esta flota el 09-nov-2026).',
       'Tendencia: el mínimo cae ' + fmtV(TENDENCIA_VIGILAR_V) + ' V o más frente a la semana anterior = Vigilar; ' + fmtV(TENDENCIA_REVISAR_V) + ' V o más = Revisar. El peor cambio semanal visto en la flota fue de 0,2 V.',
-      'Recuperación: si el voltaje tras arrancar queda más de ' + fmtV(-RECUPERA_UMBRAL_V) + ' V por debajo del reposo en ' + Math.round(RECUPERA_FRACCION * 100) + ' % o más de los arranques (mínimo ' + RECUPERA_MIN_ARRANQUES + ') = Revisar alternador o cableado.',
+      'Recuperación: máximo del voltaje del GO en los 5 min siguientes al arranque (no la curva de arranque de ~10 s, que termina antes de que cargue el alternador). Si no llega a ' + fmtV(RECUPERA_CARGA_MIN_12V) + ' V (' + fmtV(RECUPERA_CARGA_MIN_12V * 2) + ' V en 24 V) en ' + Math.round(RECUPERA_FRACCION * 100) + ' % o más de los arranques (mínimo ' + RECUPERA_MIN_ARRANQUES + ') = Revisar alternador o cableado.',
       'Límites: (1) los vehículos de 24 V no tienen ESR de Geotab, por eso no hay umbral absoluto para ellos (marcados "Normal*" cuando no hay novedad): solo se detectan cambios y desviaciones frente a sus pares. (2) El cálculo por señales se calibró con muy pocos casos de baterías malas (3 vehículos con ESR < 30): úselo para priorizar revisión, no para decidir un cambio de batería. (3) Voltajes mostrados en voltios reales; internamente se normalizan a 12 V.',
       '* Normal en un 24 V significa "sin novedad detectable", no "batería comprobada".'
     ];

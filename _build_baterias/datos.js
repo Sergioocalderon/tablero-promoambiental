@@ -14,6 +14,8 @@
 
   var ID_DIAG_ESR = 'DiagnosticElectricalSystemRatingId';        // "Clasificación del sistema eléctrico"
   var ID_DIAG_ARRANQUE = 'DiagnosticCrankingVoltageId';          // "Voltaje de arranque"
+  var ID_DIAG_VOLTAJE_GO = 'DiagnosticGoDeviceVoltageId';        // voltaje del GO: recuperación 5 min tras arrancar (v1.2)
+  var DIAS_VOLTAJE_GO = 7;                                       // solo la ventana actual (~3.400 filas/día en la flota)
   var NOMBRE_GRUPO_RAIZ = '*Promoambiental';   // la base de Geotab se comparte con otras cuentas: se acota por este grupo
   var DIAS_ESR = 30;
   var DIAS_ARRANQUES = 14;                     // 7 días actuales + 7 previos para la tendencia
@@ -166,17 +168,19 @@
     var ahoraMs = Date.now();
     return obtenerAlcance().then(function (vehiculos) {
       var ids = vehiculos.reduce(function (m, v) { m[v.id] = true; return m; }, {});
-      var avance = { esr: [0, 1], arr: [0, 1] };
-      function reportar() { if (alProgreso) alProgreso(avance.esr[0] + avance.arr[0], avance.esr[1] + avance.arr[1]); }
+      var avance = { esr: [0, 1], arr: [0, 1], go: [0, 1] };
+      function reportar() { if (alProgreso) alProgreso(avance.esr[0] + avance.arr[0] + avance.go[0], avance.esr[1] + avance.arr[1] + avance.go[1]); }
       return Promise.all([
         traerDiagnostico(ID_DIAG_ESR, ahoraMs - DIAS_ESR * MS_DIA, ahoraMs, DIAS_ESR, ids, function (h, t) { avance.esr = [h, t]; reportar(); })
           .catch(function (err) { err.message = 'ESR de Geotab: ' + describirError(err); throw err; }),
         traerDiagnostico(ID_DIAG_ARRANQUE, ahoraMs - DIAS_ARRANQUES * MS_DIA, ahoraMs, TRAMO_DIAS_ARRANQUES, ids, function (h, t) { avance.arr = [h, t]; reportar(); })
-          .catch(function (err) { err.message = 'Voltaje de arranque: ' + describirError(err); throw err; })
+          .catch(function (err) { err.message = 'Voltaje de arranque: ' + describirError(err); throw err; }),
+        traerDiagnostico(ID_DIAG_VOLTAJE_GO, ahoraMs - DIAS_VOLTAJE_GO * MS_DIA - RECUPERA_VENTANA_MS, ahoraMs, TRAMO_DIAS_ARRANQUES, ids, function (h, t) { avance.go = [h, t]; reportar(); })
+          .catch(function (err) { err.message = 'Voltaje del GO: ' + describirError(err); throw err; })
       ]).then(function (res) {
-        var esrPorVeh = res[0], arrPorVeh = res[1];
+        var esrPorVeh = res[0], arrPorVeh = res[1], goPorVeh = res[2];
         var filas = vehiculos.map(function (v) {
-          var arranques = segmentarArranques(arrPorVeh[v.id] || []);
+          var arranques = agregarCargaGo(segmentarArranques(arrPorVeh[v.id] || []), goPorVeh[v.id] || []);
           var ev = evaluarVehiculo({ esrPuntos: esrPorVeh[v.id] || [], arranques: arranques, ahoraMs: ahoraMs });
           ev.vehiculo = v;
           ev.serieEsr = esrDiario(esrPorVeh[v.id] || []);

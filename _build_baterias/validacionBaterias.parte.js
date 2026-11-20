@@ -125,7 +125,7 @@
         }, orden: function (f) { return f.cambioMinimoV; } },
       { titulo: 'Recuperación (V)', alinear: 'right', valor: function (f) {
           var s = crear('span', null, fmtVcon(f.recuperacionV));
-          if (f.noRecuperaPct !== null && f.arranques7d >= RECUPERA_MIN_ARRANQUES && f.noRecuperaPct >= RECUPERA_FRACCION) { s.style.color = COLOR_NIVEL[2].texto; s.style.fontWeight = '700'; }
+          if (f.noRecuperaPct !== null && f.arranquesRec7d >= RECUPERA_MIN_ARRANQUES && f.noRecuperaPct >= RECUPERA_FRACCION) { s.style.color = COLOR_NIVEL[2].texto; s.style.fontWeight = '700'; }
           return s;
         }, orden: function (f) { return f.recuperacionV; } },
       { titulo: 'Arranques 7 d', alinear: 'right', valor: function (f) { return f.arranques7d; }, orden: function (f) { return f.arranques7d; } },
@@ -277,7 +277,7 @@
       'Fuente 1 — ESR de Geotab (0-100, "Clasificación del sistema eléctrico"): es la referencia. Se usa si su último dato tiene menos de ' + HORAS_ESR_VIGENTE + ' h. Alerta: ESR < ' + ESR_ALERTA + '. Revisar: ESR < ' + ESR_REVISAR + ' o caída de ' + ESR_CAIDA_PUNTOS + ' pts o más bajo su mediana de ' + DIAS_ESR + ' días.',
       'Fuente 2 — Señales de arranque ("Voltaje de arranque"): de cada arranque se toman reposo, mínimo, caída y recuperación; el estado usa la mediana de los últimos 7 días (mínimo ' + MIN_ARRANQUES_VENTANA + ' arranques). Sin ESR vigente, en 12 V: mínimo < ' + fmtV(MINIMO_VIGILAR_12V) + ' V = Vigilar y < ' + fmtV(MINIMO_REVISAR_12V) + ' V = Revisar (umbrales medidos en esta flota el 09-nov-2026).',
       'Tendencia: el mínimo cae ' + fmtV(TENDENCIA_VIGILAR_V) + ' V o más frente a la semana anterior = Vigilar; ' + fmtV(TENDENCIA_REVISAR_V) + ' V o más = Revisar. El peor cambio semanal visto en la flota fue de 0,2 V.',
-      'Recuperación: si el voltaje tras arrancar queda más de ' + fmtV(-RECUPERA_UMBRAL_V) + ' V por debajo del reposo en ' + Math.round(RECUPERA_FRACCION * 100) + ' % o más de los arranques (mínimo ' + RECUPERA_MIN_ARRANQUES + ') = Revisar alternador o cableado.',
+      'Recuperación: máximo del voltaje del GO en los 5 min siguientes al arranque (no la curva de arranque de ~10 s, que termina antes de que cargue el alternador). Si no llega a ' + fmtV(RECUPERA_CARGA_MIN_12V) + ' V (' + fmtV(RECUPERA_CARGA_MIN_12V * 2) + ' V en 24 V) en ' + Math.round(RECUPERA_FRACCION * 100) + ' % o más de los arranques (mínimo ' + RECUPERA_MIN_ARRANQUES + ') = Revisar alternador o cableado.',
       'Límites: (1) los vehículos de 24 V no tienen ESR de Geotab, por eso no hay umbral absoluto para ellos (marcados "Normal*" cuando no hay novedad): solo se detectan cambios y desviaciones frente a sus pares. (2) El cálculo por señales se calibró con muy pocos casos de baterías malas (3 vehículos con ESR < 30): úselo para priorizar revisión, no para decidir un cambio de batería. (3) Voltajes mostrados en voltios reales; internamente se normalizan a 12 V.',
       '* Normal en un 24 V significa "sin novedad detectable", no "batería comprobada".'
     ];
