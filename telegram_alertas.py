@@ -137,6 +137,7 @@ def cargar_estado():
         "vehiculos_seguimiento": [], "seguimiento_fallas_notificadas": [],
         "seguimiento_revolucion_notificados": [], "seguimiento_dpf_notificados": [],
         "chip_nfc_notificados": [], "regen_seguidas_notificados": [],
+        "fallas_ultimo_aviso": {},
     }
     if not os.path.exists(ESTADO_PATH):
         return default
@@ -160,6 +161,8 @@ def cargar_estado():
             valor = datos.get(clave)
             if isinstance(valor, str):
                 estado[clave] = valor
+        if isinstance(datos.get("fallas_ultimo_aviso"), dict):
+            estado["fallas_ultimo_aviso"] = datos["fallas_ultimo_aviso"]
         valor_update_id = datos.get("ultimo_update_id_procesado")
         if isinstance(valor_update_id, int):
             estado["ultimo_update_id_procesado"] = valor_update_id
@@ -185,6 +188,7 @@ def guardar_estado(estado):
         "seguimiento_dpf_notificados": estado.get("seguimiento_dpf_notificados", [])[-MAX_CLAVES_GUARDADAS:],
         "chip_nfc_notificados": estado.get("chip_nfc_notificados", [])[-MAX_CLAVES_GUARDADAS:],
         "regen_seguidas_notificados": estado.get("regen_seguidas_notificados", [])[-MAX_CLAVES_GUARDADAS:],
+        "fallas_ultimo_aviso": estado.get("fallas_ultimo_aviso", {}),
     }
     with open(ESTADO_PATH, "w", encoding="utf-8") as f:
         json.dump(estado_a_guardar, f)
@@ -1029,7 +1033,24 @@ def _obtener_fallas_activas(api):
 EMOJI_POR_CRITICIDAD = {'ALTA': '🚨', 'MEDIA': '⚠️', 'BAJA': 'ℹ️'}
 
 
-def revisar_fallas_activas(api, activas, devices, dic_diag, dic_fm, mapa_grupos, claves_activas_previas):
+# Una falla MEDIA/ALTA ya avisada que Geotab sigue reportando se vuelve a avisar cada
+# REAVISO_HORAS (caso 1157: el SPN 157 volvió tras la reparación y nadie se enteró).
+REAVISO_HORAS = 24
+CRITICIDADES_REAVISO = ('MEDIA', 'ALTA')
+
+
+def _debe_reavisar(clave, criticidad, ultimo_aviso, ahora):
+    """True si toca re-avisar. Una clave grave sin fecha (avisada antes de esto) arranca el reloj sin avisar."""
+    if criticidad not in CRITICIDADES_REAVISO:
+        return False
+    previo = ultimo_aviso.get(clave)
+    if previo is None:
+        ultimo_aviso[clave] = ahora.isoformat()
+        return False
+    return ahora - datetime.fromisoformat(previo) >= timedelta(hours=REAVISO_HORAS)
+
+
+def revisar_fallas_activas(api, activas, devices, dic_diag, dic_fm, mapa_grupos, claves_activas_previas, ultimo_aviso=None):
     """Consolida TODAS las fallas nuevas de esta corrida (cualquier criticidad, de
     cualquier vehiculo) en UN solo PDF -- mismo generador/diseño que ya usan /reporte,
     el resumen por hora y el reporte de fin de turno (ver generar_pdf_reporte_fallas),
@@ -1044,13 +1065,18 @@ def revisar_fallas_activas(api, activas, devices, dic_diag, dic_fm, mapa_grupos,
     if activas.empty:
         return set(), []
 
+    ultimo_aviso = {} if ultimo_aviso is None else ultimo_aviso
+    ahora = datetime.now(timezone.utc)
     claves_actuales = set()
     filas_nuevas = []
+    n_reavisos = 0
     for _, row in activas.iterrows():
         clave = f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"
         claves_actuales.add(clave)
         if clave in claves_activas_previas:
-            continue
+            if not _debe_reavisar(clave, row['criticidad'], ultimo_aviso, ahora):
+                continue
+            n_reavisos += 1
         filas_nuevas.append(row)
 
     if not filas_nuevas:
@@ -1064,6 +1090,8 @@ def revisar_fallas_activas(api, activas, devices, dic_diag, dic_fm, mapa_grupos,
         f"{emoji} {len(filas_nuevas)} falla(s) nueva(s) en {len(ids_vehiculos_nuevos)} vehículo(s) "
         f"(máxima criticidad: {criticidad_max})"
     )
+    if n_reavisos:
+        caption += f" — {n_reavisos} ya avisada(s) que siguen activas tras {REAVISO_HORAS} h"
 
     ruta_pdf = None
     try:
@@ -1073,9 +1101,12 @@ def revisar_fallas_activas(api, activas, devices, dic_diag, dic_fm, mapa_grupos,
             datos_precomputados=(activas, devices, dic_diag, dic_fm, mapa_grupos),
         )
         nombre_archivo = f"fallas_nuevas_{datetime.now(ZONA_BOGOTA).strftime('%Y%m%d_%H%M')}.pdf"
-        for chat_id in _chat_ids_destino():
-            _enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption)
-        print(f"Total fallas notificadas en esta corrida: {len(filas_nuevas)} (PDF, {len(ids_vehiculos_nuevos)} vehículos)")
+        envios = [_enviar_documento_telegram(chat_id, ruta_pdf, nombre_archivo, caption) for chat_id in _chat_ids_destino()]
+        if any(envios):  # el reloj de re-aviso solo arranca si Telegram confirmó la entrega
+            for row in filas_nuevas:
+                if row['criticidad'] in CRITICIDADES_REAVISO:
+                    ultimo_aviso[f"{row['id_camion']}|{row['diag_id']}|{row['fm_id']}"] = ahora.isoformat()
+        print(f"Total fallas notificadas en esta corrida: {len(filas_nuevas)} (PDF, {len(ids_vehiculos_nuevos)} vehículos, {n_reavisos} re-avisos)")
     except Exception as e:
         print(f"*** No se pudo generar/enviar el PDF de fallas nuevas: {e} ***")
     finally:
@@ -2663,9 +2694,16 @@ def main():
 
         claves_fallas_previas = set(estado['fallas_activas'])
         if AVISO_FALLAS_ACTIVAS:
+            ultimo_aviso = estado.setdefault('fallas_ultimo_aviso', {})
             claves_fallas_actuales, _ = revisar_fallas_activas(
-                api, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas
+                api, activas, devices_falla, dic_diag, dic_fm, mapa_grupos_falla, claves_fallas_previas, ultimo_aviso
             )
+            # Se olvidan relojes viejos (>3 periodos) para que el estado no crezca sin fin. No se purga por
+            # "ya no activa": un código que pulsa a None justo en la corrida reiniciaría su reloj y nunca se re-avisaría.
+            limite = datetime.now(timezone.utc) - timedelta(hours=3 * REAVISO_HORAS)
+            for clave, previo in list(ultimo_aviso.items()):
+                if datetime.fromisoformat(previo) < limite:
+                    del ultimo_aviso[clave]
         else:
             # Sin enviar nada: solo se anotan como vistas (ver AVISO_FALLAS_ACTIVAS).
             claves_fallas_actuales = set() if activas.empty else {
